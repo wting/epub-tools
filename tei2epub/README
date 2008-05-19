@@ -32,10 +32,6 @@ tei2epub requires one non-standard Python module:
 However, feel free to replace it with your favorite Python XML
 library.
 
-It also requires the TEI XSLT which is not included:
-
-  * http://www.tei-c.org/Guidelines/P5/get.xml
-
 and an implementation of ZIP ('zip' by default). 
 
 To configure for your environment, modify:
@@ -57,6 +53,20 @@ extension from our source XML and create a working directory in build/
 and output directory in dist/ with the base name.  Otherwise you can
 override that base name with the second argument.
 
+TEI XSLT
+
+tei2epub comes with a distribution of the TEI p5 stylesheets.  This
+version comes with one slight modification to the code to avoid
+producing documents with multiple duplicate IDs; it is suggested that
+you experiment with your own version of the stylesheets if you get
+validation errors.
+
+For reference, the change is in xhtml/core.xsl at line 1063.
+ 
+Other versions are available from:
+
+  * http://www.tei-c.org/Guidelines/P5/get.xml
+
 
 TESTING
 
@@ -67,7 +77,8 @@ epubcheck is a Java application that can be run from the command line as:
 
   java -jar epubcheck.jar epub-bundle
 
-You will need to unzip the distribution and have a Java runtime to use it.
+tei2epub will automatically run epubcheck after a build, unless
+disabled in settings.py.
 
 
 
