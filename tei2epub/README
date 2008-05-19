@@ -46,7 +46,7 @@ TEI package.  The other pathnames are relative to the project directory.
 
 USAGE
 
-  bin/convert.py path-to-source-xml [alternate output name]
+  bin/tei2epub.py path-to-source-xml [alternate output name]
 
 Without the second argument, tei2epub will strip any path and file
 extension from our source XML and create a working directory in build/
@@ -81,6 +81,10 @@ tei2epub will automatically run epubcheck after a build, unless
 disabled in settings.py.
 
 
+SAMPLE
+
+To test your installation, see instructions in the 'sample' folder,
+which includes a validated TEI document.
 
 
 
