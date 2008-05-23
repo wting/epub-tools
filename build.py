@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 
 def main(*args):
     if len(args) < 4:
-        logging.info("Builds zip and uploads it to Google Code.\n\nUsage: build.py <project> <version> <summary>")
+        logging.info("Builds zip and uploads it to Google Code under the epub-tools project.\n\nUsage: build.py <sub-project> <version> <summary>")
         return 1
     project = args[1]
     project = project.replace('/', '') # Strip any path info
@@ -20,7 +20,7 @@ def main(*args):
 
     (http_status, http_reason, file_url) =  googlecode_upload.upload(package, settings.PROJECT_NAME, settings.USER_NAME, settings.PASSWORD, summary, labels=settings.LABELS[project])
     if http_status != '201':
-        logging.error('File did not upload correctly: %s' % http_reason)
+        logging.error('File did not upload correctly: %s (%s)' % (http_reason, http_status) )
         return 1
     logging.info('Uploaded file with URL %s ' % file_url)
 
