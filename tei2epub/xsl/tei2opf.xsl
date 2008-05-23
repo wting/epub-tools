@@ -15,7 +15,7 @@
       <opf:package unique-identifier="bookid" version="2.0">
         <opf:metadata>
           <dc:title><xsl:apply-templates select="//tei:titleStmt/tei:title" /></dc:title>
-          <dc:creator>threepress</dc:creator>
+          <dc:creator><xsl:apply-templates select="//tei:titleStmt/tei:author" /></dc:creator>
           <dc:language xsi:type="dcterms:RFC3066">en-US</dc:language> 
           <dc:rights>Public Domain</dc:rights>
           <dc:publisher>threepress.org</dc:publisher>
