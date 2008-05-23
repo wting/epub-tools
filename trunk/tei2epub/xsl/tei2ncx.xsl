@@ -48,4 +48,14 @@
       <content src="{$chapter-file}" />
     </navPoint>
   </xsl:template>
+
+  <!-- A bug in Digital Editions means that if multiple tei:heads exist for a given chapter and TEI
+   generates a line break between them, that line break will appear in the spine, causing a 
+   rendering problem. -->
+  <xsl:template match="tei:head">
+    <xsl:value-of select="normalize-space(.)" />
+    <xsl:if test="following-sibling::*[self=tei:head]">
+      <xsl:text>: </xsl:text>
+    </xsl:if>
+  </xsl:template>
 </xsl:stylesheet>
