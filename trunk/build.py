@@ -19,8 +19,8 @@ def main(*args):
     summary = args[3]
 
     (http_status, http_reason, file_url) =  googlecode_upload.upload(package, settings.PROJECT_NAME, settings.USER_NAME, settings.PASSWORD, summary, labels=settings.LABELS[project])
-    if http_status != '201':
-        logging.error('File did not upload correctly: %s (%s)' % (http_reason, http_status) )
+    if http_status != 201:
+        logging.error('File did not upload correctly: %s (%d)' % (http_reason, http_status) )
         return 1
     logging.info('Uploaded file with URL %s ' % file_url)
 
