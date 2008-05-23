@@ -1,36 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet 
-    xmlns:ncx="http://www.daisy.org/z3986/2005/ncx/"
+    xmlns="http://www.daisy.org/z3986/2005/ncx/"
+    version="2.0" 
     xmlns:xsl="http://www.w3.org/1999/XSL/Transform" 
     xmlns:tei="http://www.tei-c.org/ns/1.0"
-    xmlns:opf="http://www.idpf.org/2007/opf"
-    xmlns:dc="http://purl.org/dc/elements/1.1/"
-    xmlns:dcterms="http://purl.org/dc/terms/"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    version="2.0">
-
+    exclude-result-prefixes="tei"
+    >
   <xsl:import href="epub-common.xsl" />
+  <xsl:output method="xml" doctype-public="-//NISO//DTD ncx 2005-1//EN"
+              doctype-system="http://www.daisy.org/z3986/2005/ncx-2005-1.dtd" 
+              />
+
   <xsl:template match="/">
-    <ncx:ncx version="2005-1">
-      <ncx:head>
-        <ncx:meta name="dtb:uid" content="{/tei:TEI/@xml:id}"/>
-        <ncx:meta name="dtb:depth" content="1"/>
-        <ncx:meta name="dtb:totalPageCount" content="0"/>
-        <ncx:meta name="dtb:maxPageNumber" content="0"/>
-      </ncx:head>      
-      <ncx:docTitle>
-        <ncx:text><xsl:apply-templates select="//tei:titleStmt/tei:title" /></ncx:text>
-      </ncx:docTitle>
-      <ncx:navMap>
-        <ncx:navPoint id="navpoint-1" playOrder="1">
-          <ncx:navLabel>
-            <ncx:text>Title Page</ncx:text>
-          </ncx:navLabel>
-          <ncx:content src="title_page.html"/>
-        </ncx:navPoint>  
+    <ncx version="2005-1">
+      <head>
+        <meta name="dtb:uid" content="{/tei:TEI/@xml:id}"/>
+        <meta name="dtb:depth" content="1"/>
+        <meta name="dtb:totalPageCount" content="0"/>
+        <meta name="dtb:maxPageNumber" content="0"/>
+      </head>      
+      <docTitle>
+        <text><xsl:apply-templates select="//tei:titleStmt/tei:title" /></text>
+      </docTitle>
+      <navMap>
+        <navPoint id="navpoint-1" playOrder="1">
+          <navLabel>
+            <text>Title Page</text>
+          </navLabel>
+          <content src="title_page.html"/>
+        </navPoint>  
         <xsl:apply-templates select="//tei:div[@type='chapter']" />
-      </ncx:navMap>
-    </ncx:ncx>
+      </navMap>
+    </ncx>
   </xsl:template>
 
   <xsl:template match="tei:div[@type='chapter']">
@@ -40,11 +41,11 @@
     </xsl:variable>
     
     <!-- Navpoint needs to be +1 on the chapter, to account for the title page -->
-    <ncx:navPoint id="{concat('navpoint-', position() + 1)}" playOrder="{position() + 1}">
-      <ncx:navLabel>
-        <ncx:text><xsl:apply-templates select="tei:head" /></ncx:text>
-      </ncx:navLabel>
-      <ncx:content src="{$chapter-file}" />
-    </ncx:navPoint>
+    <navPoint id="{concat('navpoint-', position() + 1)}" playOrder="{position() + 1}">
+      <navLabel>
+        <text><xsl:apply-templates select="tei:head" /></text>
+      </navLabel>
+      <content src="{$chapter-file}" />
+    </navPoint>
   </xsl:template>
 </xsl:stylesheet>
