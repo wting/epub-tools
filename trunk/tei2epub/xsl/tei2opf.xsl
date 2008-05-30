@@ -26,8 +26,9 @@
           <opf:item id="style" href="stylesheet.css" media-type="text/css"/>
           <!--
           <opf:item id="pagetemplate" href="page-template.xpgt" media-type="application/vnd.adobe-page-template+xml"/>
-          -->
           <opf:item id="titlepage" href="title_page.html" media-type="application/xhtml+xml"/>
+          -->
+
           <xsl:apply-templates select="//tei:div[@type='chapter']" mode="item"/>
           <!--
           <item id="imgl" href="images/sample.jpg" media-type="image/jpeg"/>          

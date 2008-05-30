@@ -16,6 +16,7 @@
       <head>
         <meta name="dtb:uid" content="{/tei:TEI/@xml:id}"/>
         <meta name="dtb:depth" content="1"/>
+        <!-- TODO; should this be included if it is not DTBook content? -->
         <meta name="dtb:totalPageCount" content="0"/>
         <meta name="dtb:maxPageNumber" content="0"/>
       </head>      
@@ -23,12 +24,6 @@
         <text><xsl:apply-templates select="//tei:titleStmt/tei:title" /></text>
       </docTitle>
       <navMap>
-        <navPoint id="navpoint-1" playOrder="1">
-          <navLabel>
-            <text>Title Page</text>
-          </navLabel>
-          <content src="title_page.html"/>
-        </navPoint>  
         <xsl:apply-templates select="//tei:div[@type='chapter']" />
       </navMap>
     </ncx>
@@ -40,8 +35,7 @@
       <xsl:call-template name="chapter-file" />
     </xsl:variable>
     
-    <!-- Navpoint needs to be +1 on the chapter, to account for the title page -->
-    <navPoint id="{concat('navpoint-', position() + 1)}" playOrder="{position() + 1}">
+    <navPoint id="{concat('navpoint-', position())}" playOrder="{position()}">
       <navLabel>
         <text><xsl:apply-templates select="tei:head" /></text>
       </navLabel>
