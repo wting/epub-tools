@@ -14,9 +14,6 @@ def create_html(directory, tree):
         f = '%s/%s/chapter-%d.html' % (directory, settings.OEBPS, i + 1)
         _output_html(f, processed) 
 
-    # Create the title page
-    _output_html('%s/%s/title_page.html' % (directory, settings.OEBPS), '<p>Title page</p>', False)
-
 def _output_html(f, content, xml=True):
     if xml:                     
         xslt = etree.parse(settings.HTMLFRAG2HTML_XSLT)        
