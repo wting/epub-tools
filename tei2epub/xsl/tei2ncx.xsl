@@ -24,20 +24,51 @@
         <text><xsl:apply-templates select="//tei:titleStmt/tei:title" /></text>
       </docTitle>
       <navMap>
-        <xsl:apply-templates select="//tei:div[@type='chapter']" />
+        <xsl:choose>
+          <!-- If we have parts, we want to call them first and nest their subchapters 'inside' -->
+          <xsl:when test="//tei:div[@type='part']">
+            <xsl:apply-templates select="//tei:div[@type='part']" />
+          </xsl:when>
+          <xsl:otherwise>
+            <!-- Otherwise just get all the flattened chapters -->
+            <xsl:apply-templates select="//tei:div[@type='chapter']" />
+          </xsl:otherwise>
+        </xsl:choose>
       </navMap>
     </ncx>
   </xsl:template>
 
-  <xsl:template match="tei:div[@type='chapter']">
+  <!-- For each part, render itself and call its subchapters -->
+  <xsl:template match="tei:div[@type='part']">
+    <xsl:call-template name="create-navpoint" />
+    <xsl:apply-templates select="tei:div[@type='chapter']" />
+  </xsl:template>
 
+  <xsl:template match="tei:div[@type='chapter']">
+    <xsl:call-template name="create-navpoint" />
+  </xsl:template>
+
+  <xsl:template name="create-navpoint">
+    
     <xsl:variable name="chapter-file">
       <xsl:call-template name="chapter-file" />
     </xsl:variable>
-    
-    <navPoint id="{concat('navpoint-', position())}" playOrder="{position()}">
+
+    <xsl:variable name="postemp">
+      <xsl:value-of select="./@xml:id" />
+    </xsl:variable>
+
+    <xsl:variable name="abspos">
+      <xsl:for-each select="//tei:div[@type='chapter' or @type='part']">
+        <xsl:if test="./@xml:id=$postemp">
+          <xsl:value-of select="position()" />
+        </xsl:if>
+      </xsl:for-each>
+    </xsl:variable>
+
+    <navPoint id="{concat('navpoint-', $abspos)}" playOrder="{$abspos}">
       <navLabel>
-        <text><xsl:apply-templates select="tei:head" /></text>
+        <text><xsl:apply-templates select="(tei:head)[1]" /></text>
       </navLabel>
       <content src="{$chapter-file}" />
     </navPoint>

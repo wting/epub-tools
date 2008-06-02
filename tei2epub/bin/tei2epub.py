@@ -9,10 +9,28 @@ def create_html(directory, tree):
     xslt = etree.parse(settings.TEI2XHTML_XSLT)
 
     transform = etree.XSLT(xslt)
-    for (i, element) in enumerate(tree.xpath('//tei:div[@type="%s"]' % settings.TEI_DIV_TYPE, namespaces={'tei': settings.TEI})):
-        processed = transform(element, xhtml="'true'", generateParagraphIDs="'true'")
-        f = '%s/%s/chapter-%d.html' % (directory, settings.OEBPS, i + 1)
-        _output_html(f, processed) 
+
+    _enumerate_div_type(directory, transform, tree, settings.TEI_DIV1_TYPE, 'part', generate_title_page=True)
+    _enumerate_div_type(directory, transform, tree, settings.TEI_DIV2_TYPE, 'chapter')
+
+def _enumerate_div_type(directory, transform, tree, div_type, div_name, generate_title_page = False):
+    '''Accepts a directory path, an XSLT transform object, an XML tree to operate on, 
+       the div/@type value to split on,
+       the label for the div_name, and an optional parameter to generate a title page containing the 
+       div's head rather than rendering content (for use in pages like Part or Book breaks.'''
+
+    for (i, element) in enumerate(tree.xpath('//tei:div[@type="%s"]' % div_type, namespaces={'tei': settings.TEI})):
+        f = '%s/%s/%s-%d.html' % (directory, settings.OEBPS, div_name, i + 1)
+        if generate_title_page:
+            
+            processed = "<h1 class='part'>Part %d</h1>" % (i + 1)
+            title = element.xpath('(tei:head/text())[1]', namespaces={'tei': settings.TEI})
+            if title:
+                processed += "<h2 class='title'>%s</h2>" % title[0].encode('utf-8')
+            _output_html(f, processed, False)
+        else:
+            processed = transform(element, xhtml="'true'", generateParagraphIDs="'true'")
+            _output_html(f, processed)     
 
 def _output_html(f, content, xml=True):
     if xml:                     

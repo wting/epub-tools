@@ -24,25 +24,63 @@
         <opf:manifest>
           <opf:item id="ncx" href="toc.ncx" media-type="text/xml"/>
           <opf:item id="style" href="stylesheet.css" media-type="text/css"/>
-          <!--
-          <opf:item id="pagetemplate" href="page-template.xpgt" media-type="application/vnd.adobe-page-template+xml"/>
-          <opf:item id="titlepage" href="title_page.html" media-type="application/xhtml+xml"/>
-          -->
 
-          <xsl:apply-templates select="//tei:div[@type='chapter']" mode="item"/>
-          <!--
-          <item id="imgl" href="images/sample.jpg" media-type="image/jpeg"/>          
-          -->
+          <xsl:choose>
+            <!-- If we have parts, we want to call them first and nest their subchapters 'inside' -->
+            <xsl:when test="//tei:div[@type='part']">
+              <xsl:apply-templates select="//tei:div[@type='part']" mode="item"/>
+            </xsl:when>
+            <xsl:otherwise>
+              <!-- Otherwise just get all the flattened chapters -->
+              <xsl:apply-templates select="//tei:div[@type='chapter']" mode="item"/>
+            </xsl:otherwise>
+          </xsl:choose>
+
         </opf:manifest>
+
+
         <opf:spine toc="ncx">
-          <xsl:apply-templates select="//tei:div[@type='chapter']" mode="spine"/>
+          <xsl:choose>
+            <!-- If we have parts, we want to call them first and nest their subchapters 'inside' -->
+            <xsl:when test="//tei:div[@type='part']">
+              <xsl:apply-templates select="//tei:div[@type='part']" mode="spine"/>
+            </xsl:when>
+            <xsl:otherwise>
+              <!-- Otherwise just get all the flattened chapters -->
+              <xsl:apply-templates select="//tei:div[@type='chapter']" mode="spine"/>
+            </xsl:otherwise>
+          </xsl:choose>
         </opf:spine>
+
       </opf:package>
-
-
     </xsl:template>
 
+    <!-- Generate parts and their subchapters -->
+    <xsl:template match="tei:div[@type='part']" mode="item">
+      <xsl:call-template name="create-item" />
+
+      <xsl:apply-templates select="tei:div[@type='chapter']" mode="item" />
+    </xsl:template>
+
+    <!-- Generate a chapter -->
     <xsl:template match="tei:div[@type='chapter']" mode="item">
+      <xsl:call-template name="create-item" />
+    </xsl:template>
+
+    <!-- Generate parts and their subchapters -->    
+    <xsl:template match="tei:div[@type='part']" mode="spine">
+      <xsl:call-template name="create-spine" />
+
+      <xsl:apply-templates select="tei:div[@type='chapter']" mode="spine" />
+    </xsl:template>
+
+    <!-- Generate a chapter -->
+    <xsl:template match="tei:div[@type='chapter']" mode="spine">
+      <xsl:call-template name="create-spine" />
+    </xsl:template>
+
+    <!-- Create an OPF item -->
+    <xsl:template name="create-item">
       <xsl:variable name="chapter-name">
         <xsl:call-template name="chapter-name" />
       </xsl:variable>
@@ -53,7 +91,8 @@
       <opf:item id="{$chapter-name}" href="{$chapter-file}" media-type="application/xhtml+xml" />
     </xsl:template>
 
-    <xsl:template match="tei:div[@type='chapter']" mode="spine">
+    <!-- Create an OPF spine -->
+    <xsl:template name="create-spine">
       <xsl:variable name="chapter-name">
         <xsl:call-template name="chapter-name" />
       </xsl:variable>
