@@ -26,12 +26,15 @@ BUILD = '%s/../build' % path
 # zip command
 ZIP = '/usr/bin/zip'
 
-# Arguments to pass to zip (this will specify the order of the files and not to 
-# compress the mimetype file
+# Arguments to pass to zip (this will specify the order of the files and indicate not to 
+# compress the mimetype file)
 ZIP_ARGS = '-qXr9D'
 
-# Configuration specific to your TEI type
-TEI_DIV_TYPE = 'chapter'
+# Configuration specific to your TEI types (div1 = top-level division, div2 = 2nd level division)
+# @todo Note that if you modify these values you will need to make corresponding changes in the XSL
+#       as well; they are not yet hooked up 
+TEI_DIV1_TYPE = 'part'
+TEI_DIV2_TYPE = 'chapter'
 
 # TEI P5 version 5.9 is included in the distribution but could be replaced
 # with a different version (e.g. p4)
@@ -43,6 +46,8 @@ JAVA = '/usr/bin/java'
 # epubcheck location
 EPUBCHECK = '%s/../test/epubcheck.jar' % path
 
+# @todo Change this to read in from a file
+STYLESHEET_CONTENTS = open('%s/../sample/sample.css' % path).read()
 
 # _______________________________________________________________________
 # You should not have to change any items below this as they are standard
@@ -53,9 +58,6 @@ MIMETYPE = 'mimetype'
 MIMETYPE_CONTENT = 'application/epub+zip'
 
 CSS_STYLESHEET = 'stylesheet.css'
-STYLESHEET_CONTENTS = '''
-body { font-family: serif }
-'''
 
 META = 'META-INF'
 
