@@ -38,11 +38,6 @@ To configure for your environment, modify:
 
   bin/settings.py
 
-If you wish to use the project as-is, you should only need to change
-TEI2XHTML_XSLT to point at the directory where you have installed the
-TEI package.  The other pathnames are relative to the project directory.
-
-
 
 USAGE
 

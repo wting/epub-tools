@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TEI.2 xmlns:html="http://www.w3.org/1999/xhtml">
+  <teiHeader>
+    <fileDesc>
+      <titleStmt>
+        <title>The Stylebear: XSL stylesheet maker</title>
+        <author>Sebastian Rahtz</author>
+      </titleStmt>
+      <publicationStmt>
+        <p/>
+      </publicationStmt>
+      <sourceDesc>
+        <p/>
+      </sourceDesc>
+    </fileDesc>
+    <revisionDesc>
+      <change>
+        <date>$Date: 2007-01-08 22:50:01 +0000 (Mon, 08 Jan 2007) $.</date>
+        <respStmt>
+          <name>$Author: rahtz $</name>
+        </respStmt>
+        <item>$Revision: 1964 $</item>
+      </change>
+    </revisionDesc>
+  </teiHeader>
+  <text>
+    <body>
+      <html:form encoding="utf-8" enctype="multipart/form-data" action="/tei-bin/stylebear" method="post" id="stylebear">
+        <p>Make stylesheet for: 
+    <html:select name="Version"><html:option value="teip4">TEI P4</html:option><html:option value="tei" selected="selected">TEI P5</html:option></html:select></p>
+        <p>Location of XSL stylesheets:
+ <html:input type="textbox" name="TEIXSL" size="48" value="http://www.tei-c.org/release/xml"/></p>
+        <p>Name of output file:
+ <html:input type="textbox" name="outputFile" value="myTei.xsl"/></p>
+        <p>
+          <hi>Time to work!</hi>
+        </p>
+        <list>
+          <item>
+            <html:input value="Submit" type="submit"/>
+          </item>
+          <item>
+            <html:input value="Reset" type="reset"/>
+          </item>
+        </list>
+      </html:form>
+    </body>
+  </text>
+</TEI.2>

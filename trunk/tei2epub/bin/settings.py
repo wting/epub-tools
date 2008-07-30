@@ -38,7 +38,7 @@ TEI_DIV2_TYPE = 'chapter'
 
 # TEI P5 version 5.9 is included in the distribution but could be replaced
 # with a different version (e.g. p4)
-TEI2XHTML_XSLT = '%s/../xsl/tei/tei-xsl-5.9/p5/xhtml/tei.xsl' % path
+TEI2XHTML_XSLT = '%s/../xsl/tei/tei-xsl-5.12/p5/xhtml/tei.xsl' % path
 
 # Our Java executable
 JAVA = '/usr/bin/java'
