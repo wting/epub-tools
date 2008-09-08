@@ -4,6 +4,8 @@ from lxml import etree
 
 import settings
 
+log = logging.getLogger('tei2epub')
+
 def create_html(directory, tree):
     '''Generate the HTML files that make up each chapter in the TEI document.'''
     xslt = etree.parse(settings.TEI2XHTML_XSLT)
@@ -47,10 +49,9 @@ def _output_html(f, content, xml=True):
   </body>
 </html>
 ''' % ('test', content)
-    logging.debug('Outputting file %s' % f)
-    content = open(f, 'w')    
-    content.write(html)
-    content.close()
+    output = open(f, 'w')    
+    output.write(html)
+    output.close()
 
 def create_content(directory, tree):
     '''Create the content file based on our TEI source'''
@@ -67,7 +68,7 @@ def create_navmap(directory, tree):
     _output_xml(f, processed)
 
 def _output_xml(f, xml):
-    logging.debug('Outputting file %s' % f)
+    log.debug('Outputting file %s' % f)
     content = open(f, 'w')
     content.write(etree.tostring(xml, encoding='utf-8', pretty_print=True, xml_declaration=True))
     content.close()
@@ -75,7 +76,7 @@ def _output_xml(f, xml):
 def create_mimetype(directory):
     '''Create the mimetype file'''
     f = '%s/%s' % (directory, settings.MIMETYPE)
-    logging.debug('Creating mimetype file %s' % f)
+    log.debug('Creating mimetype file %s' % f)
     f = open(f, 'w')
     f.write(settings.MIMETYPE_CONTENT)
     f.close()
@@ -90,7 +91,7 @@ def create_folders(directory):
 def create_container(directory):
     '''Create the OPF container file'''
     f = '%s/%s/%s' % (directory, settings.META, settings.CONTAINER)
-    logging.debug('Creating container file %s' % f)
+    log.debug('Creating container file %s' % f)
     f = open(f, 'w')
     f.write(settings.CONTAINER_CONTENTS)
     f.close()
@@ -98,7 +99,7 @@ def create_container(directory):
 def create_stylesheet(directory):
     '''Create the stylesheet file'''
     f = '%s/%s/%s' % (directory, settings.OEBPS, settings.CSS_STYLESHEET)
-    logging.debug('Creating CSS file %s' % f)
+    log.debug('Creating CSS file %s' % f)
     f = open(f, 'w')
     f.write(settings.STYLESHEET_CONTENTS)
     f.close()
@@ -131,7 +132,7 @@ def main(*args):
         directory = '%s/%s' % (settings.BUILD, args[2])
     else:
         if not '.xml' in source:
-            logging.error('Source file must have a .xml extension')
+            log.error('Source file must have a .xml extension')
             return 1
         directory = '%s/%s' % (settings.BUILD, os.path.basename(source).replace('.xml', ''))
 
@@ -144,10 +145,10 @@ def main(*args):
         os.mkdir(settings.DIST)
 
     if os.path.exists(directory):
-        logging.debug('Removing previous output directory %s' % directory)
+        log.debug('Removing previous output directory %s' % directory)
         shutil.rmtree(directory)
 
-    logging.debug('Creating directory %s' % directory)
+    log.debug('Creating directory %s' % directory)
     os.mkdir(directory)
 
     # Create the epub content
@@ -166,7 +167,7 @@ def main(*args):
     if settings.VALIDATE:
         return validate(directory)
 
-    logging.warn('Skipping validation step')
+    log.warn('Skipping validation step')
     return 0
 
 

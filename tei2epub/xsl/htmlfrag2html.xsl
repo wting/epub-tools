@@ -5,7 +5,7 @@
     version="2.0">
 
   <xsl:import href="epub-common.xsl" />
-  <xsl:output method="html" encoding="utf-8" omit-xml-declaration="yes" indent="yes"/>
+  <xsl:output method="xml" encoding="utf-8" omit-xml-declaration="yes" indent="yes"/>
 
   <xsl:template match="/">
     <html xmlns="http://www.w3.org/1999/xhtml">
