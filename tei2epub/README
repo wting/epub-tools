@@ -70,7 +70,9 @@ at http://code.google.com/p/epubcheck/
 
 epubcheck is a Java application that can be run from the command line as:
 
-  java -jar epubcheck.jar epub-bundle
+  java -jar epubcheck-xxx.jar epub-bundle.epub
+
+Where xxx is the version number of the included version of epubcheck.
 
 tei2epub will automatically run epubcheck after a build, unless
 disabled in settings.py.

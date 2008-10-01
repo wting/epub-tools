@@ -44,7 +44,7 @@ TEI2XHTML_XSLT = '%s/../xsl/tei/tei-xsl-5.12/p5/xhtml/tei.xsl' % path
 JAVA = '/usr/bin/java'
 
 # epubcheck location
-EPUBCHECK = '%s/../test/epubcheck-1.0.0.jar' % path
+EPUBCHECK = '%s/../test/epubcheck-1.0.1.jar' % path
 
 # @todo Change this to read in from a file
 STYLESHEET_CONTENTS = open('%s/../sample/sample.css' % path).read()
