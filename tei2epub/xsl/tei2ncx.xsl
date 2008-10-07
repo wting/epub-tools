@@ -41,7 +41,6 @@
   <!-- For each part, render itself and call its subchapters -->
   <xsl:template match="tei:div[@type='part']">
     <xsl:call-template name="create-navpoint" />
-    <xsl:apply-templates select="tei:div[@type='chapter']" />
   </xsl:template>
 
   <xsl:template match="tei:div[@type='chapter']">
@@ -71,6 +70,7 @@
         <text><xsl:apply-templates select="(tei:head)[1]" /></text>
       </navLabel>
       <content src="{$chapter-file}" />
+      <xsl:apply-templates select="tei:div[@type='chapter']" />
     </navPoint>
   </xsl:template>
 
