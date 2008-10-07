@@ -19,7 +19,7 @@ def _enumerate_div_type(directory, transform, tree, div_type, div_name, generate
     '''Accepts a directory path, an XSLT transform object, an XML tree to operate on, 
        the div/@type value to split on,
        the label for the div_name, and an optional parameter to generate a title page containing the 
-       div's head rather than rendering content (for use in pages like Part or Book breaks.'''
+       div's head rather than rendering content (for use in pages like Part or Book breaks.)'''
 
     for (i, element) in enumerate(tree.xpath('//tei:div[@type="%s"]' % div_type, namespaces={'tei': settings.TEI})):
         f = '%s/%s/%s-%d.html' % (directory, settings.OEBPS, div_name, i + 1)
