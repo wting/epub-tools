@@ -18,10 +18,10 @@ def main(*args):
     
     summary = args[3]
 
-    (http_status, http_reason, file_url) =  googlecode_upload.upload(package, settings.PROJECT_NAME, settings.USER_NAME, settings.PASSWORD, summary, labels=[settings.LABELS[project]])
-    if http_status != 201:
-        logging.error('File did not upload correctly: %s (%d)' % (http_reason, http_status) )
-        return 1
+#    (http_status, http_reason, file_url) =  googlecode_upload.upload(package, settings.PROJECT_NAME, settings.USER_NAME, settings.PASSWORD, summary, labels=[settings.LABELS[project]])
+#    if http_status != 201:
+#        logging.error('File did not upload correctly: %s (%d)' % (http_reason, http_status) )
+#        return 1
     logging.info('Uploaded file with URL %s ' % file_url)
 
 def create_package(project, version):
@@ -31,8 +31,9 @@ def create_package(project, version):
     if os.path.exists(dist):
         logging.info('Removing previous build at %s' % dist)
         os.system('rm -rf %s' % dist)
-
-    os.system('svn export %s %s' % (project, dist))
+    project_folder = project.replace('2epub', '')
+    os.system('svn export epubtools/%s %s' % (project_folder, dist))
+    os.system('svn export epubtools/epub %s/epub' % (dist))
     os.chdir('dist')
     filename = '%s-%s.zip' % (project, version)
     os.system('zip -rq %s %s' % (filename, project))
