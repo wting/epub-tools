@@ -24,10 +24,6 @@ def main(*args):
         return 1
     logging.info('Uploaded file with URL %s ' % file_url)
 
-
-
-    
-
 def create_package(project, version):
 
     dist = 'dist/%s' % project
@@ -37,9 +33,7 @@ def create_package(project, version):
         os.system('rm -rf %s' % dist)
 
     os.system('svn export %s %s' % (project, dist))
-
     os.chdir('dist')
-
     filename = '%s-%s.zip' % (project, version)
     os.system('zip -rq %s %s' % (filename, project))
     
