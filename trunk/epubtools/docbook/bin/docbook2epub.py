@@ -4,6 +4,7 @@ import sys, os, os.path, logging, shutil
 import settings
 
 sys.path.append('../..')
+sys.path.append('..')
 import epub
 
 log = logging.getLogger('docbook2epub')

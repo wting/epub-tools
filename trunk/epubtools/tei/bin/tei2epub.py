@@ -4,6 +4,7 @@ from lxml import etree
 import settings
 
 sys.path.append('../..')
+sys.path.append('..')
 import epub
 
 
