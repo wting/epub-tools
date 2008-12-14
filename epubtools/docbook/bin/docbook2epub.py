@@ -3,8 +3,9 @@ from lxml import etree
 import sys, os, os.path, logging, shutil
 import settings
 
-sys.path.append('../..')
-sys.path.append('..')
+sys.path.append(os.path.join(os.path.split(os.path.abspath(__file__))[0], '../..'))
+sys.path.append(os.path.join(os.path.split(os.path.abspath(__file__))[0], '..'))
+
 import epub
 
 log = logging.getLogger('docbook2epub')
@@ -44,7 +45,7 @@ def convert(docbook_file):
         return epub.validate(path)
 
     # Clean up the output directory
-    shutil.rmtree(path)
+    #shutil.rmtree(path)
 
     log.info("Created epub archive as '%s'" % epub_archive)
 

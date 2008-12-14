@@ -7,4 +7,4 @@ MIMETYPE_CONTENT = 'application/epub+zip'
 COVER_IS_LINEAR = False
 DOCBOOK_XSL = '/home/liza/src/docbook/epub/docbook.xsl'
 
-VALIDATE = True
+VALIDATE = False

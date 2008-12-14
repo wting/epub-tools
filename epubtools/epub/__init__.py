@@ -16,10 +16,18 @@ def find_resources(path):
         # If the resource was not already created by DocBook XSL itself, 
         # copy it into the OEBPS folder
         href = item.attrib['href']
-        referenced_file = os.path.join(path, 'OEBPS', href)
-        if not os.path.exists(referenced_file):
-            log.debug("Copying '%s' into content folder" % href)
-            shutil.copy(href, '%s/OEBPS' % path)
+        paths = os.path.split(href)
+        current_path = os.path.join(path, 'OEBPS')
+        if paths[0] != '':
+            p = os.path.join(current_path, paths[0])
+            if not os.path.exists(p):
+                log.debug("Creating subdir %s in content folder %s" % (paths[0], current_path))
+                os.makedirs(p)
+            shutil.copy(href, p)
+        else:
+            if not os.path.exists(os.path.join(current_path, paths[1])):
+                log.debug("Copying '%s' into content folder" % paths[1])
+                shutil.copy(paths[1], current_path)
     
 def create_mimetype(path):
     '''Create the mimetype file'''
@@ -46,11 +54,13 @@ def create_archive(path):
     epub.write(settings.MIMETYPE, compress_type=zipfile.ZIP_STORED)
     
     # For the remaining paths in the EPUB, add all of their files using normal ZIP compression
-    for p in os.listdir('.'):
-        if os.path.isdir(p):
-            for f in os.listdir(p):
-                log.debug("Writing file '%s/%s'" % (p, f))
-                epub.write(os.path.join(p, f), compress_type=zipfile.ZIP_DEFLATED)
+    for dirpath, dirnames, filenames in os.walk('.', topdown=False):
+        for name in filenames:
+            if name == epub_name:
+                continue
+            f = os.path.join(dirpath, name) 
+            log.debug("Writing file %s" % f)
+            epub.write(f, compress_type=zipfile.ZIP_DEFLATED)
     epub.close()
     shutil.move(epub_name, cwd)
     os.chdir(cwd)
