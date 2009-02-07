@@ -58,28 +58,35 @@
          var abs_container_bottom = $('#content').position().top + 600;
          var target_height = null;
          var para_offset = null;
+         var obscured_para = null;
+         var last_unobscured_para = null;
 
          // Find the paragraph that's below the bounding box
          $('#content p:visible').each(function() {
-            var top = parseInt($(this).position().top);
-            para_offset = parseInt(top + $(this).height() + $('#content').position().top);
-//            console.log($(this).text() + ' top: ' + top + ' para_offset: ' + para_offset + ' abs_container_bottom: ' + abs_container_bottom);
+            var top = parseInt($(this).offset().top);
+            para_offset = parseInt(top + $(this).height());
+            var line_height = parseInt($(this).css('line-height').replace('px', ''));
+            console.log($(this).text() + ' top: ' + top + ' para_offset: ' + para_offset + ' abs_container_bottom: ' + abs_container_bottom + ' line-height: ' + line_height);
             if (para_offset > abs_container_bottom) {
-               if ( top > abs_container_bottom) {
+               var top_with_padding = top + (line_height / 2);
+               console.log('Checking top_with_padding ' + top_with_padding + ' vs ' + abs_container_bottom);
+               if ( top_with_padding > abs_container_bottom) {
                  // We went too far; this paragraph starts below the fold.
                  // This means the previous paragraph broke acceptably, so just return
-                 console.log('This paragraph is below the fold.');
+                 console.log('This paragraph is below the fold, returning wth last_unobscured_para as \n:' + last_unobscured_para.html());
                  return false;
                }
                obscured_para = $(this);
                var letter_width = obscured_para.css('font-size').replace('px', '');
-               var line_height  = obscured_para.css('line-height').replace('px', '');
                var para_width   = obscured_para.css('width').replace('px', '');
                target_height    = abs_container_bottom - line_height;
                return false;
             }
+            last_unobscured_para = $(this);
+
          });
-         if (obscured_para.text() != '') {
+
+         if (obscured_para != null && obscured_para.text() != '') {
             text_overflow = new Array();
 
             while (para_offset > target_height) {
@@ -98,15 +105,20 @@
 
             // Put the overflow text into a new paragraph after the last one
             obscured_para.after($('<p/>').text(text_overflow.reverse().join(' ')));
-            console.log('hidden remainder: ' + obscured_para.nextAll('p').html());
+            console.log('hidden remainder: ' + obscured_para.next('p').html());
             // Hide all the remaining paragraphs
             obscured_para.nextAll('p').hide();
-
-            status = new Object();
-            status.top = $($('#content p:visible')[0]);
-            status.bottom = obscured_para.next('p');
-            page_stack.push(status);
         }
+        status = new Object();
+        status.top = $($('#content p:visible')[0]);
+        if (obscured_para != null) {
+           status.bottom = obscured_para;
+        }
+        else {
+           status.bottom = last_unobscured_para;
+           last_unobscured_para.nextAll('p').hide();
+        }
+        page_stack.push(status);
         $('#content p').css('color','black');
       }
       function load_content() {
@@ -115,19 +127,35 @@
       }
       function next() {
         top = page_stack[page_stack.length-1].bottom;
-        console.log('next new top: ' + top.html());
+
+        console.log('next new top: ' + top.next('p').html());
+
         top.prevAll('p').hide();
-        top.show();
+        top.hide();
+//        top.show();
         top.nextAll('p').show();
         process_content();
       }
       function previous() {
+        // Do nothing if we have no pages to go back to
+        if (page_stack.length < 2) {
+          return null;
+        }
         status = page_stack.pop();
+        console.log('Top after first pop: ' + status.top.html());
+        console.log('Bottom after first pop: ' + status.bottom.html());
+        status.top.hide();
+//        status.top.nextAll('p').show();
+
         status = page_stack.pop();
+        console.log('Top after second pop: ' + status.top.html());
+        console.log('Bottom after second pop: ' + status.bottom.html());
+
         console.log('previous top ' + status.top.html());
         console.log('previous bottom ' + status.bottom.html());
+        status.bottom.hide();
         status.top.show();
-        status.top.nextAll('p').show();
+        status.top.nextAll('p:hidden').show();
         process_content();
       }
       function toc(f) {
