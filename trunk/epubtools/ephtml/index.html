@@ -7,6 +7,7 @@
       body {
         font-family: georgia;
         line-height: 1.5em;
+        background-color: rgb(245,245,245);
       }
       .clear { display: inline-block;
       }   
@@ -26,6 +27,7 @@
         padding: 20px;
         height: 600px;
         overflow:hidden;
+        background-color:white;
       }
       a:visited, a:link {
         color: rgb(90,90,90);
@@ -196,7 +198,6 @@
         if (status.top.prev('p').length == 0) {
           return previous_chapter();
         }
-        status = page_stack.pop();
         status.top.hide();
         status = page_stack.pop();
         status.bottom.hide();
