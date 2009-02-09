@@ -60,10 +60,14 @@
          text-decoration: none;
       }
     </style>
+    <script src="http://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+      google.load("jquery", "1.3");
+    </script>
+
   </head>
   <body>
 
-    <script type="text/javascript" src="jquery-1.3.1.min.js" ></script>
     <script type="text/javascript">
       var page_stack = new Array();
       var epub_dir = 'epub';
@@ -89,15 +93,13 @@
          $('#content p:visible').each(function() {
             var top = parseInt($(this).offset().top);
             para_offset = parseInt(top + $(this).height());
-//            var line_height = parseInt($(this).css('line-height').replace('px', ''));
             var line_height = parseInt($(this).css('line-height').replace('px', ''));
-  //          console.log(' top: ' + top + ' para_offset: ' + para_offset + ' abs_container_bottom: ' + abs_container_bottom + ' line-height: ' + line_height);
+
             if (para_offset > abs_container_bottom) {
                var top_with_padding = top + (line_height);
                if ( top_with_padding > abs_container_bottom) {
                  // We went too far; this paragraph starts below the fold.
                  // This means the previous paragraph broke acceptably, so just return
-                 //console.log('This paragraph is below the fold, returning wth last_unobscured_para as \n:' + last_unobscured_para.html());
                  return false;
                }
                obscured_para = $(this);
@@ -139,7 +141,7 @@
 
             // Put the overflow text into a new paragraph after the last one
             obscured_para.after($('<p/>').text(text_overflow.reverse().join(' ')));
-//            console.log('hidden remainder: ' + obscured_para.next('p').html());
+
             // Hide all the remaining paragraphs
             obscured_para.nextAll('p').hide();
         }
@@ -300,7 +302,7 @@
       <h1 id="content-title" ></h1>
       <div id="content"></div>
     </div>
-
-
+    <p style="margin:auto;font-size:smaller;text-align:center;color:gray">Usage: 'right-arrow' for next page, 'left-arrow' for previous page, 'down-arrow' for next chapter, 'up-arrow' for previous chapter</p>
+    <p style="margin:auto;font-size:smaller;text-align:center;color:gray">Current support: Firefox only, February 9, 2009</p> 
   </body>
 </html>
