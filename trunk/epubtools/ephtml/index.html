@@ -11,20 +11,25 @@
       .clear { display: inline-block;
       }   
       .clear:after, .book:after {
-      content: "."; 
-      display: block; 
-      height: 0; 
-      clear: both; 
-      visibility: hidden;
+        content: "."; 
+        display: block; 
+        height: 0; 
+        clear: both; 
+        visibility: hidden;
       }
       * html .clear { height: 1%; }
       .clear { display: block; }
       #book { 
         width: 800px;
         margin:auto;
-        border: 1px solid black;
+        border: 1px dotted rgb(210, 210, 210);
+        padding: 20px;
         height: 600px;
         overflow:hidden;
+      }
+      a:visited, a:link {
+        color: rgb(90,90,90);
+        text-decoration:none;
       }
       #toc-container {
         float:left;
@@ -40,22 +45,39 @@
         float:right;
         width:600px;      
         padding-right: 1em;
+        padding-left: 1em;
+        border-left: 2px solid rgb(210,210,210);
+      }
+      #content-title {
+        float:right;
+        width:600px;      
+      }
+      a.selected {
+         font-weight: bold;
+         color: black;
+         text-decoration: none;
       }
     </style>
   </head>
   <body>
 
-    <script src="http://www.google.com/jsapi"></script>
-    <script type="text/javascript">
-      google.load("jquery", "1.3");
-    </script>
+    <script type="text/javascript" src="jquery-1.3.1.min.js" ></script>
     <script type="text/javascript">
       var page_stack = new Array();
-
+      var epub_dir = 'epub';
+      var oebps_dir = '';
+      var opf_file = null;
+      var ncx_file = null;
+      var abs_container_bottom = null;
+          
       function process_content() {
          $('#content p').css('color','white');
+         
+         if (abs_container_bottom == null) {    
+            // This won't be accurate until the content is first loaded
+            abs_container_bottom = $('#book').height() + $('#book').offset().top;
+         }
 
-         var abs_container_bottom = $('#content').position().top + 600;
          var target_height = null;
          var para_offset = null;
          var obscured_para = null;
@@ -65,15 +87,15 @@
          $('#content p:visible').each(function() {
             var top = parseInt($(this).offset().top);
             para_offset = parseInt(top + $(this).height());
+//            var line_height = parseInt($(this).css('line-height').replace('px', ''));
             var line_height = parseInt($(this).css('line-height').replace('px', ''));
-            console.log($(this).text() + ' top: ' + top + ' para_offset: ' + para_offset + ' abs_container_bottom: ' + abs_container_bottom + ' line-height: ' + line_height);
+  //          console.log(' top: ' + top + ' para_offset: ' + para_offset + ' abs_container_bottom: ' + abs_container_bottom + ' line-height: ' + line_height);
             if (para_offset > abs_container_bottom) {
-               var top_with_padding = top + (line_height / 2);
-               console.log('Checking top_with_padding ' + top_with_padding + ' vs ' + abs_container_bottom);
+               var top_with_padding = top + (line_height);
                if ( top_with_padding > abs_container_bottom) {
                  // We went too far; this paragraph starts below the fold.
                  // This means the previous paragraph broke acceptably, so just return
-                 console.log('This paragraph is below the fold, returning wth last_unobscured_para as \n:' + last_unobscured_para.html());
+                 //console.log('This paragraph is below the fold, returning wth last_unobscured_para as \n:' + last_unobscured_para.html());
                  return false;
                }
                obscured_para = $(this);
@@ -86,26 +108,36 @@
 
          });
 
+         // Given a paragraph that needs to be broken, find the minimum displayable
+         // text and push the remaining text to a new paragraph.
+         // This could be improved by accelerating quickly when the disparity between
+         // the current height and target height are great. 
+         // Also investigate methods to preserve the DOM integrity of the original
+         // by wrapping the overflow into a hidden span rather than by segmenting
+         // it into a new paragraph.
+         
          if (obscured_para != null && obscured_para.text() != '') {
             text_overflow = new Array();
 
             while (para_offset > target_height) {
               t = obscured_para.text();
               index = t.length - 1;
+              // Jump by word
               while (index > 0 && t.charAt(index) != ' ') {
                  index--;
               }
+              text_overflow.push(t.substr(index + 1, t.length - 1));
+              obscured_para.text(t.substr(0, index));
               if (index == 0) {
                 break;
               }
-              text_overflow.push(t.substr(index + 1, t.length - 1));
-              obscured_para.text(t.substr(0, index));
+
               para_offset = parseInt(obscured_para.position().top + obscured_para.height());
             }
 
             // Put the overflow text into a new paragraph after the last one
             obscured_para.after($('<p/>').text(text_overflow.reverse().join(' ')));
-            console.log('hidden remainder: ' + obscured_para.next('p').html());
+//            console.log('hidden remainder: ' + obscured_para.next('p').html());
             // Hide all the remaining paragraphs
             obscured_para.nextAll('p').hide();
         }
@@ -116,67 +148,147 @@
         }
         else {
            status.bottom = last_unobscured_para;
-           last_unobscured_para.nextAll('p').hide();
+           // Are there any more paragraphs?  If so, hide them
+           if (last_unobscured_para) {
+               last_unobscured_para.nextAll('p').hide();
+           }
         }
         page_stack.push(status);
         $('#content p').css('color','black');
       }
+
+      function fade_content(content) {
+        content.attr('class', 'faded');
+      }
+      
       function load_content() {
-        $('#content').load($(this).attr('href'), null, process_content);
+        page = $(this).attr('href');
+        // Unselect other sections
+        $('.selected').attr('class', 'unselected');
+        $(this).attr('class', 'selected');
+        $('#content').load(page, null, process_content);
         return false;
       }
+
       function next() {
         top = page_stack[page_stack.length-1].bottom;
-
-        console.log('next new top: ' + top.next('p').html());
-
-        top.prevAll('p').hide();
-        top.hide();
-//        top.show();
-        top.nextAll('p').show();
+        if (top) {
+          top.prevAll('p').hide();
+          top.hide();
+          if (top.nextAll('p').length == 0) {
+            return next_chapter();
+          }
+          top.nextAll('p').show();
+        }
+        else {
+          return next_chapter();
+        }
         process_content();
       }
       function previous() {
-        // Do nothing if we have no pages to go back to
-        if (page_stack.length < 2) {
-          return null;
+        // If we have no pages to go back to, call the previous chapter function instead.
+        // This isn't really what the reader probably means -- they want to turn
+        // back to the previous _page_ before the beginning of that chapter,
+        // but we could only potentially do that if we had visited the page already
+        // and had it in the stack.
+        
+        status = page_stack.pop();
+        if (status.top.prev('p').length == 0) {
+          return previous_chapter();
         }
         status = page_stack.pop();
-        console.log('Top after first pop: ' + status.top.html());
-        console.log('Bottom after first pop: ' + status.bottom.html());
         status.top.hide();
-//        status.top.nextAll('p').show();
-
         status = page_stack.pop();
-        console.log('Top after second pop: ' + status.top.html());
-        console.log('Bottom after second pop: ' + status.bottom.html());
-
-        console.log('previous top ' + status.top.html());
-        console.log('previous bottom ' + status.bottom.html());
         status.bottom.hide();
         status.top.show();
         status.top.nextAll('p:hidden').show();
         process_content();
       }
+
+      function next_chapter() {
+        // Simulate a click event on the next chapter after the selected one
+        $('a.selected').parent().next('li').find('a').click();
+
+        // How far is the selected chapter now from the bottom border?
+        var selected_position = $('a.selected').position().top;
+        var height_of_toc = $('a.selected').height();
+
+        if (selected_position - (height_of_toc * 2) > abs_container_bottom / 2) {
+          // Hide the first visible chapter item
+          $('#toc a:visible:eq(0)').hide();
+        }
+      }
+
+      function previous_chapter() {
+        // Simulate a click event on the next chapter after the selected one
+        $('a.selected').parent().prev('li').find('a').click();
+
+        // Have we hidden any chapters that we now want to show?
+        $('#toc a:visible:eq(0)').parent().prev('li').find('a').show();
+
+      }
+
+
+      /* Open the container file to find the resources */
+      function container(f) {
+        opf_file = $(f).find('rootfile').attr('full-path');               
+        // Get the OEPBS dir, if there is one
+        if (opf_file.indexOf('/') != -1) {
+            oebps_dir = opf_file.substr(0, opf_file.lastIndexOf('/'));
+        }
+        opf_file = epub_dir + '/' + opf_file;
+      }
+      
+      /* Open the TOC, get the first item and open it */
       function toc(f) {
+
          $(f).find('navPoint').each(function() { 
             var s = $('<span/>').text($(this).find('text').text());
             var a = $('<a/>').attr('href', $(this).find('content').attr('src'));
             s.appendTo(a);
             a.appendTo($('<li/>').appendTo('#toc'));
          });
+
+         // Click on the desired first item link 
          $('#toc a:eq(1)').click();
       }
+      /* Open the OPF file and read some useful metadata from it */
+      function opf(f) {
+         // Get the document title
+         $('#content-title').html($(f).find('dc\\:title').text() + ' by ' +  $(f).find('dc\\:creator').text());
+
+         // Get the NCX
+         $(f).find('opf\\:item').each(function() {
+           // Cheat and find the first file ending in NCX
+           if ( $(this).attr('href').indexOf('.ncx') != -1) {
+             ncx_file = epub_dir + '/' + oebps_dir + $(this).attr('href');
+             return;
+           }
+         });
+         
+      }
       jQuery(document).ready(function() {
+         jQuery.get(epub_dir + '/META-INF/container.xml', {}, container);
+//         jQuery.get(opf_file, {}, opf);
+//         jQuery.get(toc_file, {}, toc);
+         jQuery.get('content.opf', {}, opf);
          jQuery.get('toc.ncx', {}, toc);
+
+
          $('#toc a').live('click', load_content);
          $(document).bind('keypress', function(e) {
            var code = (e.keyCode ? e.keyCode : e.which);
-           if (code == 39) {
+           if (code == 39 || code == 110 ) {  // right or 'n'
              next();
            }
-           if (code == 37) {
+           if (code == 37 || code == 112) {  // left or 'p'
              previous();
+           }
+           if (code == 40 || code == 106 ) { // down  or 'j'
+             next_chapter();
+           }
+           if (code == 38 || code == 107 ) { // up or 'k'
+             previous_chapter();
            }
          });
         }
@@ -184,7 +296,8 @@
     </script>
     <div id="book" class="clear">
       <div id="toc-container"><ol id="toc" /></div>
-      <div id="content" />
+      <h1 id="content-title" ></h1>
+      <div id="content"></div>
     </div>
 
 
