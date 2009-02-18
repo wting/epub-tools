@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
   <head>
     <title>ePub js test</title>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8" ></meta>    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
     <style type="text/css">
       body {
         font-family: georgia;
@@ -59,15 +59,25 @@
          color: black;
          text-decoration: none;
       }
+      #total-size {
+        width: 500px;
+        height: 5px;
+        margin-left: 200px;
+        border: 1px solid rgb(200,200,200);
+        clear:right;
+      }
+      #remaining {
+        background-color:rgb(200,200,200);
+        height: 5px;
+        width:0;
+      }
     </style>
     <script src="http://www.google.com/jsapi"></script>
     <script type="text/javascript">
       google.load("jquery", "1.3");
     </script>
-
   </head>
   <body>
-
     <script type="text/javascript">
       var page_stack = new Array();
       var epub_dir = 'epub';
@@ -144,8 +154,9 @@
 
             // Hide all the remaining paragraphs
             obscured_para.nextAll('p').hide();
+
         }
-        status = new Object();
+        var status = new Object();
         status.top = $($('#content p:visible')[0]);
         if (obscured_para != null) {
            status.bottom = obscured_para;
@@ -159,6 +170,29 @@
         }
         page_stack.push(status);
         $('#content p').css('color','black');
+
+        // Now look at what is visible and figure out what page this is
+        var num_chars = 0;
+        $('#content p:visible').each(function() {
+          num_chars += $(this).text().length;
+        });
+        var num_chars_invisible = 0;
+        $('#content p:hidden').each(function() {
+          num_chars_invisible += $(this).text().length;
+        });
+        var num_chars_before = 0;
+        status.top.prevAll('p').each(function() {
+          num_chars_before += $(this).text().length;
+        });
+
+        var invisible = 500 / num_chars_invisible;
+        var all = num_chars_invisible + num_chars;
+        var percent = num_chars_before / all;
+        if (num_chars_invisible == num_chars_before) {
+          percent = 1;
+        }
+        var width = 500 * percent;
+        $('#remaining').css('width', width + 'px');
       }
 
       function fade_content(content) {
@@ -196,7 +230,7 @@
         // but we could only potentially do that if we had visited the page already
         // and had it in the stack.
         
-        status = page_stack.pop();
+        var status = page_stack.pop();
         if (status.top.prev('p').length == 0) {
           return previous_chapter();
         }
@@ -220,6 +254,7 @@
           // Hide the first visible chapter item
           $('#toc a:visible:eq(0)').hide();
         }
+        $('#remaining').css('width', '0px');
       }
 
       function previous_chapter() {
@@ -229,6 +264,7 @@
         // Have we hidden any chapters that we now want to show?
         $('#toc a:visible:eq(0)').parent().prev('li').find('a').show();
 
+        $('#remaining').css('width', '0px');
       }
 
 
@@ -279,18 +315,18 @@
 
 
          $('#toc a').live('click', load_content);
-         $(document).bind('keypress', function(e) {
+         $(document).bind('keydown', function(e) {
            var code = (e.keyCode ? e.keyCode : e.which);
-           if (code == 39 || code == 110 ) {  // right or 'n'
+           if (code == 39 || code == 78 ) {  // right or 'n'
              next();
            }
-           if (code == 37 || code == 112) {  // left or 'p'
+           if (code == 37 || code == 80) {  // left or 'p'
              previous();
            }
-           if (code == 40 || code == 106 ) { // down  or 'j'
+           if (code == 40 || code == 74) { // down  or 'j'
              next_chapter();
            }
-           if (code == 38 || code == 107 ) { // up or 'k'
+           if (code == 38 || code == 75 ) { // up or 'k'
              previous_chapter();
            }
          });
@@ -298,11 +334,12 @@
       );
     </script>
     <div id="book" class="clear">
-      <div id="toc-container"><ol id="toc" /></div>
+      <div id="toc-container"><ol id="toc"></ol></div>
       <h1 id="content-title" ></h1>
+      <div id="total-size"><div id="remaining"></div></div>
       <div id="content"></div>
     </div>
     <p style="margin:auto;font-size:smaller;text-align:center;color:gray">Usage: 'right-arrow' for next page, 'left-arrow' for previous page, 'down-arrow' for next chapter, 'up-arrow' for previous chapter</p>
-    <p style="margin:auto;font-size:smaller;text-align:center;color:gray">Current support: Firefox only, February 9, 2009</p> 
+    <p style="margin:auto;font-size:smaller;text-align:center;color:gray">Current support: Firefox, Safari. As of February 17, 2009</p> 
   </body>
 </html>
