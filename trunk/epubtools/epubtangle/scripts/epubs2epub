@@ -1,0 +1,62 @@
+#!/usr/bin/env python2.5
+# encoding: utf-8
+"""
+epub2epub
+
+Created by Keith Fahlgren on Tue Mar 17 21:01:15 PDT 2009
+"""
+
+import logging
+import os.path
+import sys
+
+from optparse import OptionParser
+
+log = logging.getLogger(__name__)
+
+def parse_args(args):
+    """Parse our options and set up the logger."""
+    parser = OptionParser(usage="""%prog [options] -o {output.epub} EPUBS
+    Render the ePubs provided into a single ePub anthology. Preserve the supplied order 
+    when creating the anthology.""")
+    parser.add_option("-d", "--debug", action="store_true", dest="debug",     help='Output a lot more logging information.')
+    parser.add_option("--log", dest="logfile", metavar='FILENAME',            help="Use the specified log file rather than standard out for logging")
+    parser.add_option("-o", "--output", dest="outputfile",                    help="Save the anthology at the provided filename.")
+    parser.add_option("-v", "--verbose", action="store_true", dest="verbose", help='Output more logging information.')
+    parser.add_option("-q", "--quiet", action="store_true", dest="quiet",     help='Output less logging information.')
+    (options, args) = parser.parse_args(args)
+
+    if not(options.outputfile):
+        parser.error('Please provide an filename for the resulting ePub.')
+    elif len(args) < 2:
+        parser.print_help()
+    elif len(args) < 3:
+        parser.error('Please provide at least 2 ePub documents as arguments.')
+
+    if options.debug:
+        level=logging.DEBUG
+        format='%(asctime)s %(filename)s:%(lineno)d %(levelname)s %(message)s'
+    elif options.verbose:
+        level=logging.INFO
+        format='%(asctime)s %(filename)s:%(lineno)d %(levelname)s %(message)s'
+    elif options.quiet:
+        level=logging.ERROR
+        format='%(message)s %(levelname)s %(asctime)s'
+    else:
+        level=logging.WARNING
+        format='%(message)s %(levelname)s %(asctime)s'
+    if options.logfile:
+        logging.basicConfig(level=level,
+                            format=format,
+                            filename=options.logfile,
+                            filemode='a')
+    else:
+        logging.basicConfig(level=level,
+                            format=format,)
+    return (options, args)
+
+def main(args):
+    (options, args) = parse_args(args)
+
+if __name__ == '__main__':
+    main(sys.argv)
