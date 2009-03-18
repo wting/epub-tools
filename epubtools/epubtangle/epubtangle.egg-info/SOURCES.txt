@@ -1,0 +1,9 @@
+setup.cfg
+setup.py
+epubtangle/__init__.py
+epubtangle.egg-info/PKG-INFO
+epubtangle.egg-info/SOURCES.txt
+epubtangle.egg-info/dependency_links.txt
+epubtangle.egg-info/entry_points.txt
+epubtangle.egg-info/not-zip-safe
+epubtangle.egg-info/top_level.txt

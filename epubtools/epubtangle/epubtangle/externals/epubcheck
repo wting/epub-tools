@@ -1,0 +1,4 @@
+#/bin/sh
+DN=`dirname $0`
+EPC="$DN/epubcheck-1.0.3"
+/usr/bin/env java -cp $EPC/lib -jar $EPC/epubcheck-more-schemas-1.0.3.jar $*

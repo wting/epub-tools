@@ -1,0 +1,11 @@
+Metadata-Version: 1.0
+Name: epubtangle
+Version: 0.0dev
+Summary: EpubTangle combines discrete ePub documents into an anthology
+Home-page: http://code.google.com/p/epub-tools/
+Author: Keith Fahlgren
+Author-email: keith@oreilly.com
+License: BSD
+Description: UNKNOWN
+Keywords: epub
+Platform: UNKNOWN
