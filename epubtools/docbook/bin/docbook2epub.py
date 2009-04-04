@@ -29,7 +29,10 @@ def convert_docbook(docbook_file):
     kw = {} 
     if settings.COVER_IS_LINEAR:
         kw['epub.cover.linear'] = '1'
-    transform(etree.parse(docbook_file),**kw)
+    try:
+        transform(etree.parse(docbook_file),**kw)
+    except etree.XMLSyntaxError: # Commonly happens with xhtml entities
+        transform(etree.HTML(docbook_file), **kw)
     os.chdir(cwd)
 
     # Return the working directory for the EPUB
@@ -40,14 +43,17 @@ def convert(docbook_file):
     epub.find_resources(path)
     epub.create_mimetype(path)
     epub_archive = epub.create_archive(path)
-    # Validate
-    if settings.VALIDATE:
-        return epub.validate(path)
-
-    # Clean up the output directory
-    #shutil.rmtree(path)
 
     log.info("Created epub archive as '%s'" % epub_archive)
+
+    # Validate
+    if settings.VALIDATE:
+        return epub.validate(epub_archive )
+
+    # Clean up the output directory
+    shutil.rmtree(path)
+
+
 
 if __name__ == '__main__':
     '''Convert any DocBook xml files passed in as arguments'''
