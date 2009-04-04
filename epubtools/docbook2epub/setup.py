@@ -1,24 +1,24 @@
 from setuptools import setup, find_packages
 import sys, os
 
-version = '0.0'
+version = '1.0.1'
 
-setup(name='epubtangle',
+setup(name='docbook2epub',
       version=version,
-      description="EpubTangle combines discrete ePub documents into an anthology",
+      description="Converts DocBook 4/5 documents into ePub. Requires the DocBook XSL",
       long_description="""\
 """,
       classifiers=[], # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
       keywords='epub',
-      author='Keith Fahlgren',
-      author_email='keith@oreilly.com',
+      author='Liza Daly',
+      author_email='liza@threepress.org',
       url='http://code.google.com/p/epub-tools/',
       license='New BSD',
-      scripts=['scripts/epubs2epub'],
+      scripts=['bin/docbook2epub.py'],
       packages=find_packages(exclude=['ez_setup', 
                                       "*.tests", "*.tests.*", "tests.*", "tests"]),
       package_data={
-                    'epubtangle.externals': ['README', 'epubcheck', 'epubcheck*/*.*', 'epubcheck*/*/*.*'],
+                    'docbook2epub.externals': ['README', 'epubcheck', 'epubcheck*/*.*', 'epubcheck*/*/*.*'],
       }
       zip_safe=False,
       install_requires=[
