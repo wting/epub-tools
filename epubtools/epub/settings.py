@@ -6,4 +6,4 @@ COVER_IS_LINEAR = True
 JAVA = '/usr/bin/java'
 
 # epubcheck location
-EPUBCHECK = 'path/to/epubcheck.jar'
+EPUBCHECK =  '/home/liza/threepress/data/epub/test/epubcheck-1.0.3.jar'

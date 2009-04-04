@@ -62,7 +62,13 @@ def create_archive(path):
             log.debug("Writing file %s" % f)
             epub.write(f, compress_type=zipfile.ZIP_DEFLATED)
     epub.close()
-    shutil.move(epub_name, cwd)
+    try:
+        shutil.move(epub_name, cwd)
+    except shutil.Error:
+        # In Python 2.6 it's an error if this already exists
+        os.remove('%s/%s' % (cwd, epub_name))
+        shutil.move(epub_name, cwd)
+        
     os.chdir(cwd)
     
     return epub_name
