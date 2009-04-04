@@ -1,0 +1,12 @@
+README
+__init__.py
+settings.py
+setup.cfg
+setup.py
+epubtools.egg-info/PKG-INFO
+epubtools.egg-info/SOURCES.txt
+epubtools.egg-info/dependency_links.txt
+epubtools.egg-info/entry_points.txt
+epubtools.egg-info/not-zip-safe
+epubtools.egg-info/requires.txt
+epubtools.egg-info/top_level.txt
