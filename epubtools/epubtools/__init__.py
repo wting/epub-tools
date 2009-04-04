@@ -2,7 +2,7 @@ import logging
 
 from lxml import etree
 import sys, os, os.path, logging, shutil, zipfile
-import settings
+import epubtools.settings
 
 log = logging.getLogger('epubtools.epub')
 
