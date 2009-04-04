@@ -33,7 +33,7 @@ def create_package(project, version):
         os.system('rm -rf %s' % dist)
     project_folder = project.replace('2epub', '')
     os.system('svn export epubtools/%s %s' % (project_folder, dist))
-    os.system('svn export epubtools/epub %s/epub' % (dist))
+    os.system('svn export epubtools/epubtools %s/epubtools' % (dist))
     os.chdir('dist')
     filename = '%s-%s.zip' % (project, version)
     os.system('zip -rq %s %s' % (filename, project))
