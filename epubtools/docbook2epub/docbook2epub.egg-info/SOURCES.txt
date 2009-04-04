@@ -1,0 +1,13 @@
+ez_setup.py
+setup.cfg
+setup.py
+docbook2epub/__init__.py
+docbook2epub/settings.py
+docbook2epub.egg-info/PKG-INFO
+docbook2epub.egg-info/SOURCES.txt
+docbook2epub.egg-info/dependency_links.txt
+docbook2epub.egg-info/entry_points.txt
+docbook2epub.egg-info/not-zip-safe
+docbook2epub.egg-info/requires.txt
+docbook2epub.egg-info/top_level.txt
+docbook2epub/bin/db2epub.py

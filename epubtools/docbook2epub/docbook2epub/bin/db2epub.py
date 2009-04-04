@@ -1,12 +1,8 @@
 #!/usr/bin/env python
 from lxml import etree
 import sys, os, os.path, logging, shutil
-import settings
-
-sys.path.append(os.path.join(os.path.split(os.path.abspath(__file__))[0], '../..'))
-sys.path.append(os.path.join(os.path.split(os.path.abspath(__file__))[0], '..'))
-
-import epub
+import docbook2epub.settings as settings
+import epubtools as epub
 
 log = logging.getLogger('docbook2epub')
 

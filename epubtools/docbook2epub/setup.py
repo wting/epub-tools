@@ -14,15 +14,16 @@ setup(name='docbook2epub',
       author_email='liza@threepress.org',
       url='http://code.google.com/p/epub-tools/',
       license='New BSD',
-      scripts=['bin/docbook2epub.py'],
+      scripts=['docbook2epub/bin/db2epub.py'],
       packages=find_packages(exclude=['ez_setup', 
                                       "*.tests", "*.tests.*", "tests.*", "tests"]),
       package_data={
                     'docbook2epub.externals': ['README', 'epubcheck', 'epubcheck*/*.*', 'epubcheck*/*/*.*'],
-      }
+      },
       zip_safe=False,
       install_requires=[
           'lxml>=2.1.2',
+          'epubtools'
       ],
       entry_points="""
       # -*- Entry points: -*-
