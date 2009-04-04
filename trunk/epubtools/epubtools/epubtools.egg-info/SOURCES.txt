@@ -1,8 +1,9 @@
 README
 __init__.py
-settings.py
 setup.cfg
 setup.py
+epubtools/__init__.py
+epubtools/settings.py
 epubtools.egg-info/PKG-INFO
 epubtools.egg-info/SOURCES.txt
 epubtools.egg-info/dependency_links.txt

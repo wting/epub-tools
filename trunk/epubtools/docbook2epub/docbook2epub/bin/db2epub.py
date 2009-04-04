@@ -3,6 +3,7 @@ from lxml import etree
 import sys, os, os.path, logging, shutil
 import docbook2epub.settings as settings
 import epubtools as epub
+from optparse import OptionParser
 
 log = logging.getLogger('docbook2epub')
 
@@ -53,5 +54,11 @@ def convert(docbook_file):
 
 if __name__ == '__main__':
     '''Convert any DocBook xml files passed in as arguments'''
-    for db_file in sys.argv[1:]:
+
+    parser = OptionParser(usage = "%prog docbook1.xml [docbook2.xml]...",
+                          version="1.0.1")
+    (options, args) = parser.parse_args()
+    if len(args) == 0:
+        parser.error("You must supply at least one DocBook XML file")
+    for db_file in args:
         convert(db_file)
