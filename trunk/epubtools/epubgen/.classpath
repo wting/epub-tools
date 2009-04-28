@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="com.sorotokin.conv.rtf2epub/src"/>
+	<classpathentry kind="src" path="com.sorotokin.conv.word2epub/src"/>
+	<classpathentry kind="src" path="com.sorotokin.epub/src"/>
+	<classpathentry kind="src" path="com.sorotokin.fb2/src"/>
+	<classpathentry kind="src" path="com.sorotokin.office.word/src"/>
+	<classpathentry kind="src" path="com.sorotokin.otf/src"/>
+	<classpathentry kind="lib" path="com.adobe.epubcheck.plugin/com.adobe.epubcheck.plugin_1.0.0.jar"/>
+	<classpathentry kind="lib" path="com.adobe.matoms/out/matoms.jar"/>
+	<classpathentry kind="lib" path="com.adobe.mschema/bin/velocity-dep-1.4.jar"/>
+	<classpathentry kind="lib" path="com.adobe.mschema/libs/velocity-dep-1.4.jar"/>
+	<classpathentry kind="lib" path="com.adobe.mschema/out/mschema.jar"/>
+	<classpathentry kind="lib" path="com.adobe.rib/lib/args4j-1.0.jar"/>
+	<classpathentry kind="lib" path="com.adobe.rib/lib/javacc-3.2/bin/lib/javacc.jar"/>
+	<classpathentry kind="lib" path="com.adobe.rib/lib/velocity-dep-1.4.jar"/>
+	<classpathentry kind="lib" path="com.sorotokin.fb2/commons-fileupload-1.2.jar"/>
+	<classpathentry kind="lib" path="com.sorotokin.fb2/commons-io-1.3.2.jar"/>
+	<classpathentry kind="lib" path="com.sorotokin.fb2/log4j-1.2.12.jar"/>
+	<classpathentry kind="lib" path="template/template.jar"/>
+	<classpathentry kind="lib" path="template/tomcat5/bin/commons-logging-api.jar"/>
+	<classpathentry kind="lib" path="template/tomcat5/common/lib/ant.jar"/>
+	<classpathentry kind="lib" path="template/tomcat5/common/lib/commons-el.jar"/>
+	<classpathentry kind="lib" path="template/tomcat5/common/lib/jasper-compiler.jar"/>
+	<classpathentry kind="lib" path="template/tomcat5/common/lib/jasper-runtime.jar"/>
+	<classpathentry kind="lib" path="template/tomcat5/common/lib/jsp-api.jar"/>
+	<classpathentry kind="lib" path="template/tomcat5/common/lib/servlet-api.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="output" path="epubgen"/>
+</classpath>
