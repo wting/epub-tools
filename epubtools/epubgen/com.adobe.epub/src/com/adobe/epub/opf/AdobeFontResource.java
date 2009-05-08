@@ -28,47 +28,41 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-package com.adobe.otf;
+package com.adobe.epub.opf;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.Vector;
+import java.io.InputStream;
+import java.io.OutputStream;
 
-public class DefaultFontLocator extends SimpleFontLocator {
+import com.adobe.epub.io.DataSource;
 
-	private static String[] dirs = { "C:\\windows\\fonts"};
-//	private static String[] dirs = { "//Library//Fonts" }; 
-	private static DefaultFontLocator instance = new DefaultFontLocator();
+public class AdobeFontResource extends IDPFFontResource {
 
-	private DefaultFontLocator() {
+	byte[] mask;
+	
+	public AdobeFontResource(String name, DataSource source) {
+		super(name, source);
 	}
-
-	protected Iterator getStreamNames() {
-		Vector fonts = new Vector();
-		String[] fontDirs = dirs;
-		for (int i = 0; i < fontDirs.length; i++) {
-			File dir = new File(fontDirs[i]);
-			if (!dir.isDirectory())
-				continue;
-			String[] files = dir.list();
-			if (files == null)
-				continue;
-			for (int k = 0; k < files.length; k++) {
-				File file = new File(dir, files[k]);
-				if (!file.canRead())
-					continue;
-				fonts.add(file.getAbsolutePath());
+		
+	public void serialize(OutputStream out) throws IOException {
+		try {
+			byte[] buffer = new byte[4096];
+			int len;
+			InputStream in = source.getInputStream();
+			boolean first = true;
+			while ((len = in.read(buffer)) > 0) {
+				if( first && mask != null ) {
+					first = false;
+					for( int i = 0 ; i < 1024 ; i++ ) {
+						buffer[i] = (byte)(buffer[i] ^ mask[i%mask.length]);
+					}
+				}
+				out.write(buffer, 0, len);
 			}
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
-		return fonts.iterator();
+		out.close();
 	}
-
-	protected FontInputStream getStream(String name) throws IOException {
-		return new FileFontInputStream(new File(name));
-	}
-
-	public static DefaultFontLocator getInstance() {
-		return instance;
-	}
+	
 }

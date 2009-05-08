@@ -135,6 +135,7 @@ public class XMLSerializer implements SDocumentHandler {
 	private void closeTagIfNeeded() {
 		if (closeTag) {
 			out.print(">");
+			//newLine();
 			closeTag = false;
 		}
 	}
@@ -223,6 +224,7 @@ public class XMLSerializer implements SDocumentHandler {
 			}
 			prologue.append(">");
 			out.println(prologue);
+			//newLine();
 		}
 		closeTagIfNeeded();
 		OpenElement e = new OpenElement(namespace, name);
@@ -327,6 +329,7 @@ public class XMLSerializer implements SDocumentHandler {
 			out.print(e.name);
 			out.print(">");
 		}
+		//newLine();
 		if (e.savedDefaultNamespace != null)
 			defaultNamespace = e.savedDefaultNamespace;
 		if (e.localNamespaces != null) {

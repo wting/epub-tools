@@ -42,11 +42,19 @@ import com.adobe.office.rtf.RTFDocument;
 import com.adobe.office.word.WordDocument;
 
 public class Main {
+	public static final String VERSION = "0.2.0";
+	public static boolean deprecatedFontMangling = false;
+	public static String source = null;
+	public static String dest = null;
 
 	public static void main(String[] args) {		
 		try {
-			File wordFile = new File(args[0]);
-			File epubFileOrFolder = new File(args[1]);
+			Main.processArguments(args);
+			if((Main.source == null) || (Main.dest == null)) {
+				Main.displayHelp();
+			}
+			File wordFile = new File(Main.source);
+			File epubFileOrFolder = new File(Main.dest);
 			RTFDocument doc = new RTFDocument(wordFile);
 			ContainerWriter container;
 			if( epubFileOrFolder.isDirectory() )
@@ -54,6 +62,10 @@ public class Main {
 			else
 				container = new OCFContainerWriter(new FileOutputStream(epubFileOrFolder));
 			Publication epub = new Publication();
+			if (Main.deprecatedFontMangling == true)
+				epub.useAdobeFontMangling();
+			else
+				epub.useIDPFFontMangling();
 			Converter conv = new Converter(doc, epub);
 			conv.convert();
 			epub.serialize(container);
@@ -61,5 +73,70 @@ public class Main {
 			e.printStackTrace();
 		}
 	}
+	
+	/**
+	 * This method iterates through all of the arguments passed to
+	 * main to find accepted flags and the name of the file to check.
+	 * Here are the currently accepted flags:
+	 * <br>
+	 * <br>-h or --help = display usage instructions, and exits.
+	 * <br>-v or --version = display tool version number
+	 * <br>-a or --adobeFontMangling - use the deprecated font mangling
+	 * algorithm (default is to use IDPF recommended algorithm.)
+	 * 
+	 * @param args String[] containing arguments passed to main
+	 * @return the name of the file to check
+	 */
+	public static void processArguments(String[] args) {
+		// Exit if there are too few arguments passed to main
+		if(args.length < 1) {
+			Main.displayHelp();
+		}
+		
+		
+		// For each element of args[], check to see if it is an accepted flag
+		for(int i = 0; i < args.length; i++) {
+			if(args[i].equals("--version") || args[i].equals("-v")){
+				displayVersion();
+			}
+			else if(args[i].equals("--help") || args[i].equals("-h")){
+				displayHelp(); // display help message
+			}
+			else if(args[i].equals("--adobeFontVersion") || args[i].equals("-a")) {
+				Main.deprecatedFontMangling = true;
+			}
+			else if (Main.source==null) {
+				Main.source = args[i];
+			}
+			else if (Main.dest==null){
+				Main.dest = args[i];
+			}
+			else {
+				System.err.println("Unknown argument: " + args[i]);
+				System.exit(1);
+			}
+		}
+	}
+	
+	/**
+	 * This method displays a short help message that describes the
+	 * command-line usage of this tool
+	 */
+	public static void displayHelp() {
+		Main.displayVersion();
+		System.out.println("Usage: \n" + "java -jar rtf2epub-"+Main.VERSION+".jar [options] source_file target_file");
+		System.out.println("java -jar rtf2epub"+Main.VERSION+".jar [options] source_file target_folder");
+		System.out.println();
+		System.out.println("This tool accepts the following options:");
+		System.out.println("-h or --help 			= Displays this help message, and exits");
+		System.out.println("-v or --version 		= Displays the tool's version number");
+		System.out.println("-a or --adobeFontMangling 	= (Not recommmended.) Uses deprecated font mangling algorithm. \n\t\t\t\tWithout this flag the IDPF algorithm is used.\n");
+		System.exit(0);
+	}
+	
+	public static void displayVersion() {
+		System.out.println("rtf2epub Version " + Main.VERSION+"\n");
+	}
+
 
 }

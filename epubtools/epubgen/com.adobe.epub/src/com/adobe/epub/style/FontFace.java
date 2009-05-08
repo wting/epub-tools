@@ -32,16 +32,18 @@ package com.adobe.epub.style;
 
 import java.io.PrintWriter;
 
+import com.adobe.epub.opf.AdobeFontResource;
 import com.adobe.epub.opf.FontResource;
+import com.adobe.epub.opf.Resource;
 
 public class FontFace extends BaseRule {
 
 	Stylesheet stylesheet;
 	FontResource fontResource;
 	
-	FontFace( Stylesheet stylesheet, FontResource fontResource ) {
+	FontFace( Stylesheet stylesheet, FontResource fontResource2 ) {
 		this.stylesheet = stylesheet;
-		this.fontResource = fontResource;
+		this.fontResource = fontResource2;
 	}
 	
 	public FontResource getFontResource() {
@@ -56,7 +58,7 @@ public class FontFace extends BaseRule {
 		out.println("@font-face {");
 		serializeProperties(out, true);
 		out.print("\tsrc: url(");
-		out.print(stylesheet.owner.makeReference(fontResource, null));
+		out.print(stylesheet.owner.makeReference((Resource) fontResource, null));
 		out.println(");");
 		out.println("}");
 	}	

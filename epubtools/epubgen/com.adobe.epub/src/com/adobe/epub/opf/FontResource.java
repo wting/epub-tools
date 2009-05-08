@@ -31,46 +31,12 @@
 package com.adobe.epub.opf;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 
-import com.adobe.epub.io.DataSource;
+public interface FontResource {
 
-public class FontResource extends Resource {
+	public abstract void serialize(OutputStream out) throws IOException;
 
-	byte[] mask;
-	
-	public FontResource(String name, DataSource source) {
-		super(name, "application/octet-stream", source);
-	}
+	public abstract boolean canCompress();
 
-	void setXORMask( byte[] mask ) {
-		this.mask = mask;
-	}
-		
-	public void serialize(OutputStream out) throws IOException {
-		try {
-			byte[] buffer = new byte[4096];
-			int len;
-			InputStream in = source.getInputStream();
-			boolean first = true;
-			while ((len = in.read(buffer)) > 0) {
-				if( first && mask != null ) {
-					first = false;
-					for( int i = 0 ; i < 1024 ; i++ ) {
-						buffer[i] = (byte)(buffer[i] ^ mask[i%mask.length]);
-					}
-				}
-				out.write(buffer, 0, len);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		out.close();
-	}
-	
-	public boolean canCompress() {
-		return true;
-	}
-	
 }
