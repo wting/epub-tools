@@ -35,6 +35,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.Security;
 import java.security.SecureRandom;
 import java.util.Enumeration;
 import java.util.Hashtable;
@@ -63,6 +66,8 @@ public class Publication {
 	public static final String deencns = "http://ns.adobe.com/digitaleditions/enc";
 
 	public boolean translit;
+	
+	public boolean useIDPFFontMangling = true;
 
 	Hashtable resourcesByName = new Hashtable();
 
@@ -80,7 +85,7 @@ public class Publication {
 
 	int idCount = 1;
 
-	String primaryUUID;
+	String opfUID;
 
 	static class SimpleMetadata {
 
@@ -102,6 +107,7 @@ public class Publication {
 		opf = new OPFResource(this, "OEBPS/content.opf");
 		resourcesByName.put(toc.name, toc);
 		resourcesByName.put(opf.name, opf);
+		opfUID = this.generateRandomIdentifier();
 	}
 
 	public Publication(File file) throws IOException {
@@ -112,6 +118,14 @@ public class Publication {
 		String opfName = processOCF(zip.getInputStream(container));
 		opf = new OPFResource(this, opfName);
 		opf.parse( zip.getInputStream(zip.getEntry(opfName)));
+	}
+	
+	public void useAdobeFontMangling() {
+		useIDPFFontMangling = false;
+	}
+	
+	public void useIDPFFontMangling() {
+		useIDPFFontMangling = true;
 	}
 	
 	private static String processOCF( InputStream ocfStream ) throws IOException {
@@ -127,7 +141,12 @@ public class Publication {
 	}
 
 	public String getPrimaryUUID() {
-		return primaryUUID;
+		return opfUID;
+	}
+	
+	public String addUID() {
+		String uid = this.generateRandomIdentifier();		
+		return uid;
 	}
 
 	private static void addRandomHexDigit(StringBuffer sb, Random r, int count, int mask, int value) {
@@ -142,7 +161,8 @@ public class Publication {
 
 	public String generateRandomIdentifier() {
 		// generate v4 UUID
-		StringBuffer sb = new StringBuffer("urn:uuid:");
+		//StringBuffer sb = new StringBuffer("urn:uuid:");
+		StringBuffer sb = new StringBuffer("");
 		SecureRandom sr = new SecureRandom();
 		addRandomHexDigit(sb, sr, 8, 0xF, 0);
 		sb.append('-');
@@ -196,8 +216,8 @@ public class Publication {
 			return;
 		metadata.add(new SimpleMetadata(ns, name, value));
 		if (ns != null && ns.equals(dcns) && name.equals("identifier") && value.startsWith("urn:uuid:")
-				&& primaryUUID == null) {
-			primaryUUID = value.substring(9);
+				&& opfUID == null) {
+			opfUID = value.substring(9);
 		}
 	}
 
@@ -253,7 +273,12 @@ public class Publication {
 	}
 
 	public FontResource createFontResource(String name, DataSource data) {
-		FontResource resource = new FontResource(name, data);
+		FontResource resource;
+		if(this.useIDPFFontMangling) {
+			resource = new IDPFFontResource(name, data);
+		} else {
+			resource = new AdobeFontResource(name, data);
+		}
 		resourcesByName.put(name, resource);
 		return resource;
 	}
@@ -306,33 +331,60 @@ public class Publication {
 		}
 		subsetter.addFonts(this);
 	}
+	
+/*	private byte[] makeXORMask() {
+		
+	}
+*/
 
 	private byte[] makeXORMask() {
-		if (primaryUUID == null)
+		if(opfUID == null)
 			return null;
 		ByteArrayOutputStream mask = new ByteArrayOutputStream();
-		int acc = 0;
-		int len = primaryUUID.length();
-		for (int i = 0; i < len; i++) {
-			char c = primaryUUID.charAt(i);
-			int n;
-			if ('0' <= c && c <= '9')
-				n = c - '0';
-			else if ('a' <= c && c <= 'f')
-				n = c - ('a' - 10);
-			else if ('A' <= c && c <= 'F')
-				n = c - ('A' - 10);
-			else
-				continue;
-			if (acc == 0) {
-				acc = 0x100 | (n << 4);
-			} else {
-				mask.write(acc | n);
-				acc = 0;
+		if (useIDPFFontMangling){
+			try {
+				Security.addProvider(new com.sun.crypto.provider.SunJCE());
+				MessageDigest sha = MessageDigest.getInstance("SHA-1");
+				sha.update(opfUID.getBytes(), 0, opfUID.length());
+				mask.write(sha.digest());
+			} catch (NoSuchAlgorithmException e) {
+				System.err.println("No such Algorithm (really, did I misspell SHA-1?");
+				System.err.println(e.toString());
+				return null;
+			} catch (IOException e) {
+				System.err.println("IO Exception. check out mask.write...");
+				System.err.println(e.toString());
+				return null;
+			}
+			if (mask.size() != 20) {
+				System.err.println("makeXORMask should give 20 byte mask, but isn't");
+				return null;
 			}
 		}
-		if (mask.size() != 16)
-			return null;
+		else {
+			int acc = 0;
+			int len = opfUID.length();
+			for (int i = 0; i < len; i++) {
+				char c = opfUID.charAt(i);
+				int n;
+				if ('0' <= c && c <= '9')
+					n = c - '0';
+				else if ('a' <= c && c <= 'f')
+					n = c - ('a' - 10);
+				else if ('A' <= c && c <= 'F')
+					n = c - ('A' - 10);
+				else
+					continue;
+				if (acc == 0) {
+					acc = 0x100 | (n << 4);
+				} else {
+					mask.write(acc | n);
+					acc = 0;
+				}
+			}
+			if (mask.size() != 16)
+				return null;
+		}
 		return mask.toByteArray();
 	}
 
@@ -343,8 +395,12 @@ public class Publication {
 		while (names.hasMoreElements()) {
 			String name = (String) names.nextElement();
 			Resource res = (Resource) resourcesByName.get(name);
-			if (mask != null && res instanceof FontResource) {
-				((FontResource) res).setXORMask(mask);
+			if (mask != null && res instanceof AdobeFontResource) {
+				((AdobeFontResource) res).setXORMask(mask);
+				needEnc = true;
+			}
+			if (mask != null && res instanceof IDPFFontResource) {
+				((IDPFFontResource) res).setXORMask(mask);
 				needEnc = true;
 			}
 			OutputStream out = container.getOutputStream(name, res.canCompress());
@@ -358,10 +414,23 @@ public class Publication {
 			while (names.hasMoreElements()) {
 				String name = (String) names.nextElement();
 				Resource res = (Resource) resourcesByName.get(name);
-				if (res instanceof FontResource) {
+				if ((res instanceof FontResource) && (useIDPFFontMangling)) {
 					SMapImpl attrs = new SMapImpl();
-					attrs.put(deencns, "compression", "none");
-					ser.startElement(encns, "EncryptedData", attrs, true);
+					ser.startElement(encns,"EncryptedData", null, true);
+					attrs.put(null, "Algorithm", "http://www.idpf.org/2008/embedding");
+					ser.startElement(encns, "EncryptionMethod", attrs, false);
+					ser.endElement(encns, "EncryptionMethod");
+					ser.startElement(encns, "CipherData", null, false);
+					attrs = new SMapImpl();
+					attrs.put(null, "URI", name);
+					ser.startElement(encns, "CipherReference", attrs, false);
+					ser.endElement(encns, "CipherReference");
+					ser.endElement(encns, "CipherData");
+					ser.endElement(encns, "EncryptedData");					
+				}
+				else if (res instanceof FontResource) {
+					SMapImpl attrs;
+					ser.startElement(encns, "EncryptedData", null, true);
 					attrs = new SMapImpl();
 					attrs.put(null, "Algorithm", "http://ns.adobe.com/pdf/enc#RC");
 					ser.startElement(encns, "EncryptionMethod", attrs, false);

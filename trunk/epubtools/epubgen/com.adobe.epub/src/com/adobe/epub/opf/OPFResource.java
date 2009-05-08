@@ -79,15 +79,17 @@ public class OPFResource extends Resource {
 		Iterator it = owner.metadata.iterator();
 		int identifierCount = 0;
 		while (it.hasNext()) {
+			String value;
 			Publication.SimpleMetadata item = (Publication.SimpleMetadata) it.next();
 			if (item.ns != null && item.ns.equals(dcns) && item.name.equals("identifier")) {
 				attrs = new SMapImpl();
 				attrs.put(null, "id", (identifierCount == 0 ? "bookid" : "bookid" + identifierCount));
 				identifierCount++;
+				value = "urn:uuid:"+ item.value;
 			} else {
 				attrs = null;
+				value = item.value;
 			}
-			String value = item.value;
 			if (owner.isTranslit())
 				value = Translit.translit(value);
 			if (item.ns == null) {
