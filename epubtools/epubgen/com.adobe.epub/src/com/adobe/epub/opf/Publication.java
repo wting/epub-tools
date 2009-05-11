@@ -144,6 +144,12 @@ public class Publication {
 		return opfUID;
 	}
 	
+	/*
+	 * Every EPUB needs a unique identifier, this could be an ISBN or other identifier.
+	 * In this case we're generating a random identifier.
+	 * 
+	 * For the purposes of font obfuscation, this does not need to be random, just unique (like an ISBN)
+	 */
 	public String addUID() {
 		String uid = this.generateRandomIdentifier();		
 		return uid;
@@ -336,16 +342,27 @@ public class Publication {
 		
 	}
 */
+    public static String strip(String source) {
+        return source.replaceAll("\\s+", "");
+    }
+
 
 	private byte[] makeXORMask() {
 		if(opfUID == null)
 			return null;
 		ByteArrayOutputStream mask = new ByteArrayOutputStream();
 		if (useIDPFFontMangling){
+			/*
+			 * This starts with the "unique-identifier", strips the whitespace, and applies SHA1 hash
+			 * giving a 20 byte key that we can apply to the font file.
+			 * 
+			 * See: http://www.openebook.org/doc_library/informationaldocs/FontManglingSpec.html
+			 */
 			try {
 				Security.addProvider(new com.sun.crypto.provider.SunJCE());
 				MessageDigest sha = MessageDigest.getInstance("SHA-1");
-				sha.update(opfUID.getBytes(), 0, opfUID.length());
+				String temp = strip(opfUID);
+				sha.update(temp.getBytes(), 0, temp.length());
 				mask.write(sha.digest());
 			} catch (NoSuchAlgorithmException e) {
 				System.err.println("No such Algorithm (really, did I misspell SHA-1?");

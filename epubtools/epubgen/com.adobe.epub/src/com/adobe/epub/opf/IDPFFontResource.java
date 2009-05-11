@@ -49,8 +49,10 @@ public class IDPFFontResource extends Resource implements FontResource {
 		this.mask = mask;
 	}
 		
-	/* (non-Javadoc)
-	 * @see com.adobe.epub.opf.FontResource#serialize(java.io.OutputStream)
+	/* 
+	 * Implements the Obfuscation Algorithm from
+	 * http://www.openebook.org/doc_library/informationaldocs/FontManglingSpec.html
+	 * 
 	 */
 	public void serialize(OutputStream out) throws IOException {
 		try {
@@ -73,9 +75,6 @@ public class IDPFFontResource extends Resource implements FontResource {
 		out.close();
 	}
 	
-	/* (non-Javadoc)
-	 * @see com.adobe.epub.opf.FontResource#canCompress()
-	 */
 	public boolean canCompress() {
 		return true;
 	}
