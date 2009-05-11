@@ -43,7 +43,10 @@ public class AdobeFontResource extends IDPFFontResource {
 	public AdobeFontResource(String name, DataSource source) {
 		super(name, source);
 	}
-		
+
+	void setXORMask( byte[] mask ) {
+		this.mask = mask;
+	}	
 	public void serialize(OutputStream out) throws IOException {
 		try {
 			byte[] buffer = new byte[4096];
@@ -63,6 +66,10 @@ public class AdobeFontResource extends IDPFFontResource {
 			e.printStackTrace();
 		}
 		out.close();
+	}
+	
+	public boolean canCompress() {
+		return true;
 	}
 	
 }
