@@ -2,7 +2,7 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/com.adobe.epub"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/com.adobe.otf"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/com.adobe.dp.epub"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/com.adobe.dp.otf"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

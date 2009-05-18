@@ -2,17 +2,17 @@ package com.adobe.dp.epubtest;
 
 import java.io.FileOutputStream;
 
-import com.adobe.epub.io.OCFContainerWriter;
-import com.adobe.epub.ncx.TOCEntry;
-import com.adobe.epub.opf.NCXResource;
-import com.adobe.epub.opf.OPSResource;
-import com.adobe.epub.opf.Publication;
-import com.adobe.epub.opf.StyleResource;
-import com.adobe.epub.ops.Element;
-import com.adobe.epub.ops.OPSDocument;
-import com.adobe.epub.style.Rule;
-import com.adobe.epub.style.Selector;
-import com.adobe.epub.style.Stylesheet;
+import com.adobe.dp.epub.io.OCFContainerWriter;
+import com.adobe.dp.epub.ncx.TOCEntry;
+import com.adobe.dp.epub.opf.NCXResource;
+import com.adobe.dp.epub.opf.OPSResource;
+import com.adobe.dp.epub.opf.Publication;
+import com.adobe.dp.epub.opf.StyleResource;
+import com.adobe.dp.epub.ops.Element;
+import com.adobe.dp.epub.ops.OPSDocument;
+import com.adobe.dp.epub.style.Rule;
+import com.adobe.dp.epub.style.Selector;
+import com.adobe.dp.epub.style.Stylesheet;
 
 public class HelloEPUB2 {
 
