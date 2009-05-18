@@ -36,10 +36,8 @@ import java.io.FileOutputStream;
 import com.adobe.dp.epub.io.ContainerWriter;
 import com.adobe.dp.epub.io.FolderContainerWriter;
 import com.adobe.dp.epub.io.OCFContainerWriter;
-import com.adobe.dp.epub.io.ZipContainerSource;
 import com.adobe.dp.epub.opf.Publication;
 import com.adobe.dp.office.rtf.RTFDocument;
-import com.adobe.dp.office.word.WordDocument;
 
 public class Main {
 	public static final String VERSION = "0.2.1";

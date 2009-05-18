@@ -37,7 +37,7 @@ import java.util.Vector;
 
 public class DefaultFontLocator extends SimpleFontLocator {
 
-	private static String[] dirs = { "C:\\windows\\fonts"};
+	private static String[] dirs = { "C:\\windows\\fonts", System.getProperty("user.home") + "/.epubfonts"};
 //	private static String[] dirs = { "//Library//Fonts" }; 
 	private static DefaultFontLocator instance = new DefaultFontLocator();
 

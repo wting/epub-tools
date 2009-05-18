@@ -7,7 +7,6 @@
 	<classpathentry kind="lib" path="/thirdparty/javax.servlet-5.1.12.jar"/>
 	<classpathentry kind="lib" path="/thirdparty/jetty.jar"/>
 	<classpathentry kind="lib" path="/thirdparty/log4j-1.2.12.jar"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/thirdparty"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/com.adobe.dp.epub"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/com.adobe.dp.otf"/>
 	<classpathentry kind="output" path="bin"/>
