@@ -33,7 +33,6 @@ package com.adobe.dp.office.metafile;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Field;
 
 public class EMFParser extends MetafileParser {
 

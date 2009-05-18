@@ -32,7 +32,6 @@ package com.adobe.dp.epub.style;
 
 import java.io.PrintWriter;
 
-import com.adobe.dp.epub.opf.AdobeFontResource;
 import com.adobe.dp.epub.opf.FontResource;
 import com.adobe.dp.epub.opf.Resource;
 

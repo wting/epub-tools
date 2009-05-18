@@ -36,7 +36,6 @@ package com.adobe.dp.office.metafile;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Vector;
 
 public class WMFParser extends MetafileParser {
 
