@@ -41,7 +41,7 @@ public class StyleResource extends Resource {
 
 	Stylesheet stylesheet;
 	
-	public StyleResource(String name) {
+	StyleResource(String name) {
 		super(name, "text/css", null);
 	}
 	

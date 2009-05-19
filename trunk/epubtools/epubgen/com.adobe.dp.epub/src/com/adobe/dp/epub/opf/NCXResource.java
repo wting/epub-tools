@@ -50,7 +50,7 @@ public class NCXResource extends Resource {
 
 	private static final String ncxns = "http://www.daisy.org/z3986/2005/ncx/";
 
-	public NCXResource(Publication owner, String name) {
+	NCXResource(Publication owner, String name) {
 		super(name, "application/x-dtbncx+xml", null);
 		this.owner = owner;
 	}

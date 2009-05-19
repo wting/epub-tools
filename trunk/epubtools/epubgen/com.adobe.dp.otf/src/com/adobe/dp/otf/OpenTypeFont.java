@@ -496,7 +496,7 @@ public class OpenTypeFont implements FontPropertyConstants {
 			}
 			acc.setSize(0);
 			table.put(key, value);
-			System.out.println(((KeyCFF) key).keyID + " = " + valToStr(value));
+			// System.out.println(((KeyCFF) key).keyID + " = " + valToStr(value));
 		}
 		return table;
 	}

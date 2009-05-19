@@ -51,7 +51,7 @@ public class OPFResource extends Resource {
 
 	Publication owner;
 
-	public OPFResource(Publication owner, String name) {
+	OPFResource(Publication owner, String name) {
 		super(name, "application/oebps-package+xml", null);
 		this.owner = owner;
 	}
