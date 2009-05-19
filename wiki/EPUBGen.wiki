@@ -1,0 +1,9 @@
+#summary EPUBGen Documentation
+
+= Examples =
+
+All examples are part of the source code
+
+  * simple example: [HelloEPUB1]
+  * intermediate example: [HelloEPUB2]
+  * advanced example: [HelloEPUB3]
