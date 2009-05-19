@@ -39,7 +39,7 @@ public class OPSResource extends Resource {
 
 	OPSDocument document;
 	
-	public OPSResource(String name) {
+	OPSResource(String name) {
 		super(name, "application/xhtml+xml", null);
 	}
 

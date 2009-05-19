@@ -10,12 +10,16 @@ import com.adobe.dp.epub.opf.Publication;
 import com.adobe.dp.epub.ops.Element;
 import com.adobe.dp.epub.ops.OPSDocument;
 
+/**
+ * Simple epubgen example. Basic library use: setting metadata, table of
+ * contents, creating chapter content.
+ */
 public class HelloEPUB1 {
 
 	public static void main(String[] args) {
 
 		try {
-			
+
 			// create new EPUB document
 			Publication epub = new Publication();
 
@@ -27,16 +31,17 @@ public class HelloEPUB1 {
 			// prepare table of contents
 			NCXResource toc = epub.getTOC();
 			TOCEntry rootTOCEntry = toc.getRootTOCEntry();
-			
+
 			// create new chapter resource
 			OPSResource main = epub.createOPSResource("OPS/main.html");
 			epub.addToSpine(main);
-						
+
 			// get chapter document
 			OPSDocument mainDoc = main.getDocument();
-			
+
 			// add chapter to the table of contents
-			TOCEntry mainTOCEntry = toc.createTOCEntry("Intro", mainDoc.getRootXRef());
+			TOCEntry mainTOCEntry = toc.createTOCEntry("Intro", mainDoc
+					.getRootXRef());
 			rootTOCEntry.add(mainTOCEntry);
 
 			// chapter XHTML body element
@@ -52,11 +57,11 @@ public class HelloEPUB1 {
 			paragraph.add("Hello, world!");
 			body.add(paragraph);
 
-			// save EPUB to an OCF container 
+			// save EPUB to an OCF container
 			OCFContainerWriter writer = new OCFContainerWriter(
 					new FileOutputStream("hello.epub"));
 			epub.serialize(writer);
-			
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

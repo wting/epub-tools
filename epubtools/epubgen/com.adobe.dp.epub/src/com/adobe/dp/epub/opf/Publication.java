@@ -54,14 +54,32 @@ import com.adobe.dp.otf.FontLocator;
 import com.adobe.dp.xml.util.SMapImpl;
 import com.adobe.dp.xml.util.XMLSerializer;
 
+/**
+ * Publication represents an EPUB document. At a minimum, Publication must have
+ * OPF resource (that contains metadata, manifest and a spine), NCX resource
+ * (that contains table of contents) and some content resources (also called
+ * chapters).
+ */
 public class Publication {
 
+	/**
+	 * Dublin Core namespace
+	 */
 	public static final String dcns = "http://purl.org/dc/elements/1.1/";
 
+	/**
+	 * OCF namespace
+	 */
 	public static final String ocfns = "urn:oasis:names:tc:opendocument:xmlns:container";
 
+	/**
+	 * XML encryption namespace
+	 */
 	public static final String encns = "http://www.w3.org/2001/04/xmlenc#";
 
+	/**
+	 * Adobe Digital Edition encoding namespace (for font embedding)
+	 */
 	public static final String deencns = "http://ns.adobe.com/digitaleditions/enc";
 
 	boolean translit;
@@ -85,6 +103,10 @@ public class Publication {
 	int idCount = 1;
 
 	private String contentFolder;
+
+	private byte[] idpfMask;
+
+	private byte[] adobeMask;
 
 	static class SimpleMetadata {
 
@@ -230,24 +252,63 @@ public class Publication {
 		return id;
 	}
 
+	/**
+	 * Get table-of-content resource. Each Publication has one.
+	 * 
+	 * @return table-of-content resource
+	 */
 	public NCXResource getTOC() {
 		return toc;
 	}
 
+	/**
+	 * Get OPF resource. Each Publication has one. OPF resource lists other
+	 * resources in the Publication, defines their types and determines chapter
+	 * order.
+	 * 
+	 * @return OPF resource
+	 */
 	public OPFResource getOPF() {
 		return opf;
 	}
 
+	/**
+	 * Get Dublin Core metadata value. Note that multiple metadata values of the
+	 * same type are allowed and this method returns only the first one.
+	 * 
+	 * @param name
+	 *            type of Dublin Core metadata, such as "creator" or "title"
+	 * @return metadata element value; null if no such value exists
+	 */
 	public String getDCMetadata(String name) {
 		return getMetadata(dcns, name, 0);
 	}
 
+	/**
+	 * Add Dublin Core metadata value. Note that multiple metadata values of the
+	 * same type are allowed.
+	 * 
+	 * @param name
+	 *            type of Dublin Core metadata, such as "creator" or "title"
+	 * @param value
+	 *            metadata element value
+	 */
 	public void addDCMetadata(String name, String value) {
 		if (value != null) {
 			addMetadata(dcns, name, value);
 		}
 	}
 
+	/**
+	 * Get metadata value. Note that multiple metadata values of the same type
+	 * are allowed. This method can be used to iterate over
+	 * 
+	 * @param ns
+	 *            metadata element namespace, i.e Publication.dcns
+	 * @param name
+	 *            type of the metadata element
+	 * @return metadata element value; null if no such value exists
+	 */
 	public String getMetadata(String ns, String name, int index) {
 		Iterator it = metadata.iterator();
 		while (it.hasNext()) {
@@ -261,6 +322,17 @@ public class Publication {
 		return null;
 	}
 
+	/**
+	 * Add Dublin Core metadata value. Note that multiple metadata values of the
+	 * same type are allowed.
+	 * 
+	 * @param ns
+	 *            metadata element namespace, i.e Publication.dcns
+	 * @param name
+	 *            type of the metadata element
+	 * @param value
+	 *            metadata element value
+	 */
 	public void addMetadata(String ns, String name, String value) {
 		if (value == null)
 			return;
@@ -279,6 +351,12 @@ public class Publication {
 		return value.substring(9);
 	}
 
+	/**
+	 * Return Publication unique identifier; create one (in the form
+	 * "urn:uuid:UUID") if it does not exist
+	 * 
+	 * @return unique identifier
+	 */
 	public String getPrimaryIdentifier() {
 		Iterator it = metadata.iterator();
 		while (it.hasNext()) {
@@ -289,6 +367,16 @@ public class Publication {
 		return generateRandomIdentifier();
 	}
 
+	/**
+	 * Create a unique resource name using baseName as a template. If baseName
+	 * looks like "name.foo", "name.foo" name will be tried first. If it already
+	 * exists, names like "name-1.foo", "name-2.foo" will be tried until unused
+	 * resource name is found.
+	 * 
+	 * @param baseName
+	 *            desired resource name
+	 * @return unique resource name based on the desired one
+	 */
 	public String makeUniqueResourceName(String baseName) {
 		if (resourcesByName.get(baseName) == null)
 			return baseName;
@@ -316,49 +404,109 @@ public class Publication {
 		return name;
 	}
 
+	/**
+	 * Create a new OPS resource and insert it into this Publication (but not
+	 * spine!). Roughly speaking OPS is XHTML with other embedded content.
+	 * 
+	 * @param name
+	 *            OPS resource name
+	 * @return new OPSResource
+	 */
 	public OPSResource createOPSResource(String name) {
 		OPSResource resource = new OPSResource(name);
 		resourcesByName.put(name, resource);
 		return resource;
 	}
 
+	/**
+	 * Create new bitmap image resource and insert it into this Publication.
+	 * 
+	 * @param name
+	 *            resource name
+	 * @param mediaType
+	 *            resource MIME type, i.g. "image/jpeg"
+	 * @param data
+	 *            resource data
+	 * @return new BitmapImageResource
+	 */
 	public BitmapImageResource createBitmapImageResource(String name, String mediaType, DataSource data) {
 		BitmapImageResource resource = new BitmapImageResource(name, mediaType, data);
 		resourcesByName.put(name, resource);
 		return resource;
 	}
 
+	/**
+	 * Create new CSS resource and insert it into this Publication
+	 * 
+	 * @param name
+	 *            resource name
+	 * @return new StyleResource
+	 */
 	public StyleResource createStyleResource(String name) {
 		StyleResource resource = new StyleResource(name);
 		resourcesByName.put(name, resource);
 		return resource;
 	}
 
+	/**
+	 * Create new generic resource and insert it into this Publication.
+	 * 
+	 * @param name
+	 *            resource name
+	 * @param mediaType
+	 *            resource MIME type
+	 * @param data
+	 *            resource data
+	 * @return new Resource
+	 */
 	public Resource createResource(String name, String mediaType, DataSource data) {
 		Resource resource = new Resource(name, mediaType, data);
 		resourcesByName.put(name, resource);
 		return resource;
 	}
 
+	/**
+	 * Create new embedded font resource and insert it into this Publication.
+	 * Font resources differ from genertic binary resources in that they get
+	 * "mangled" during serialization.
+	 * 
+	 * @param name
+	 *            resource name
+	 * @param data
+	 *            resource data
+	 * @return new FontResource
+	 */
 	public FontResource createFontResource(String name, DataSource data) {
-		FontResource resource;
-		if (this.useIDPFFontMangling) {
-			resource = new IDPFFontResource(name, data);
-		} else {
-			resource = new AdobeFontResource(name, data);
-		}
+		FontResource resource = new FontResource(this, name, data);
 		resourcesByName.put(name, resource);
 		return resource;
 	}
 
+	/**
+	 * Add another resource to the spine (chapter list)
+	 * 
+	 * @param resource
+	 *            resource to add; must be one of the existing OPS resources in
+	 *            this Publication
+	 */
 	public void addToSpine(Resource resource) {
 		spine.add(resource);
 	}
 
+	/**
+	 * Iterate all resources in this Publication.
+	 * 
+	 * @return resource iterator
+	 */
 	public Iterator resources() {
 		return resourcesByName.values().iterator();
 	}
 
+	/**
+	 * Iterate resources in the spine (chapter list).
+	 * 
+	 * @return spine iterator
+	 */
 	public Iterator spine() {
 		return spine.iterator();
 	}
@@ -383,10 +531,28 @@ public class Publication {
 		}
 	}
 
+	/**
+	 * Add embedded font resources to this Publication and add corresponding
+	 * &#064;font-face rules for the embedded fonts. Fonts are taken from the
+	 * default font locator (see {@link DefaultFontLocator.getInstance}).
+	 * 
+	 * @param styleResource
+	 *            style resource where &#064;font-face rules will be added
+	 */
 	public void addFonts(StyleResource styleResource) {
 		addFonts(styleResource, DefaultFontLocator.getInstance());
 	}
 
+	/**
+	 * Add embedded font resources to this Publication and add corresponding
+	 * &#064;font-face rules for the embedded fonts. Fonts are taken from the
+	 * supplied font locator.
+	 * 
+	 * @param styleResource
+	 *            style resource where &#064;font-face rules will be added
+	 * @param fontLocator
+	 *            FontLocator object to lookup font files
+	 */
 	public void addFonts(StyleResource styleResource, FontLocator locator) {
 		FontSubsetter subsetter = new FontSubsetter(this, styleResource, locator);
 		Iterator res = resources();
@@ -400,26 +566,26 @@ public class Publication {
 		subsetter.addFonts(this);
 	}
 
-	public static String strip(String source) {
+	static String strip(String source) {
 		return source.replaceAll("\\s+", "");
 	}
 
-	private byte[] makeXORMask() {
-		ByteArrayOutputStream mask = new ByteArrayOutputStream();
-		if (useIDPFFontMangling) {
-			/*
-			 * This starts with the "unique-identifier", strips the whitespace,
-			 * and applies SHA1 hash giving a 20 byte key that we can apply to
-			 * the font file.
-			 * 
-			 * See:http://www.openebook.org/doc_library/informationaldocs/
-			 * FontManglingSpec.html
-			 */
+	byte[] makeIDPFXORMask() {
+		/*
+		 * This starts with the "unique-identifier", strips the whitespace, and
+		 * applies SHA1 hash giving a 20 byte key that we can apply to the font
+		 * file.
+		 * 
+		 * See:
+		 * http://www.openebook.org/doc_library/informationaldocs/FontManglingSpec
+		 * .html
+		 */
+		if (idpfMask == null) {
 			try {
 				MessageDigest sha = MessageDigest.getInstance("SHA-1");
 				String temp = strip(getPrimaryIdentifier());
 				sha.update(temp.getBytes("UTF-8"), 0, temp.length());
-				mask.write(sha.digest());
+				idpfMask = sha.digest();
 			} catch (NoSuchAlgorithmException e) {
 				System.err.println("No such Algorithm (really, did I misspell SHA-1?");
 				System.err.println(e.toString());
@@ -429,51 +595,56 @@ public class Publication {
 				System.err.println(e.toString());
 				return null;
 			}
-			if (mask.size() != 20) {
-				System.err.println("makeXORMask should give 20 byte mask, but isn't");
-				return null;
-			}
-		} else {
-			String opfUID = getAdobePrimaryUUID();
-			int acc = 0;
-			int len = opfUID.length();
-			for (int i = 0; i < len; i++) {
-				char c = opfUID.charAt(i);
-				int n;
-				if ('0' <= c && c <= '9')
-					n = c - '0';
-				else if ('a' <= c && c <= 'f')
-					n = c - ('a' - 10);
-				else if ('A' <= c && c <= 'F')
-					n = c - ('A' - 10);
-				else
-					continue;
-				if (acc == 0) {
-					acc = 0x100 | (n << 4);
-				} else {
-					mask.write(acc | n);
-					acc = 0;
-				}
-			}
-			if (mask.size() != 16)
-				return null;
 		}
-		return mask.toByteArray();
+		return idpfMask;
 	}
 
+	byte[] makeAdobeXORMask() {
+		if( adobeMask != null )
+			return adobeMask;
+		ByteArrayOutputStream mask = new ByteArrayOutputStream();
+		String opfUID = getAdobePrimaryUUID();
+		int acc = 0;
+		int len = opfUID.length();
+		for (int i = 0; i < len; i++) {
+			char c = opfUID.charAt(i);
+			int n;
+			if ('0' <= c && c <= '9')
+				n = c - '0';
+			else if ('a' <= c && c <= 'f')
+				n = c - ('a' - 10);
+			else if ('A' <= c && c <= 'F')
+				n = c - ('A' - 10);
+			else
+				continue;
+			if (acc == 0) {
+				acc = 0x100 | (n << 4);
+			} else {
+				mask.write(acc | n);
+				acc = 0;
+			}
+		}
+		if (mask.size() != 16)
+			return null;
+		adobeMask = mask.toByteArray();
+		return adobeMask;
+	}
+
+	/**
+	 * Serialize Publication into a container such as OCF container or folder.
+	 * 
+	 * @param container
+	 *            container writing interface
+	 * @throws IOException
+	 *             if I/O error occurs while writing
+	 */
 	public void serialize(ContainerWriter container) throws IOException {
 		Enumeration names = resourcesByName.keys();
-		byte[] mask = makeXORMask();
 		boolean needEnc = false;
 		while (names.hasMoreElements()) {
 			String name = (String) names.nextElement();
 			Resource res = (Resource) resourcesByName.get(name);
-			if (mask != null && res instanceof AdobeFontResource) {
-				((AdobeFontResource) res).setXORMask(mask);
-				needEnc = true;
-			}
-			if (mask != null && res instanceof IDPFFontResource) {
-				((IDPFFontResource) res).setXORMask(mask);
+			if (res instanceof FontResource) {
 				needEnc = true;
 			}
 			OutputStream out = container.getOutputStream(name, res.canCompress());
@@ -483,40 +654,37 @@ public class Publication {
 			XMLSerializer ser = new XMLSerializer(container.getOutputStream("META-INF/encryption.xml"));
 			ser.startDocument("1.0", "UTF-8");
 			ser.startElement(ocfns, "encryption", null, true);
+			ser.newLine();
 			names = resourcesByName.keys();
 			while (names.hasMoreElements()) {
 				String name = (String) names.nextElement();
 				Resource res = (Resource) resourcesByName.get(name);
-				if ((res instanceof FontResource) && (useIDPFFontMangling)) {
+				if (res instanceof FontResource) {
 					SMapImpl attrs = new SMapImpl();
 					ser.startElement(encns, "EncryptedData", null, true);
-					attrs.put(null, "Algorithm", "http://www.idpf.org/2008/embedding");
+					ser.newLine();
+					if (useIDPFFontMangling)
+						attrs.put(null, "Algorithm", "http://www.idpf.org/2008/embedding");
+					else
+						attrs.put(null, "Algorithm", "http://ns.adobe.com/pdf/enc#RC");
 					ser.startElement(encns, "EncryptionMethod", attrs, false);
 					ser.endElement(encns, "EncryptionMethod");
+					ser.newLine();
 					ser.startElement(encns, "CipherData", null, false);
+					ser.newLine();
 					attrs = new SMapImpl();
 					attrs.put(null, "URI", name);
 					ser.startElement(encns, "CipherReference", attrs, false);
 					ser.endElement(encns, "CipherReference");
+					ser.newLine();
 					ser.endElement(encns, "CipherData");
+					ser.newLine();
 					ser.endElement(encns, "EncryptedData");
-				} else if (res instanceof FontResource) {
-					SMapImpl attrs;
-					ser.startElement(encns, "EncryptedData", null, true);
-					attrs = new SMapImpl();
-					attrs.put(null, "Algorithm", "http://ns.adobe.com/pdf/enc#RC");
-					ser.startElement(encns, "EncryptionMethod", attrs, false);
-					ser.endElement(encns, "EncryptionMethod");
-					ser.startElement(encns, "CipherData", null, false);
-					attrs = new SMapImpl();
-					attrs.put(null, "URI", name);
-					ser.startElement(encns, "CipherReference", attrs, false);
-					ser.endElement(encns, "CipherReference");
-					ser.endElement(encns, "CipherData");
-					ser.endElement(encns, "EncryptedData");
+					ser.newLine();
 				}
 			}
 			ser.endElement(ocfns, "encryption");
+			ser.newLine();
 			ser.endDocument();
 		}
 		XMLSerializer ser = new XMLSerializer(container.getOutputStream("META-INF/container.xml"));
@@ -524,14 +692,19 @@ public class Publication {
 		SMapImpl attrs = new SMapImpl();
 		attrs.put(null, "version", "1.0");
 		ser.startElement(ocfns, "container", attrs, true);
+		ser.newLine();
 		ser.startElement(ocfns, "rootfiles", null, false);
+		ser.newLine();
 		attrs = new SMapImpl();
 		attrs.put(null, "full-path", opf.name);
 		attrs.put(null, "media-type", opf.mediaType);
 		ser.startElement(ocfns, "rootfile", attrs, true);
 		ser.endElement(ocfns, "rootfile");
+		ser.newLine();
 		ser.endElement(ocfns, "rootfiles");
+		ser.newLine();
 		ser.endElement(ocfns, "container");
+		ser.newLine();
 		ser.endDocument();
 		container.close();
 	}

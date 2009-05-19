@@ -12,6 +12,7 @@ import com.adobe.dp.epub.opf.OPSResource;
 import com.adobe.dp.epub.opf.Publication;
 import com.adobe.dp.epub.opf.StyleResource;
 import com.adobe.dp.epub.ops.Element;
+import com.adobe.dp.epub.ops.HyperlinkElement;
 import com.adobe.dp.epub.ops.ImageElement;
 import com.adobe.dp.epub.ops.OPSDocument;
 import com.adobe.dp.epub.ops.SVGElement;
@@ -21,6 +22,10 @@ import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.otf.DefaultFontLocator;
 import com.adobe.dp.otf.FontLocator;
 
+/**
+ * Advanced epubgen example. Using bitmap images, font embedding, links and
+ * inline SVG.
+ */
 public class HelloEPUB3 {
 
 	public static void main(String[] args) {
@@ -98,8 +103,7 @@ public class HelloEPUB3 {
 			label2Rule.set("font-family", "'Comic Sans MS'");
 
 			// create first chapter resource
-			OPSResource chapter1 = epub
-					.createOPSResource("OPS/chapter1.html");
+			OPSResource chapter1 = epub.createOPSResource("OPS/chapter1.html");
 			epub.addToSpine(chapter1);
 
 			// get chapter document
@@ -152,9 +156,8 @@ public class HelloEPUB3 {
 			path.setAttribute("fill", "none");
 			path.setAttribute("stroke", "black");
 			path.setAttribute("stroke-width", "4");
-			path
-					.setAttribute("d",
-							"M90 120h50l10 20l20-40l20 40l20-40l20 40l20-40l20 40l20-40l20 40l10-20h50");
+			String resistorPath = "M90 120h50l10 20l20-40l20 40l20-40l20 40l20-40l20 40l20-40l20 40l10-20h50";
+			path.setAttribute("d", resistorPath);
 			svg.add(path);
 
 			// draw a label
@@ -183,9 +186,13 @@ public class HelloEPUB3 {
 			label2.add(t3);
 			svg.add(label2);
 
+			// create a small paragraph to use as a link target
+			Element target = chapter1Doc.createElement("p");
+			target.add("Link in the second chapter points here.");
+			body1.add(target);
+
 			// create second chapter resource
-			OPSResource chapter2 = epub
-					.createOPSResource("OPS/chapter2.html");
+			OPSResource chapter2 = epub.createOPSResource("OPS/chapter2.html");
 			epub.addToSpine(chapter2);
 
 			// get chapter document
@@ -239,12 +246,18 @@ public class HelloEPUB3 {
 						+ " of the second chapter's second paragraph. ");
 			paragraph3.add(sb3.toString());
 			body2.add(paragraph3);
-			
+
+			// add a link to the target paragraph in the first chapter
+			HyperlinkElement a = chapter2Doc.createHyperlinkElement("a");
+			a.setXRef(target.getSelfRef());
+			a.add("Here is a link.");
+			paragraph3.add(a);
+
 			// embed fonts
 			// NB: on non-Windows platforms you need to supply your own
-			// FontLocator implementation
+			// FontLocator implementation or place fonts in ~/.epubfonts
 			FontLocator fontLocator = DefaultFontLocator.getInstance();
-			epub.useAdobeFontMangling();
+			//epub.useAdobeFontMangling();
 			epub.addFonts(style, fontLocator);
 
 			// save EPUB to an OCF container
