@@ -40,11 +40,7 @@ import com.adobe.dp.epub.opf.Publication;
 import com.adobe.dp.office.rtf.RTFDocument;
 
 public class Main {
-	public static final String VERSION = "0.2.1";
-	public static boolean deprecatedFontMangling = false;
-	public static String source = null;
-	public static String dest = null;
-
+	
 	public static void main(String[] args) {		
 		try {
 			Main.processArguments(args);
@@ -72,6 +68,11 @@ public class Main {
 		}
 	}
 	
+	public static final String VERSION = "0.3.0";
+	public static boolean deprecatedFontMangling = false;
+	public static String source = null;
+	public static String dest = null;
+
 	/**
 	 * This method iterates through all of the arguments passed to
 	 * main to find accepted flags and the name of the file to check.
@@ -128,7 +129,7 @@ public class Main {
 		System.out.println("This tool accepts the following options:");
 		System.out.println("-h or --help 			= Displays this help message, and exits");
 		System.out.println("-v or --version 		= Displays the tool's version number");
-		System.out.println("-a or --adobeFontMangling 	= (Not recommmended.) Uses deprecated font mangling algorithm. \n\t\t\t\tWithout this flag the IDPF algorithm is used.\n");
+		System.out.println("-a or --adobeFontMangling 	= Uses deprecated font mangling algorithm. \n\t\t\t\tWithout this flag the IDPF algorithm is used.\n");
 		System.exit(0);
 	}
 	
