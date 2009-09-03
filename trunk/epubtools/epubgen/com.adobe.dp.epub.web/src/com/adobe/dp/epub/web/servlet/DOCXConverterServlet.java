@@ -28,7 +28,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
 
-package com.adobe.dp.conv.word2epub;
+package com.adobe.dp.epub.web.servlet;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -50,19 +50,19 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
-import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
-import org.apache.log4j.RollingFileAppender;
 
+import com.adobe.dp.conv.word2epub.Converter;
 import com.adobe.dp.epub.io.OCFContainerWriter;
+import com.adobe.dp.epub.io.ZipContainerSource;
 import com.adobe.dp.epub.opf.Publication;
 import com.adobe.dp.epub.util.ConversionTemplate;
 import com.adobe.dp.epub.util.Translit;
+import com.adobe.dp.epub.web.log.LogInitializer;
 import com.adobe.dp.office.word.WordDocument;
 
-public class ConverterServlet extends HttpServlet {
+public class DOCXConverterServlet extends HttpServlet {
 	public static final long serialVersionUID = 0;
 
 	static Logger logger;
@@ -74,23 +74,9 @@ public class ConverterServlet extends HttpServlet {
 	static ConversionTemplate defaultTemplate;
 
 	static {
-		try {
-			home = new File("/home/soroto2");
-			if (!home.isDirectory())
-				home = new File(System.getProperty("user.home"));
-			RollingFileAppender appender = new RollingFileAppender();
-			appender.setFile(home + File.separator + "logs" + File.separator + "docx2epub.log");
-			appender.setBufferedIO(false);
-			String pattern = "%d{DATE} %-5p [%c@%t]: %m%n";
-			appender.setLayout(new PatternLayout(pattern));
-			appender.setMaxFileSize("1Mb");
-			appender.setMaxBackupIndex(3);
-			appender.activateOptions();
-			BasicConfigurator.configure(appender);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		logger = Logger.getLogger(ConverterServlet.class);
+		home = LogInitializer.getHome();
+
+		logger = Logger.getLogger(DOCXConverterServlet.class);
 		logger.setLevel(Level.ALL);
 		logger.trace("servlet loaded");
 		try {
@@ -130,6 +116,7 @@ public class ConverterServlet extends HttpServlet {
 			String docxurl = null;
 			File workPath = new File(home, "work");
 			workPath.mkdir();
+			String docxpath = null;
 			if (post && ServletFileUpload.isMultipartContent(req)) {
 				DiskFileItemFactory itemFac = new DiskFileItemFactory();
 				File repositoryPath = new File(home, "upload");
@@ -159,8 +146,10 @@ public class ConverterServlet extends HttpServlet {
 							docxurl = t;
 					}
 				}
-				if (!useurl && book != null)
+				if (!useurl && book != null) {
 					docxin = book.getInputStream();
+					docxpath = book.getName();
+				}
 				if (template != null)
 					templatein = template.getInputStream();
 			} else {
@@ -178,6 +167,7 @@ public class ConverterServlet extends HttpServlet {
 					reportError(resp, "Invalid request: docx URL protocol is not http");
 					return;
 				}
+				docxpath = url.getPath();
 				String host = url.getHost();
 				InetAddress ipaddr = InetAddress.getByName(host);
 				String ipstr = ipaddr.toString();
@@ -205,15 +195,29 @@ public class ConverterServlet extends HttpServlet {
 			docxin.close();
 			if (book != null)
 				book.delete();
+			if (docxpath != null) {
+				if (docxpath.endsWith("/"))
+					docxpath = docxpath.substring(0, docxpath.length() - 1);
+				int index = docxpath.lastIndexOf('/');
+				if (index >= 0)
+					docxpath = docxpath.substring(index + 1);
+				index = docxpath.lastIndexOf('\\');
+				if (index >= 0)
+					docxpath = docxpath.substring(index + 1);
+			}
 			WordDocument doc = new WordDocument(docxtmp);
 			Publication epub = new Publication();
 			epub.setTranslit(translit);
 			epub.useAdobeFontMangling();
 			String title = null;
 			String fname;
-			if (title == null)
-				fname = "book";
-			else
+			if (title == null) {
+				if (docxpath != null) {
+					fname = docxpath;
+					epub.addDCMetadata("title", docxpath);
+				} else
+					fname = "book";
+			} else
 				fname = Translit.translit(title).replace(' ', '_').replace('\t', '_').replace('\n', '_').replace('\r',
 						'_');
 			resp.setContentType("application/epub+zip");
@@ -227,6 +231,7 @@ public class ConverterServlet extends HttpServlet {
 			}
 			if (defaultTemplate != null)
 				conv.setFontLocator(defaultTemplate.getFontLocator());
+			conv.setWordResources(new ZipContainerSource(docxtmp));
 			conv.convert();
 			epub.serialize(container);
 			docxtmp.delete();

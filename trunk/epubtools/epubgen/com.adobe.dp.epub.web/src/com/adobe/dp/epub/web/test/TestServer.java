@@ -28,7 +28,7 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-package com.adobe.dp.conv.word2epub;
+package com.adobe.dp.epub.web.test;
 
 import java.io.File;
 
@@ -36,6 +36,9 @@ import org.mortbay.http.HttpServer;
 import org.mortbay.http.handler.ResourceHandler;
 import org.mortbay.jetty.servlet.ServletHttpContext;
 import org.mortbay.util.InetAddrPort;
+
+import com.adobe.dp.epub.web.servlet.DOCXConverterServlet;
+import com.adobe.dp.epub.web.servlet.FB2ConverterServlet;
 
 public class TestServer {
 	public static void main(String[] args) {
@@ -50,8 +53,9 @@ public class TestServer {
 			cx.addHandler(resourceHandler);
 			cx.setResourceBase(root.getAbsolutePath());
 
-			// common servlets
-			cx.addServlet("convert", "/svc/docx2epub", ConverterServlet.class
+			cx.addServlet("DOCX", "/svc/docx2epub", DOCXConverterServlet.class
+					.getName());
+			cx.addServlet("FB2", "/svc/fb2epub", FB2ConverterServlet.class
 					.getName());
 
 			svr.addContext(cx);
