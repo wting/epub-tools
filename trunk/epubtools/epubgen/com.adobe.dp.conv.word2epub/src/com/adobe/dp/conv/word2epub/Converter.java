@@ -1,32 +1,32 @@
 /*******************************************************************************
-* Copyright (c) 2009, Adobe Systems Incorporated
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without 
-* modification, are permitted provided that the following conditions are met:
-*
-* ·        Redistributions of source code must retain the above copyright 
-*          notice, this list of conditions and the following disclaimer. 
-*
-* ·        Redistributions in binary form must reproduce the above copyright 
-*		   notice, this list of conditions and the following disclaimer in the
-*		   documentation and/or other materials provided with the distribution. 
-*
-* ·        Neither the name of Adobe Systems Incorporated nor the names of its 
-*		   contributors may be used to endorse or promote products derived from
-*		   this software without specific prior written permission. 
-* 
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-* OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
-* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*******************************************************************************/
+ * Copyright (c) 2009, Adobe Systems Incorporated
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * ·        Redistributions of source code must retain the above copyright 
+ *          notice, this list of conditions and the following disclaimer. 
+ *
+ * ·        Redistributions in binary form must reproduce the above copyright 
+ *		   notice, this list of conditions and the following disclaimer in the
+ *		   documentation and/or other materials provided with the distribution. 
+ *
+ * ·        Neither the name of Adobe Systems Incorporated nor the names of its 
+ *		   contributors may be used to endorse or promote products derived from
+ *		   this software without specific prior written permission. 
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
 
 package com.adobe.dp.conv.word2epub;
 
@@ -40,7 +40,6 @@ import com.adobe.dp.epub.io.BufferedDataSource;
 import com.adobe.dp.epub.io.ContainerSource;
 import com.adobe.dp.epub.io.DataSource;
 import com.adobe.dp.epub.io.StringDataSource;
-import com.adobe.dp.epub.ncx.TOCEntry;
 import com.adobe.dp.epub.opf.NCXResource;
 import com.adobe.dp.epub.opf.OPSResource;
 import com.adobe.dp.epub.opf.Publication;
@@ -50,6 +49,10 @@ import com.adobe.dp.epub.ops.Element;
 import com.adobe.dp.epub.ops.HyperlinkElement;
 import com.adobe.dp.epub.ops.ImageElement;
 import com.adobe.dp.epub.ops.OPSDocument;
+import com.adobe.dp.epub.ops.XRef;
+import com.adobe.dp.epub.style.BaseRule;
+import com.adobe.dp.epub.style.CSSLength;
+import com.adobe.dp.epub.style.PrototypeRule;
 import com.adobe.dp.epub.style.Rule;
 import com.adobe.dp.epub.style.Selector;
 import com.adobe.dp.epub.style.SimpleSelector;
@@ -62,6 +65,7 @@ import com.adobe.dp.office.metafile.WMFParser;
 import com.adobe.dp.office.types.Border;
 import com.adobe.dp.office.types.BorderSide;
 import com.adobe.dp.office.types.FontFamily;
+import com.adobe.dp.office.types.Indent;
 import com.adobe.dp.office.types.Paint;
 import com.adobe.dp.office.types.RGBColor;
 import com.adobe.dp.office.types.Spacing;
@@ -70,6 +74,8 @@ import com.adobe.dp.office.word.BaseProperties;
 import com.adobe.dp.office.word.BodyElement;
 import com.adobe.dp.office.word.ContainerElement;
 import com.adobe.dp.office.word.DrawingElement;
+import com.adobe.dp.office.word.FootnoteElement;
+import com.adobe.dp.office.word.FootnoteReferenceElement;
 import com.adobe.dp.office.word.NumberingProperties;
 import com.adobe.dp.office.word.ParagraphElement;
 import com.adobe.dp.office.word.ParagraphProperties;
@@ -83,6 +89,7 @@ import com.adobe.dp.office.word.TableProperties;
 import com.adobe.dp.office.word.TableRowElement;
 import com.adobe.dp.office.word.TextElement;
 import com.adobe.dp.office.word.WordDocument;
+import com.adobe.dp.otf.FontLocator;
 
 public class Converter {
 
@@ -96,11 +103,8 @@ public class Converter {
 
 	NCXResource toc;
 
-	// maps ParagraphProperty to Rule
-	Hashtable paragraphPropertyMap = new Hashtable();
-
-	// maps RunProperty to Rule
-	Hashtable runPropertyMap = new Hashtable();
+	// maps Footnote IDs to Footnote XRef
+	Hashtable footnoteMap = new Hashtable();
 
 	// set of classes
 	HashSet classNames = new HashSet();
@@ -112,14 +116,14 @@ public class Converter {
 	Hashtable convResources = new Hashtable();
 
 	ContainerSource wordResources;
+	
+	FontLocator fontLocator;
 
 	boolean hadSpace = false;
 
 	double defaultFontSize;
 
 	private static String mediaFolder = "OPS/media/";
-
-	HashSet chapterBreaks = new HashSet();
 
 	public Converter(WordDocument doc, Publication epub) {
 		this.doc = doc;
@@ -129,29 +133,35 @@ public class Converter {
 		toc = epub.getTOC();
 
 		// default font size - have to happen early
-		RunProperties rp = doc.getDefaultRunStyle().getRunProperties();
-		Object sz = rp.get("sz");
+		RunProperties rp = doc.getDocumentDefaultRunStyle().getRunProperties();
+		Object sz = (rp != null ? rp.get("sz") : null);
 		if (sz instanceof Number)
 			defaultFontSize = ((Number) sz).doubleValue();
 		if (defaultFontSize < 1)
-			defaultFontSize = 22;
+			defaultFontSize = 20;
 
-		// default styles
+		// default table styles
 		Rule tableRule = stylesheet.getRuleForSelector(stylesheet.getSimpleSelector("table", null));
 		tableRule.set("border-collapse", "collapse");
 		tableRule.set("border-spacing", "0px");
-		Rule pRule = stylesheet.getRuleForSelector(stylesheet.getSimpleSelector("p", null));
-		ParagraphProperties pp = doc.getDefaultParagraphStyle().getParagraphProperties();
-		addDirectProperties(pRule, pp);
-		Rule bodyRule = stylesheet.getRuleForSelector(stylesheet.getSimpleSelector("body", null));
-		addDirectProperties(bodyRule, rp);
 
-		// styles that cause chapter breaks
-		chapterBreaks.add("Title");
-		chapterBreaks.add("Heading1");
-		chapterBreaks.add("Heading2");
+		// default paragraph styles
+		Rule pRule = stylesheet.getRuleForSelector(stylesheet.getSimpleSelector("p", null));
+		ParagraphProperties pp = doc.getDocumentDefaultParagraphStyle().getParagraphProperties();
+		addDirectProperties(pRule, pp, 1);
+		// unlike XHTML, Word's default spacing is zero
+		setIfNotPresent(pRule, "margin-top", "0px");
+		setIfNotPresent(pRule, "margin-bottom", "0px");
+		if (rp != null) {
+			Rule bodyRule = stylesheet.getRuleForSelector(stylesheet.getSimpleSelector("body", null));
+			addDirectProperties(bodyRule, rp, 1);
+		}
 	}
 
+	public void setFontLocator(FontLocator fontLocator) {
+		this.fontLocator = fontLocator;
+	}
+	
 	private void findLists(ContainerElement ce) {
 		Iterator it = ce.content();
 		ParagraphElement prevElement = null;
@@ -191,27 +201,48 @@ public class Converter {
 	}
 
 	public void convert() {
-		BodyElement body = doc.getBody();
-		findLists(body);
-		addChildren(null, null, body);
-		epub.addFonts(styles);
-	}
 
-	private boolean isChapterBreakElement(com.adobe.dp.office.word.Element we) {
-		if (we instanceof ParagraphElement) {
-			ParagraphElement pe = (ParagraphElement) we;
-			ParagraphProperties pp = pe.getParagraphProperties();
-			if (pp != null) {
-				Style style = pp.getParagraphStyle();
-				if (style != null) {
-					String styleId = style.getStyleId();
-					if (styleId != null && chapterBreaks.contains(styleId)) {
-						return true;
-					}
-				}
+		OPSResource footnotes = null;
+		if (doc.getFootnotes() != null) {
+			// process footnotes first to build footnote map
+			BodyElement fbody = doc.getFootnotes();
+			footnotes = epub.createOPSResource("OPS/footnotes.xhtml");
+			OPSDocument fdoc = footnotes.getDocument();
+			fdoc.addStyleResource(styles);
+			addChildren(fdoc, fdoc.getBody(), fbody, 1);
+			if (footnoteMap.size() > 0) {
+				Stylesheet ss = styles.getStylesheet();
+				Selector selector = ss.getSimpleSelector(null, "footnote-ref");
+				Rule rule = ss.getRuleForSelector(selector);
+				rule.set("font-size", "0.7em");
+				rule.set("vertical-align", "super");
+				rule.set("line-height", "0.2");
+				selector = ss.getSimpleSelector(null, "footnote-title");
+				rule = ss.getRuleForSelector(selector);
+				rule.set("margin", "0px");
+				rule.set("padding", "1em 0px 0.5em 2em");
+			} else {
+				epub.removeResource(footnotes);
 			}
 		}
-		return false;
+
+		BodyElement body = doc.getBody();
+		findLists(body);
+		OPSResource ops = epub.createOPSResource("OPS/document.xhtml");
+		epub.addToSpine(ops);
+		OPSDocument doc = ops.getDocument();
+		doc.addStyleResource(styles);
+		addChildren(doc, doc.getBody(), body, 1);
+
+		if (footnotes != null)
+			epub.addToSpine(footnotes);
+
+		epub.generateTOCFromHeadings(5);
+		epub.splitLargeChapters();
+		if( fontLocator != null )
+			epub.addFonts(styles, fontLocator);
+		else
+			epub.addFonts(styles); // use system fonts
 	}
 
 	private static final int RUN_COMPLEX = 1;
@@ -278,7 +309,7 @@ public class Converter {
 		return null;
 	}
 
-	private String createClassName(String base, boolean tryBase) {
+	private String findUniqueClassName(String base, boolean tryBase) {
 		if (tryBase) {
 			if (!classNames.contains(base))
 				return base;
@@ -287,13 +318,12 @@ public class Converter {
 		while (true) {
 			String name = base + (styleCount++);
 			if (!classNames.contains(name)) {
-				classNames.add(name);
 				return name;
 			}
 		}
 	}
 
-	void setIfNotPresent(Rule rule, String name, Object value) {
+	void setIfNotPresent(BaseRule rule, String name, Object value) {
 		if (rule.get(name) == null)
 			rule.set(name, value);
 	}
@@ -338,7 +368,7 @@ public class Converter {
 		return result.toString();
 	}
 
-	private void addDirectProperties(Rule rule, BaseProperties prop) {
+	private void addDirectProperties(BaseRule rule, BaseProperties prop, float emScale) {
 		if (prop == null || prop.isEmpty())
 			return;
 		Iterator props = prop.properties();
@@ -354,6 +384,9 @@ public class Converter {
 			} else if (name.equals("rFonts")) {
 				FontFamily fontFamily = (FontFamily) value;
 				setIfNotPresent(rule, "font-family", getFontFamilyString(fontFamily));
+			} else if (name.equals("sz")) {
+				double fontSize = ((Number) value).doubleValue() / (emScale * defaultFontSize);
+				setIfNotPresent(rule, "font-size", new CSSLength(fontSize,"em") );
 			} else if (name.equals("u")) {
 				Object val = rule.get("text-decoration");
 				if (val == null || !val.equals("line-through"))
@@ -368,9 +401,6 @@ public class Converter {
 					rule.set("text-decoration", "underline, line-through");
 			} else if (name.equals("color")) {
 				setIfNotPresent(rule, "color", ((RGBColor) value).toCSSString());
-			} else if (name.equals("sz")) {
-				double fontSize = ((Number) value).doubleValue() / defaultFontSize;
-				setIfNotPresent(rule, "font-size", fontSize + "em");
 			} else if (name.equals("highlight")) {
 				setIfNotPresent(rule, "background-color", ((RGBColor) value).toCSSString());
 			} else if (name.equals("shd")) {
@@ -415,11 +445,28 @@ public class Converter {
 					double lineHeight = insets.getLine() / (fontSize * 20.0);
 					setIfNotPresent(rule, "line-height", Double.toString(lineHeight));
 				}
+			} else if (name.equals("ind")) {
+				Indent ind = (Indent) value;
+				final float normalWidth = 612; // convert to percentages of this
+				if (ind.getLeft() > 0) {
+					float pts = ind.getLeft() / 20;
+					float percent = 100 * pts / normalWidth;
+					setIfNotPresent(rule, "margin-left", new CSSLength(percent, "%"));
+				}
+				if (ind.getRight() > 0) {
+					float pts = ind.getRight() / 20;
+					float percent = 100 * pts / normalWidth;
+					setIfNotPresent(rule, "margin-right", new CSSLength(percent, "%"));
+				}
+				if (ind.getFirstLine() > 0) {
+					prop.get("font-size");
+					setIfNotPresent(rule, "text-indent", new CSSLength(ind.getFirstLine() / 20.0, "pt"));
+				}
 			}
 		}
 	}
 
-	private void addCellBorderProperties(Rule rule, BaseProperties prop) {
+	private void addCellBorderProperties(BaseRule rule, BaseProperties prop) {
 		if (prop == null || prop.isEmpty())
 			return;
 		Border border = (Border) prop.get("tblBorders");
@@ -443,92 +490,94 @@ public class Converter {
 		}
 	}
 
-	private void convertStylingRule(Rule rule, BaseProperties prop, String elementName) {
+	private void convertStylingRule(BaseRule rule, BaseProperties prop, String elementName, float emScale) {
 		boolean runOnly = prop instanceof RunProperties;
 		Style style;
 		if (runOnly) {
 			RunProperties rp = (RunProperties) prop;
-			addDirectProperties(rule, prop);
+			addDirectProperties(rule, prop, emScale);
 			style = rp.getRunStyle();
 		} else {
 			ParagraphProperties pp = (ParagraphProperties) prop;
-			addDirectProperties(rule, prop);
+			addDirectProperties(rule, prop, emScale);
 			style = pp.getParagraphStyle();
 		}
 		while (style != null) {
-			addDirectProperties(rule, style.getRunProperties());
+			addDirectProperties(rule, style.getRunProperties(), emScale);
 			if (!runOnly)
-				addDirectProperties(rule, style.getParagraphProperties());
+				addDirectProperties(rule, style.getParagraphProperties(), emScale);
 			style = style.getParent();
 		}
 		if (runOnly)
-			addDirectProperties(rule, doc.getDefaultRunStyle().getRunProperties());
+			addDirectProperties(rule, doc.getDocumentDefaultRunStyle().getRunProperties(), emScale);
 		else
-			addDirectProperties(rule, doc.getDefaultParagraphStyle().getParagraphProperties());
+			addDirectProperties(rule, doc.getDocumentDefaultParagraphStyle().getParagraphProperties(), emScale);
 		if (elementName != null && elementName.startsWith("h")) {
 			if (rule.get("font-weight") == null)
 				rule.set("font-weight", "normal");
 		}
 	}
 
-	private SimpleSelector mapPropertiesToSelector(BaseProperties prop, Hashtable map, boolean isListElement) {
+	private SimpleSelector mapPropertiesToSelector(BaseProperties prop, boolean isListElement, float emScale) {
 		if (prop == null)
 			return null;
-		Rule rule = (Rule) map.get(prop);
-		if (rule == null) {
-			String elementName = null;
-			String className = null;
-			if (prop instanceof ParagraphProperties) {
-				ParagraphProperties pp = (ParagraphProperties) prop;
-				Style style = pp.getParagraphStyle();
-				boolean noInlineStyling = pp.isEmpty() && pp.getNumberingProperties() == null
-						&& pp.getRunProperties() == null;
-				if (style == null) {
-					if (noInlineStyling)
-						return stylesheet.getSimpleSelector("p", null);
-				} else if (isListElement) {
-					elementName = "li";
-				} else {
-					elementName = mapToElement(style.getStyleId());
-				}
-				if (elementName == null && style != null) {
-					className = createClassName(style.getStyleId(), pp.isEmpty());
-				} else {
-					if (!noInlineStyling || elementName.equals("h1") || elementName.equals("li"))
-						className = createClassName("p", false);
-				}
+		String elementName = null;
+		String className = null;
+		if (prop instanceof ParagraphProperties) {
+			ParagraphProperties pp = (ParagraphProperties) prop;
+			Style style = pp.getParagraphStyle();
+			boolean noInlineStyling = pp.isEmpty() && pp.getNumberingProperties() == null
+					&& pp.getRunProperties() == null;
+			if (style == null) {
+				if (noInlineStyling)
+					return stylesheet.getSimpleSelector("p", null);
+			} else if (isListElement) {
+				elementName = "li";
 			} else {
-				RunProperties rp = (RunProperties) prop;
-				int runMask = getRunMask(rp);
-				switch (runMask) {
-				case 0:
-					// don't create unneeded span element
-					return null;
-				case RUN_BOLD:
-					// bold only
-					return stylesheet.getSimpleSelector("b", null);
-				case RUN_ITALIC:
-					// italic only
-					return stylesheet.getSimpleSelector("i", null);
-				case RUN_SUB:
-					// italic only
-					return stylesheet.getSimpleSelector("sub", null);
-				case RUN_SUPER:
-					// italic only
-					return stylesheet.getSimpleSelector("sup", null);
-				}
-				if ((runMask & RUN_STYLE) != 0) {
-					className = createClassName(rp.getRunStyle().getStyleId(), rp.isEmpty());
-				} else {
-					className = createClassName("r", false);
-				}
+				elementName = mapToElement(style.getStyleId());
 			}
-			Selector selector = stylesheet.getSimpleSelector(elementName, className);
-			rule = stylesheet.getRuleForSelector(selector);
-			convertStylingRule(rule, prop, elementName);
-			map.put(prop, rule);
+			if (elementName == null && style != null) {
+				className = findUniqueClassName(style.getStyleId(), pp.isEmpty());
+			} else {
+				if (!noInlineStyling || elementName.equals("h1") || elementName.equals("li"))
+					className = findUniqueClassName("p", false);
+			}
+		} else {
+			RunProperties rp = (RunProperties) prop;
+			int runMask = getRunMask(rp);
+			switch (runMask) {
+			case 0:
+				// don't create unneeded span element
+				return null;
+			case RUN_BOLD:
+				// bold only
+				return stylesheet.getSimpleSelector("b", null);
+			case RUN_ITALIC:
+				// italic only
+				return stylesheet.getSimpleSelector("i", null);
+			case RUN_SUB:
+				// subscript only
+				return stylesheet.getSimpleSelector("sub", null);
+			case RUN_SUPER:
+				// superscript only
+				return stylesheet.getSimpleSelector("sup", null);
+			}
+			if ((runMask & RUN_STYLE) != 0) {
+				className = findUniqueClassName(rp.getRunStyle().getStyleId(), rp.isEmpty());
+			} else {
+				className = findUniqueClassName("r", false);
+			}
 		}
-		return (SimpleSelector) rule.getSelector();
+		PrototypeRule pr = stylesheet.createPrototypeRule();
+		convertStylingRule(pr, prop, null, emScale);
+		Rule rule = stylesheet.getClassRuleForPrototype(pr);
+		if (rule == null) {
+			rule = stylesheet.createClassRuleForPrototype(className, pr);
+			classNames.add(className);
+		} else {
+			className = ((SimpleSelector) rule.getSelector()).getClassName();
+		}
+		return stylesheet.getSimpleSelector(elementName, className);
 	}
 
 	class WMFResourceWriter implements ResourceWriter {
@@ -635,14 +684,15 @@ public class Converter {
 		return s;
 	}
 
-	private void appendConvertedElement(com.adobe.dp.office.word.Element we, Element parent, OPSDocument chapter) {
+	private void appendConvertedElement(com.adobe.dp.office.word.Element we, Element parent, OPSDocument chapter,
+			float emScale) {
 		Element conv = null;
 		boolean addToParent = true;
 		boolean resetSpaceProcessing = false;
 		if (we instanceof ParagraphElement) {
 			ParagraphElement wp = (ParagraphElement) we;
 			ParagraphProperties pp = wp.getParagraphProperties();
-			SimpleSelector selector = mapPropertiesToSelector(pp, paragraphPropertyMap, listElements.contains(we));
+			SimpleSelector selector = mapPropertiesToSelector(pp, listElements.contains(we), emScale);
 			String className = null;
 			String elementName;
 			if (selector != null) {
@@ -678,7 +728,7 @@ public class Converter {
 		} else if (we instanceof RunElement) {
 			RunElement wr = (RunElement) we;
 			RunProperties rp = wr.getRunProperties();
-			SimpleSelector selector = mapPropertiesToSelector(rp, paragraphPropertyMap, false);
+			SimpleSelector selector = mapPropertiesToSelector(rp, false, emScale);
 			if (selector != null) {
 				String className = null;
 				String elementName;
@@ -701,18 +751,48 @@ public class Converter {
 			if (href != null)
 				a.setExternalHRef(href);
 			conv = a;
+		} else if (we instanceof FootnoteReferenceElement) {
+			FootnoteReferenceElement wf = (FootnoteReferenceElement) we;
+			String fid = wf.getID();
+			if (fid != null) {
+				XRef xref = (XRef) footnoteMap.get(fid);
+				if (xref != null) {
+					HyperlinkElement a = chapter.createHyperlinkElement("a");
+					a.setClassName("footnote-ref");
+					a.setXRef(xref);
+					a.add("[" + fid + "]");
+					conv = a;
+				}
+			}
+			resetSpaceProcessing = true;
+		} else if (we instanceof FootnoteElement) {
+			FootnoteElement wf = (FootnoteElement) we;
+			String fid = wf.getID();
+			if (fid != null) {
+				conv = chapter.createElement("div");
+				footnoteMap.put(fid, conv.getSelfRef());
+				conv.setClassName("footnote");
+				Element ft = chapter.createElement("h6");
+				ft.setClassName("footnote-title");
+				conv.add(ft);
+				ft.add(fid);
+			}
+			resetSpaceProcessing = true;
 		} else if (we instanceof TableElement) {
 			TableElement wt = (TableElement) we;
 			TableProperties tp = wt.getTableProperties();
-			String className = createClassName("im", false);
 			conv = chapter.createElement("table");
+			PrototypeRule prule = stylesheet.createPrototypeRule();
+			addDirectProperties(prule, tp, emScale);
+			addCellBorderProperties(prule, tp);
+			Rule rule = stylesheet.getClassRuleForPrototype(prule);
+			if (rule == null) {
+				String className = findUniqueClassName("tb", false);
+				classNames.add(className);
+				rule = stylesheet.createClassRuleForPrototype(className, prule);
+			}
+			String className = ((SimpleSelector) rule.getSelector()).getClassName();
 			conv.setClassName(className);
-			SimpleSelector selector = stylesheet.getSimpleSelector("table", className);
-			Rule rule = stylesheet.getRuleForSelector(selector);
-			addDirectProperties(rule, tp);
-			selector = stylesheet.getSimpleSelector("td", className);
-			rule = stylesheet.getRuleForSelector(selector);
-			addCellBorderProperties(rule, tp);
 			resetSpaceProcessing = true;
 		} else if (we instanceof TableRowElement) {
 			conv = chapter.createElement("tr");
@@ -742,7 +822,8 @@ public class Converter {
 						img.setImageResource(imageResource);
 						conv = img;
 						if (picture.getWidth() > 0 && picture.getHeight() > 0) {
-							String className = createClassName("im", false);
+							String className = findUniqueClassName("im", false);
+							classNames.add(className);
 							img.setClassName(className);
 							Rule rule = stylesheet.getRuleForSelector(stylesheet.getSimpleSelector("img", className));
 							rule.set("width", picture.getWidth() + "pt");
@@ -765,38 +846,29 @@ public class Converter {
 		}
 		if (resetSpaceProcessing)
 			resetSpaceProcessing();
-		addChildren(chapter, parent, we);
+		Object fontSize = parent.getCascadedProperty("font-size");
+		if (fontSize != null) {
+			String fontSizeStr = fontSize.toString();
+			if (fontSizeStr.endsWith("em")) {
+				try {
+					float scale = Float.parseFloat(fontSizeStr.substring(0, fontSizeStr.length() - 2));
+					if (scale > 0)
+						emScale *= scale;
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		addChildren(chapter, parent, we, emScale);
 		if (resetSpaceProcessing)
 			resetSpaceProcessing();
 	}
 
-	private void addChildren(OPSDocument chapter, Element parent, com.adobe.dp.office.word.Element we) {
-		boolean topLevel = chapter == null;
+	private void addChildren(OPSDocument chapter, Element parent, com.adobe.dp.office.word.Element we, float emScale) {
 		Iterator children = we.content();
 		ListControl listControl = null;
-
-		// for top level only
-		OPSResource ops = null;
-		int chapterCount = 1;
-
 		while (children.hasNext()) {
 			com.adobe.dp.office.word.Element child = (com.adobe.dp.office.word.Element) children.next();
-			if (topLevel) {
-				boolean isChapterElement = isChapterBreakElement(child);
-				if (ops == null || isChapterElement) {
-					ops = epub.createOPSResource("OPS/ch" + (chapterCount++) + ".xhtml");
-					epub.addToSpine(ops);
-					chapter = ops.getDocument();
-					chapter.addStyleResource(styles);
-					parent = chapter.getBody();
-					String title = "Title page";
-					if (isChapterElement)
-						title = child.getTextContent();
-					TOCEntry chapterEntry = toc.createTOCEntry(title, chapter.getRootXRef());
-					toc.getRootTOCEntry().add(chapterEntry);
-					listControl = null;
-				}
-			}
 			if (listElements.contains(child)) {
 				if (listControl == null)
 					listControl = new ListControl();
@@ -807,7 +879,7 @@ public class Converter {
 					listControl = null;
 				}
 			}
-			appendConvertedElement(child, parent, chapter);
+			appendConvertedElement(child, parent, chapter, emScale);
 		}
 	}
 

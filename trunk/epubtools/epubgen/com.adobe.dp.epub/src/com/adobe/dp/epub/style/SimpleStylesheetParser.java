@@ -30,6 +30,7 @@
 
 package com.adobe.dp.epub.style;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
@@ -288,6 +289,8 @@ public class SimpleStylesheetParser {
 	}
 
 	public void readRules(Reader reader) throws IOException {
+		if( !reader.markSupported() )
+			reader = new BufferedReader(reader);
 		Vector selectors = new Vector();
 		while (true) {
 			int ch = skipWhitespace(reader);

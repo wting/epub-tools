@@ -44,6 +44,13 @@ public class SVGElement extends Element {
 		return OPSDocument.svgns;
 	}
 
+	Element cloneElementShallow(OPSDocument newDoc) {
+		SVGElement e = new SVGElement(newDoc, getElementName());
+		e.className = className;
+		e.attrs = attrs;
+		return e;
+	}
+	
 	public void setAttribute(String name, Object value) {
 		attrs.put(null, name, value);
 	}

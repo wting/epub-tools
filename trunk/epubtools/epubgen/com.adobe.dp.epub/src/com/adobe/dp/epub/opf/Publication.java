@@ -42,13 +42,16 @@ import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Random;
+import java.util.Stack;
 import java.util.Vector;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import com.adobe.dp.epub.io.ContainerWriter;
 import com.adobe.dp.epub.io.DataSource;
+import com.adobe.dp.epub.ncx.TOCEntry;
 import com.adobe.dp.epub.otf.FontSubsetter;
+import com.adobe.dp.epub.util.TOCLevel;
 import com.adobe.dp.otf.DefaultFontLocator;
 import com.adobe.dp.otf.FontLocator;
 import com.adobe.dp.xml.util.SMapImpl;
@@ -204,6 +207,44 @@ public class Publication {
 	 */
 	public void setTranslit(boolean translit) {
 		this.translit = translit;
+	}
+
+	public void splitLargeChapters(int sizeToSplit) {
+		for (int i = 0; i < spine.size(); i++) {
+			Resource item = (Resource) spine.elementAt(i);
+			if (item instanceof OPSResource) {
+				OPSResource[] split = ((OPSResource) item).splitLargeChapter(this, sizeToSplit);
+				if (split != null) {
+					spine.remove(i);
+					for (int j = 0; j < split.length; j++) {
+						spine.insertElementAt(split[j], i);
+						i++;
+					}
+					i--;
+				}
+			}
+		}
+	}
+
+	public void splitLargeChapters() {
+		splitLargeChapters(100000);
+	}
+
+	public void generateTOCFromHeadings(int depth) {
+		TOCEntry entry = getTOC().getRootTOCEntry();
+		entry.removeAll();
+		Iterator spine = spine();
+		Stack headings = new Stack();
+		headings.push(new TOCLevel(0, entry));
+		while (spine.hasNext()) {
+			Resource r = (Resource) spine.next();
+			if (r instanceof OPSResource)
+				((OPSResource) r).generateTOCFromHeadings(headings, depth);
+		}
+	}
+
+	public void generateTOCFromHeadings() {
+		generateTOCFromHeadings(6);
 	}
 
 	/**
@@ -418,6 +459,10 @@ public class Publication {
 		return resource;
 	}
 
+	public void removeResource(Resource r) {
+		resourcesByName.remove(r.getName());
+	}
+
 	/**
 	 * Create new bitmap image resource and insert it into this Publication.
 	 * 
@@ -570,16 +615,16 @@ public class Publication {
 		return source.replaceAll("\\s+", "");
 	}
 
+	/*
+	 * This starts with the "unique-identifier", strips the whitespace, and
+	 * applies SHA1 hash giving a 20 byte key that we can apply to the font
+	 * file.
+	 * 
+	 * See:
+	 * http://www.openebook.org/doc_library/informationaldocs/FontManglingSpec
+	 * .html
+	 */
 	byte[] makeIDPFXORMask() {
-		/*
-		 * This starts with the "unique-identifier", strips the whitespace, and
-		 * applies SHA1 hash giving a 20 byte key that we can apply to the font
-		 * file.
-		 * 
-		 * See:
-		 * http://www.openebook.org/doc_library/informationaldocs/FontManglingSpec
-		 * .html
-		 */
 		if (idpfMask == null) {
 			try {
 				MessageDigest sha = MessageDigest.getInstance("SHA-1");
@@ -600,7 +645,7 @@ public class Publication {
 	}
 
 	byte[] makeAdobeXORMask() {
-		if( adobeMask != null )
+		if (adobeMask != null)
 			return adobeMask;
 		ByteArrayOutputStream mask = new ByteArrayOutputStream();
 		String opfUID = getAdobePrimaryUUID();

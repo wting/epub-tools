@@ -1,40 +1,47 @@
 /*******************************************************************************
-* Copyright (c) 2009, Adobe Systems Incorporated
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without 
-* modification, are permitted provided that the following conditions are met:
-*
-* ·        Redistributions of source code must retain the above copyright 
-*          notice, this list of conditions and the following disclaimer. 
-*
-* ·        Redistributions in binary form must reproduce the above copyright 
-*		   notice, this list of conditions and the following disclaimer in the
-*		   documentation and/or other materials provided with the distribution. 
-*
-* ·        Neither the name of Adobe Systems Incorporated nor the names of its 
-*		   contributors may be used to endorse or promote products derived from
-*		   this software without specific prior written permission. 
-* 
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-* OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
-* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*******************************************************************************/
+ * Copyright (c) 2009, Adobe Systems Incorporated
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * ·        Redistributions of source code must retain the above copyright 
+ *          notice, this list of conditions and the following disclaimer. 
+ *
+ * ·        Redistributions in binary form must reproduce the above copyright 
+ *		   notice, this list of conditions and the following disclaimer in the
+ *		   documentation and/or other materials provided with the distribution. 
+ *
+ * ·        Neither the name of Adobe Systems Incorporated nor the names of its 
+ *		   contributors may be used to endorse or promote products derived from
+ *		   this software without specific prior written permission. 
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
 
 package com.adobe.dp.epub.ops;
 
+import java.io.UnsupportedEncodingException;
 import java.util.Iterator;
+import java.util.Stack;
 import java.util.Vector;
 
+import com.adobe.dp.epub.opf.OPSResource;
+import com.adobe.dp.epub.opf.StyleResource;
 import com.adobe.dp.epub.otf.FontSubsetter;
 import com.adobe.dp.epub.style.InlineStyleRule;
+import com.adobe.dp.epub.style.Rule;
+import com.adobe.dp.epub.style.Selector;
+import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.xml.util.SMapImpl;
 import com.adobe.dp.xml.util.XMLSerializer;
 
@@ -43,7 +50,7 @@ abstract public class Element {
 	OPSDocument document;
 
 	String className;
-	
+
 	InlineStyleRule style;
 
 	String elementName;
@@ -53,14 +60,70 @@ abstract public class Element {
 	Vector children = new Vector();
 
 	XRef selfRef;
-	
+
+	private static class SizeRemains {
+		int size;
+	}
+
 	Element(OPSDocument document, String name) {
 		this.document = document;
 		elementName = name;
 	}
 
 	abstract public String getNamespaceURI();
+
+	abstract Element cloneElementShallow(OPSDocument newDoc);
+
+	protected Object getBuiltInProperty(String propName) {
+		return null;
+	}
+
+	static Object getValue( Stylesheet stylesheet, Selector selector, String propName ) {
+		Rule rule = stylesheet.findRuleForSelector(selector);
+		if( rule != null )
+			return rule.get(propName);
+		return null;
+	}
 	
+	public Object getCascadedProperty(String propName) {
+
+		// style attribute: highest specificity
+		InlineStyleRule style = getStyle();
+		if (style != null) {
+			Object value = style.get(propName);
+			if (value != null)
+				return value;
+		}
+
+		// specificity order later stylesheets override the former ones
+		Vector styleResources = document.styleResources;
+		int len = styleResources.size();
+		for (int i = len - 1; i >= 0; i--) {
+			// specificity order (more to less): foo.bar .bar foo
+			Stylesheet stylesheet = ((StyleResource) styleResources.get(i)).getStylesheet();
+			Selector selector;
+			Object value;
+			if (className != null) {
+				selector = stylesheet.getSimpleSelector(elementName, className);
+				value = getValue( stylesheet, selector, propName );
+				if( value != null )
+					return value;
+				
+				selector = stylesheet.getSimpleSelector(null, className);
+				value = getValue( stylesheet, selector, propName );
+				if( value != null )
+					return value;
+			}
+			selector = stylesheet.getSimpleSelector(elementName, null);
+			value = getValue( stylesheet, selector, propName );
+			if( value != null )
+				return value;
+		}
+
+		// built-in stylesheet
+		return getBuiltInProperty(propName);
+	}
+
 	public String getElementName() {
 		return elementName;
 	}
@@ -121,10 +184,10 @@ abstract public class Element {
 			if (children != null) {
 				while (children.hasNext()) {
 					Object child = children.next();
-					if( child instanceof Element ) {
-						((Element)child).addFonts(subsetter);
-					} else if( child instanceof String ) {
-						subsetter.play((String)child);
+					if (child instanceof Element) {
+						((Element) child).addFonts(subsetter);
+					} else if (child instanceof String) {
+						subsetter.play((String) child);
 					}
 				}
 			}
@@ -132,16 +195,133 @@ abstract public class Element {
 			subsetter.pop(this);
 		}
 	}
-	
+
 	boolean isSection() {
 		return false;
 	}
-	
+
+	private static int getUTF8Length(String s) {
+		try {
+			return s.getBytes("UTF-8").length;
+		} catch (UnsupportedEncodingException e) {
+			throw new Error("UTF-8 unsupported???");
+		}
+	}
+
+	int getElementSize() {
+		int size = elementName.length() + 3;
+		if (className != null) {
+			size += className.length() + 9;
+		}
+		if (selfRef != null)
+			size += 10;
+		if (children.size() == 0)
+			size++;
+		else
+			size += elementName.length() + 5;
+		return size;
+	}
+
+	int getPeelingBonus() {
+		return 0;
+	}
+
+	boolean canPeelChild() {
+		return false;
+	}
+
+	final int getEstimatedSize() {
+		int size = getElementSize();
+		Iterator it = content();
+		if (!it.hasNext())
+			return size;
+		while (it.hasNext()) {
+			Object next = it.next();
+			if (next instanceof Element)
+				size += ((Element) next).getEstimatedSize();
+			else if (next instanceof String) {
+				size += getUTF8Length((String) next);
+			}
+			size++;
+		}
+		return size;
+	}
+
+	void transferToDocument(OPSDocument newDoc) {
+		if (id != null)
+			document.idMap.remove(id);
+		document = newDoc;
+		if (id != null)
+			document.idMap.put(id, this);
+		if (selfRef != null) {
+			selfRef.targetResource = newDoc.resource;
+		}
+	}
+
+	final Element peelElements(OPSDocument newDoc, int targetSize) {
+		SizeRemains sr = new SizeRemains();
+		sr.size = targetSize + 1000;
+		return peelElements(newDoc, sr);
+	}
+
+	final Element peelElements(OPSDocument newDoc, SizeRemains remains) {
+		int size = getElementSize();
+		int bonus = getPeelingBonus();
+		remains.size -= size;
+		if (bonus >= 0 && bonus > remains.size) {
+			transferToDocument(newDoc);
+			return this;
+		}
+		Element result = null;
+		boolean canPeelChild = canPeelChild();
+		int i = 0;
+		while (i < children.size()) {
+			Object next = children.elementAt(i);
+			if (next instanceof Element) {
+				Element child = (Element) next;
+				if (result == null) {
+					if (canPeelChild) {
+						Element p = child.peelElements(newDoc, remains);
+						if (p != null) {
+							result = cloneElementShallow(newDoc);
+							result.add(p);
+							if (p == child) {
+								children.remove(i);
+								continue;
+							}
+						}
+					} else {
+						remains.size -= child.getEstimatedSize();
+					}
+				} else {
+					children.remove(i);
+					child.transferToDocument(newDoc);
+					result.add(child);
+					continue;
+				}
+			} else if (next instanceof String) {
+				remains.size -= getUTF8Length((String) next);
+			}
+			remains.size--;
+			i++;
+		}
+		return result;
+	}
+
+	public void generateTOCFromHeadings(Stack headings, int depth) {
+		Iterator it = content();
+		while (it.hasNext()) {
+			Object next = it.next();
+			if (next instanceof Element)
+				((Element) next).generateTOCFromHeadings(headings, depth);
+		}
+	}
+
 	void serialize(XMLSerializer ser) {
 		boolean section = isSection();
 		String ns = getNamespaceURI();
 		ser.startElement(ns, elementName, getAttributes(), false);
-		if( section )
+		if (section)
 			ser.newLine();
 		Iterator it = content();
 		while (it.hasNext()) {
@@ -152,10 +332,24 @@ abstract public class Element {
 				char[] arr = ((String) next).toCharArray();
 				ser.text(arr, 0, arr.length);
 			}
-			if( section )
+			if (section)
 				ser.newLine();
 		}
 		ser.endElement(ns, elementName);
+	}
+
+	public String getText() {
+		StringBuffer sb = new StringBuffer();
+		Iterator it = content();
+		while (it.hasNext()) {
+			Object next = it.next();
+			if (next instanceof Element)
+				sb.append(((Element) next).getText());
+			else if (next instanceof String) {
+				sb.append((String) next);
+			}
+		}
+		return sb.toString();
 	}
 
 	public InlineStyleRule getStyle() {
