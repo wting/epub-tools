@@ -137,6 +137,8 @@ public class Converter {
 
 	FontLocator fontLocator;
 
+	FontLocator defaultFontLocator;
+	
 	static Hashtable builtinRules;
 
 	// static FontLocator builtInFontLocator = new BuiltInFontLocator();
@@ -484,6 +486,10 @@ public class Converter {
 			parent.add(fb);
 		}
 	}
+	
+	public void setFontLocator( FontLocator fontLocator ) {
+		defaultFontLocator = fontLocator;
+	}
 
 	public void setTemplate(InputStream templateStream) throws IOException,
 			FB2FormatException {
@@ -697,8 +703,10 @@ public class Converter {
 			}
 			docRules = parser.getRules();
 		}
+		if( defaultFontLocator == null )
+			defaultFontLocator = DefaultFontLocator.getInstance();
 		fontLocator = new EmbeddedFontLocator(docRules, doc, templateRules,
-				templateDoc, DefaultFontLocator.getInstance());
+				templateDoc, defaultFontLocator);
 		FB2DocumentInfo docInfo = doc.getDocumentInfo();
 		String ident = null;
 		if (docInfo != null) {
@@ -820,7 +828,7 @@ public class Converter {
 						epubFileOrFolder));
 			Publication epub = new Publication();
 			epub.setTranslit(false);
-			epub.useAdobeFontMangling();
+			//epub.useAdobeFontMangling();
 			convert(doc, epub);
 			long t2 = System.currentTimeMillis();
 			epub.serialize(container);

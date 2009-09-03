@@ -39,6 +39,12 @@ public class WordDocument {
 	Hashtable stylesById;
 
 	BodyElement body;
+	
+	BodyElement footnotes;
+
+	Style docDefaultParagraphStyle;
+
+	Style docDefaultRunStyle;
 
 	Style defaultParagraphStyle;
 
@@ -78,15 +84,27 @@ public class WordDocument {
 		return body;
 	}
 
+	public BodyElement getFootnotes() {
+		return footnotes;
+	}
+
 	public Style getStyleById(String styleId) {
 		return (Style) stylesById.get(styleId);
 	}
 
-	public Style getDefaultParagraphStyle() {
+	public Style getDocumentDefaultParagraphStyle() {
+		return docDefaultParagraphStyle;
+	}
+
+	public Style getDocumentDefaultRunStyle() {
+		return docDefaultRunStyle;
+	}
+	
+	public Style getDefaultParagraphStyle1() {
 		return defaultParagraphStyle;
 	}
 
-	public Style getDefaultRunStyle() {
+	public Style getDefaultRunStyle1() {
 		return defaultRunStyle;
 	}
 }

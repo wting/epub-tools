@@ -1,32 +1,32 @@
 /*******************************************************************************
-* Copyright (c) 2009, Adobe Systems Incorporated
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without 
-* modification, are permitted provided that the following conditions are met:
-*
-* ·        Redistributions of source code must retain the above copyright 
-*          notice, this list of conditions and the following disclaimer. 
-*
-* ·        Redistributions in binary form must reproduce the above copyright 
-*		   notice, this list of conditions and the following disclaimer in the
-*		   documentation and/or other materials provided with the distribution. 
-*
-* ·        Neither the name of Adobe Systems Incorporated nor the names of its 
-*		   contributors may be used to endorse or promote products derived from
-*		   this software without specific prior written permission. 
-* 
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-* OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
-* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*******************************************************************************/
+ * Copyright (c) 2009, Adobe Systems Incorporated
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * ·        Redistributions of source code must retain the above copyright 
+ *          notice, this list of conditions and the following disclaimer. 
+ *
+ * ·        Redistributions in binary form must reproduce the above copyright 
+ *		   notice, this list of conditions and the following disclaimer in the
+ *		   documentation and/or other materials provided with the distribution. 
+ *
+ * ·        Neither the name of Adobe Systems Incorporated nor the names of its 
+ *		   contributors may be used to endorse or promote products derived from
+ *		   this software without specific prior written permission. 
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
 
 package com.adobe.dp.office.word;
 
@@ -52,6 +52,7 @@ import com.adobe.dp.office.embedded.EmbeddedObject;
 import com.adobe.dp.office.types.Border;
 import com.adobe.dp.office.types.BorderSide;
 import com.adobe.dp.office.types.FontFamily;
+import com.adobe.dp.office.types.Indent;
 import com.adobe.dp.office.types.Paint;
 import com.adobe.dp.office.types.RGBColor;
 import com.adobe.dp.office.types.Spacing;
@@ -84,6 +85,8 @@ public class WordDocumentParser {
 
 	static final String fontsRel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable";
 
+	static final String footnotesRel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes";
+
 	WordDocument doc;
 
 	Hashtable rels;
@@ -101,6 +104,8 @@ public class WordDocumentParser {
 	String fontsName;
 
 	String themeName;
+
+	String footnotesName;
 
 	String numberingName;
 
@@ -142,6 +147,8 @@ public class WordDocumentParser {
 		propertyParsers.put("shd", shdParser);
 		FontsPropertyParser fontsParser = new FontsPropertyParser();
 		propertyParsers.put("rFonts", fontsParser);
+		IndentParser indentParser = new IndentParser();
+		propertyParsers.put("ind", indentParser);
 
 		colorTable.put("white", new RGBColor(0xFFFFFF));
 		colorTable.put("black", new RGBColor(0x000000));
@@ -151,6 +158,9 @@ public class WordDocumentParser {
 		colorTable.put("yellow", new RGBColor(0xFFFF00));
 		colorTable.put("magenta", new RGBColor(0xFF00FF));
 		colorTable.put("cyan", new RGBColor(0x00FFFF));
+		colorTable.put("lightGray", new RGBColor(0xCCCCCC));
+		colorTable.put("gray", new RGBColor(0x999999));
+		colorTable.put("darkGray", new RGBColor(0x777777));
 	}
 
 	static class ParseContext {
@@ -330,6 +340,40 @@ public class WordDocumentParser {
 		}
 	}
 
+	static class IndentParser extends PropertyParser {
+
+		boolean parse(String localName, Attributes attributes, WordDocumentParser self) {
+			propertyName = localName;
+			float left = 0;
+			float right = 0;
+			float firstLine = 0;
+			String leftStr = attributes.getValue(wNS, "left");
+			String rightStr = attributes.getValue(wNS, "right");
+			String firstLineStr = attributes.getValue(wNS, "firstLine");
+			try {
+				if (leftStr != null)
+					left = Float.parseFloat(leftStr);
+			} catch (NumberFormatException e) {
+				e.printStackTrace();
+			}
+			try {
+				if (rightStr != null)
+					right = Float.parseFloat(rightStr);
+			} catch (NumberFormatException e) {
+				e.printStackTrace();
+			}
+			try {
+				if (firstLineStr != null)
+					firstLine = Float.parseFloat(firstLineStr);
+			} catch (NumberFormatException e) {
+				e.printStackTrace();
+			}
+			propertyValue = new Indent(left, right, firstLine);
+			return true;
+		}
+
+	}
+
 	static Paint parsePaint(String val) {
 		if (val == null)
 			return null;
@@ -401,15 +445,29 @@ public class WordDocumentParser {
 						parentContext.embedded.finishChild(this, embedded);
 				}
 			}
+			if (doc.defaultParagraphStyle != null && context.parentElement instanceof ParagraphElement) {
+				ParagraphElement p = (ParagraphElement) context.parentElement;
+				if (p.paragraphProperties == null)
+					p.paragraphProperties = new ParagraphProperties();
+				if (p.paragraphProperties.paragraphStyle == null)
+					p.paragraphProperties.paragraphStyle = doc.defaultParagraphStyle;
+			}
+			if (doc.defaultRunStyle != null && context.parentElement instanceof RunElement) {
+				RunElement r = (RunElement) context.parentElement;
+				if (r.runProperties == null)
+					r.runProperties = new RunProperties();
+				if (r.runProperties.runStyle == null)
+					r.runProperties.runStyle = doc.defaultRunStyle;
+			}
 			if (context.parentStyle != null) {
 				Style style = context.parentStyle;
 				if (style.parent == null) {
-					if (style != doc.defaultParagraphStyle && style != doc.defaultRunStyle) {
+					if (style != doc.docDefaultParagraphStyle && style != doc.docDefaultRunStyle) {
 						if (style.type != null) {
 							if (style.type.equals("character"))
-								style.parent = doc.defaultRunStyle;
+								style.parent = doc.docDefaultRunStyle;
 							else if (style.type.equals("paragraph"))
-								style.parent = doc.defaultParagraphStyle;
+								style.parent = doc.docDefaultParagraphStyle;
 						}
 					}
 				}
@@ -417,9 +475,14 @@ public class WordDocumentParser {
 		}
 
 		public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
+			// TODO: handle <w:lastRenderedPageBreak />
 			ParseContext newContext = new ParseContext();
 			if (contextStack.isEmpty()) {
-
+				if (localName.equals("footnotes")) {
+					Element p = createWordElement(localName, attributes);
+					newContext.parentElement = p;
+					doc.footnotes = (BodyElement) p;
+				}
 			} else {
 				ParseContext parentContext = (ParseContext) contextStack.peek();
 				if (uri != null) {
@@ -432,6 +495,15 @@ public class WordDocumentParser {
 								doc.stylesById.put(styleId, newContext.parentStyle);
 							}
 							newContext.parentStyle.type = attributes.getValue(wNS, "type");
+							if (newContext.parentStyle.type != null) {
+								String defStr = attributes.getValue(wNS, "default");
+								if (defStr != null && defStr.equals("1")) {
+									if (newContext.parentStyle.type.equals("character"))
+										doc.defaultRunStyle = newContext.parentStyle;
+									else if (newContext.parentStyle.type.equals("paragraph"))
+										doc.defaultParagraphStyle = newContext.parentStyle;
+								}
+							}
 						} else if (localName.equals("font")) {
 							String name = attributes.getValue(wNS, "name");
 							if (name != null) {
@@ -507,9 +579,9 @@ public class WordDocumentParser {
 								}
 							}
 						} else if (localName.equals("rPrDefault")) {
-							newContext.parentStyle = doc.defaultRunStyle;
+							newContext.parentStyle = doc.docDefaultRunStyle;
 						} else if (localName.equals("pPrDefault")) {
-							newContext.parentStyle = doc.defaultParagraphStyle;
+							newContext.parentStyle = doc.docDefaultParagraphStyle;
 						} else {
 							Element p = createWordElement(localName, attributes);
 							if (p != null) {
@@ -517,8 +589,10 @@ public class WordDocumentParser {
 								if (parent instanceof ContainerElement) {
 									((ContainerElement) parent).add(p);
 								}
-								if (contextStack.size() == 1 && localName.equals("body"))
-									doc.body = (BodyElement) p;
+								if (contextStack.size() == 1) {
+									if (localName.equals("body"))
+										doc.body = (BodyElement) p;
+								}
 								newContext.parentElement = p;
 								if (p instanceof EmbeddedObject) {
 									newContext.embedded = (EmbeddedObject) p;
@@ -545,6 +619,9 @@ public class WordDocumentParser {
 							} else if (type.equals(themeRel)) {
 								if (themeName == null)
 									themeName = target;
+							} else if (type.equals(footnotesRel)) {
+								if (footnotesName == null)
+									footnotesName = target;
 							}
 						}
 					} else {
@@ -590,8 +667,8 @@ public class WordDocumentParser {
 
 	void parseInternal() throws IOException {
 		doc.body = null;
-		doc.defaultParagraphStyle = new Style("__p");
-		doc.defaultRunStyle = new Style("__r");
+		doc.docDefaultParagraphStyle = new Style("__p");
+		doc.docDefaultRunStyle = new Style("__r");
 		doc.stylesById = new Hashtable();
 		zip = new ZipFile(docFile);
 		factory = SAXParserFactory.newInstance();
@@ -618,6 +695,10 @@ public class WordDocumentParser {
 		}
 		if (numberingName != null) {
 			parseXML("word/" + numberingName);
+			contextStack.clear();
+		}
+		if (footnotesName != null) {
+			parseXML("word/" + footnotesName);
 			contextStack.clear();
 		}
 		parseXML("word/document.xml");
@@ -713,7 +794,7 @@ public class WordDocumentParser {
 		}
 		if (localName.equals("p"))
 			return new ParagraphElement();
-		if (localName.equals("body"))
+		if (localName.equals("body") || localName.equals("footnotes"))
 			return new BodyElement();
 		if (localName.equals("r"))
 			return new RunElement();
@@ -740,6 +821,16 @@ public class WordDocumentParser {
 					he.href = rel.target;
 			}
 			return he;
+		}
+		if (localName.equals("footnote")) {
+			FootnoteElement fe = new FootnoteElement();
+			fe.id = attributes.getValue(wNS, "id");
+			return fe;
+		}
+		if (localName.equals("footnoteReference")) {
+			FootnoteReferenceElement fe = new FootnoteReferenceElement();
+			fe.id = attributes.getValue(wNS, "id");
+			return fe;
 		}
 		return null;
 	}

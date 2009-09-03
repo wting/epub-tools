@@ -51,7 +51,7 @@ public class TestServer {
 			cx.setResourceBase(root.getAbsolutePath());
 
 			// common servlets
-			cx.addServlet("convert", "/convert", ConverterServlet.class
+			cx.addServlet("convert", "/svc/fb2epub", ConverterServlet.class
 					.getName());
 
 			svr.addContext(cx);

@@ -66,7 +66,7 @@ public class OPSDocument {
 		this.resource = resource;
 		body = new HTMLElement(this, "body");
 	}
-
+	
 	public Element getBody() {
 		return body;
 	}
@@ -156,6 +156,27 @@ public class OPSDocument {
 		serialize(ser);
 	}
 
+	public int getEstimatedSize() {
+		return 200 + getBody().getEstimatedSize();
+	}
+	
+	/**
+	 * Split the document. Leave enough content in this document to
+	 * produce resource about targetSize bytes; peel off the rest of
+	 * the content and place it in the newResource.
+	 * @param newDoc document where peeled content should be placed
+	 * @param targetSize target size of this document after split
+	 * @return true if something was peeled
+	 */
+	public boolean peelOffBack(OPSDocument newDoc, int targetSize) {
+		newDoc.styleResources.addAll(styleResources);
+		Element newBody = body.peelElements(newDoc, targetSize);
+		if( newBody == null )
+			return false;
+		newDoc.body = newBody;
+		return true;
+	}
+	
 	public void serialize(XMLSerializer ser) {
 		ser.startDocument("1.0", "UTF-8");
 		ser.startElement(xhtmlns, "html", null, true);

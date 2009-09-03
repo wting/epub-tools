@@ -71,4 +71,8 @@ public class TOCEntry {
 	public void add(TOCEntry entry) {
 		children.add(entry);
 	}
+	
+	public void removeAll() {
+		children.removeAllElements();
+	}
 }

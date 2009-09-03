@@ -43,6 +43,14 @@ public class HyperlinkElement extends HTMLElement {
 		super(document, name);
 	}
 
+	Element cloneElementShallow(OPSDocument newDoc) {
+		HyperlinkElement e = new HyperlinkElement(newDoc, getElementName());
+		e.className = className;
+		e.href = href;
+		e.xref = xref;
+		return e;
+	}
+	
 	public String getExternalHRef() {
 		return href;
 	}
