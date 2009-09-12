@@ -387,6 +387,8 @@ public class Converter {
 					name = "sub";
 				} else if (fbName.equals("code")) {
 					name = "code";
+				} else if (fbName.equals("strikethrough")) {
+					name = "del";
 				} else {
 					throw new RuntimeException("unexpected element: " + fbName);
 				}

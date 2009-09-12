@@ -32,11 +32,9 @@ package com.adobe.dp.epub.opf;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Iterator;
 import java.util.Stack;
 import java.util.Vector;
 
-import com.adobe.dp.epub.ncx.TOCEntry;
 import com.adobe.dp.epub.ops.OPSDocument;
 
 public class OPSResource extends Resource {
@@ -47,6 +45,10 @@ public class OPSResource extends Resource {
 		super(name, "application/xhtml+xml", null);
 	}
 
+	OPSResource(String name, String mediaType) {
+		super(name, mediaType, null);
+	}
+
 	public OPSDocument getDocument() {
 		if (document == null)
 			document = new OPSDocument(this);
@@ -54,6 +56,8 @@ public class OPSResource extends Resource {
 	}
 
 	OPSResource[] splitLargeChapter(Publication pub, int sizeToSplit) {
+		if (!mediaType.equals("application/xhtml+xml"))
+			return null;
 		int targetSize = sizeToSplit;
 		Vector res = new Vector();
 		res.add(this);
@@ -72,10 +76,11 @@ public class OPSResource extends Resource {
 		res.copyInto(result);
 		return result;
 	}
-	
+
 	public void generateTOCFromHeadings(Stack headings, int depth) {
-		getDocument().getBody().generateTOCFromHeadings(headings, depth);
-	}	
+		if (mediaType.equals("application/xhtml+xml"))
+			getDocument().getBody().generateTOCFromHeadings(headings, depth);
+	}
 
 	public void serialize(OutputStream out) throws IOException {
 		getDocument().serialize(out);

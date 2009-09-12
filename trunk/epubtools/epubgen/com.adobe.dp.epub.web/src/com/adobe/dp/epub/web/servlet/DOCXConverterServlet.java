@@ -53,13 +53,13 @@ import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
-import com.adobe.dp.conv.word2epub.Converter;
 import com.adobe.dp.epub.io.OCFContainerWriter;
 import com.adobe.dp.epub.io.ZipContainerSource;
 import com.adobe.dp.epub.opf.Publication;
 import com.adobe.dp.epub.util.ConversionTemplate;
 import com.adobe.dp.epub.util.Translit;
 import com.adobe.dp.epub.web.log.LogInitializer;
+import com.adobe.dp.office.conv.Converter;
 import com.adobe.dp.office.word.WordDocument;
 
 public class DOCXConverterServlet extends HttpServlet {

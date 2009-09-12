@@ -33,6 +33,8 @@ package com.adobe.dp.office.word;
 import java.io.File;
 import java.io.IOException;
 import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.Vector;
 
 public class WordDocument {
 
@@ -50,6 +52,8 @@ public class WordDocument {
 
 	Style defaultRunStyle;
 
+	Vector metadata = new Vector();
+	
 	static Hashtable mediaTypeBySuffix;
 
 	static {
@@ -86,6 +90,10 @@ public class WordDocument {
 
 	public BodyElement getFootnotes() {
 		return footnotes;
+	}
+	
+	public Iterator metadata() {
+		return metadata.iterator();
 	}
 
 	public Style getStyleById(String styleId) {

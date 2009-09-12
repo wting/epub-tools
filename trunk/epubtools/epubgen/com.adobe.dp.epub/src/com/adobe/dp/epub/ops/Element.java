@@ -317,12 +317,8 @@ abstract public class Element {
 		}
 	}
 
-	void serialize(XMLSerializer ser) {
+	void serializeChildren(XMLSerializer ser) {
 		boolean section = isSection();
-		String ns = getNamespaceURI();
-		ser.startElement(ns, elementName, getAttributes(), false);
-		if (section)
-			ser.newLine();
 		Iterator it = content();
 		while (it.hasNext()) {
 			Object next = it.next();
@@ -334,7 +330,20 @@ abstract public class Element {
 			}
 			if (section)
 				ser.newLine();
-		}
+		}		
+	}
+	
+	boolean makeNSDefault() {
+		return false;
+	}
+	
+	void serialize(XMLSerializer ser) {
+		boolean section = isSection();
+		String ns = getNamespaceURI();
+		ser.startElement(ns, elementName, getAttributes(), makeNSDefault());
+		if (section)
+			ser.newLine();
+		serializeChildren(ser);
 		ser.endElement(ns, elementName);
 	}
 

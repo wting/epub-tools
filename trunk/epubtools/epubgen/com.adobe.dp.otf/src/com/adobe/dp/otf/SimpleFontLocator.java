@@ -82,8 +82,8 @@ public abstract class SimpleFontLocator extends FontLocator {
 		
 		if (key.getStyle() == FontPropertyConstants.STYLE_ITALIC
 				&& key.getFamilyName().equals("Tahoma")) {
-			// workaround: Tahoma does not have italic, replace with Arial
-			key = new FontProperties("Arial", key.getWeight(), key.getStyle());
+			// workaround: Tahoma does not have italic, replace with Verdana
+			key = new FontProperties("Verdana", key.getWeight(), key.getStyle());
 		}
 		return key;
 	}

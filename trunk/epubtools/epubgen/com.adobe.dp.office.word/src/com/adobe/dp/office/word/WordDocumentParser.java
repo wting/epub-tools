@@ -56,8 +56,18 @@ import com.adobe.dp.office.types.Indent;
 import com.adobe.dp.office.types.Paint;
 import com.adobe.dp.office.types.RGBColor;
 import com.adobe.dp.office.types.Spacing;
+import com.adobe.dp.office.vml.VMLElement;
+import com.adobe.dp.office.vml.VMLElementFactory;
+import com.adobe.dp.office.vml.VMLFormulasElement;
+import com.adobe.dp.office.vml.VMLShapeTypeElement;
 
 public class WordDocumentParser {
+
+	static final String cpNS = "http://schemas.openxmlformats.org/package/2006/metadata/core-properties";
+
+	static final String dcNS = "http://purl.org/dc/elements/1.1/";
+
+	static final String dctNS = "http://purl.org/dc/terms/";
 
 	static final String wNS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 
@@ -114,6 +124,8 @@ public class WordDocumentParser {
 	String majorFontName;
 
 	String minorFontName;
+
+	Hashtable vmldefs = new Hashtable();
 
 	static final Hashtable propertyParsers = new Hashtable();
 
@@ -173,6 +185,8 @@ public class WordDocumentParser {
 		Border border;
 
 		EmbeddedObject embedded;
+
+		MetadataItem item;
 
 		FontFamily font;
 
@@ -432,6 +446,14 @@ public class WordDocumentParser {
 			if (p instanceof TextElement) {
 				((TextElement) p).text += new String(ch, start, length);
 			}
+			if (context.item != null) {
+				StringBuffer sb = new StringBuffer();
+				String value = context.item.getValue();
+				if (value != null)
+					sb.append(value);
+				sb.append(ch, start, length);
+				context.item.setValue(sb.toString());
+			}
 		}
 
 		public void endElement(String uri, String localName, String qName) throws SAXException {
@@ -443,6 +465,18 @@ public class WordDocumentParser {
 					ParseContext parentContext = (ParseContext) contextStack.peek();
 					if (parentContext.embedded != null)
 						parentContext.embedded.finishChild(this, embedded);
+				}
+			}
+			if (context.item != null && context.item.getValue() != null) {
+				doc.metadata.add(context.item);
+			}
+			if (uri.equals(vNS)) {
+				if (!contextStack.isEmpty() && context.parentElement instanceof VMLFormulasElement) {
+					ParseContext parentContext = (ParseContext) contextStack.peek();
+					if (parentContext.parentElement instanceof VMLShapeTypeElement) {
+						((VMLShapeTypeElement) parentContext.parentElement)
+								.setFormulas((VMLFormulasElement) context.parentElement);
+					}
 				}
 			}
 			if (doc.defaultParagraphStyle != null && context.parentElement instanceof ParagraphElement) {
@@ -464,9 +498,7 @@ public class WordDocumentParser {
 				if (style.parent == null) {
 					if (style != doc.docDefaultParagraphStyle && style != doc.docDefaultRunStyle) {
 						if (style.type != null) {
-							if (style.type.equals("character"))
-								style.parent = doc.docDefaultRunStyle;
-							else if (style.type.equals("paragraph"))
+							if (style.type.equals("paragraph"))
 								style.parent = doc.docDefaultParagraphStyle;
 						}
 					}
@@ -478,7 +510,7 @@ public class WordDocumentParser {
 			// TODO: handle <w:lastRenderedPageBreak />
 			ParseContext newContext = new ParseContext();
 			if (contextStack.isEmpty()) {
-				if (localName.equals("footnotes")) {
+				if (uri.equals(wNS) && localName.equals("footnotes")) {
 					Element p = createWordElement(localName, attributes);
 					newContext.parentElement = p;
 					doc.footnotes = (BodyElement) p;
@@ -599,6 +631,22 @@ public class WordDocumentParser {
 								}
 							}
 						}
+					} else if (uri.equals(cpNS) || uri.equals(dcNS) || uri.equals(dctNS)) {
+						if (contextStack.size() == 1) {
+							newContext.item = new MetadataItem(uri, localName, null);
+						}
+					} else if (uri.equals(vNS)) {
+						Element parent = parentContext.parentElement;
+						VMLElement vmlp = null;
+						if (parent instanceof VMLElement)
+							vmlp = (VMLElement) parent;
+						Element p = VMLElementFactory.createVMLElement(vmlp, vmldefs, localName, attributes);
+						if (p != null) {
+							if (parent instanceof ContainerElement) {
+								((ContainerElement) parent).add(p);
+							}
+							newContext.parentElement = p;
+						}
 					} else if (uri.equals(rPkNS)) {
 						if (localName.equals("Relationship")) {
 							String id = attributes.getValue("Id");
@@ -679,6 +727,8 @@ public class WordDocumentParser {
 		stylesName = null;
 		fontsName = null;
 		themeName = null;
+		parseXML("docProps/core.xml");
+		contextStack.clear();
 		parseXML("word/_rels/document.xml.rels");
 		contextStack.clear();
 		if (themeName != null) {
@@ -804,14 +854,16 @@ public class WordDocumentParser {
 			return new BRElement();
 		if (localName.equals("drawing"))
 			return new DrawingElement();
+		if (localName.equals("pict"))
+			return new PictElement();
 		if (localName.equals("tbl"))
 			return new TableElement();
 		if (localName.equals("tr"))
 			return new TableRowElement();
 		if (localName.equals("tc"))
 			return new TableCellElement();
-		if (localName.equals("drawing"))
-			return new DrawingElement();
+		if (localName.equals("txbxContent"))
+			return new TXBXContentElement();
 		if (localName.equals("hyperlink")) {
 			HyperlinkElement he = new HyperlinkElement();
 			String rid = attributes.getValue(rNS, "id");

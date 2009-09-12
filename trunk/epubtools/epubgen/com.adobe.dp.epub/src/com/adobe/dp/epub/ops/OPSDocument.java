@@ -1,32 +1,32 @@
 /*******************************************************************************
-* Copyright (c) 2009, Adobe Systems Incorporated
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without 
-* modification, are permitted provided that the following conditions are met:
-*
-* ·        Redistributions of source code must retain the above copyright 
-*          notice, this list of conditions and the following disclaimer. 
-*
-* ·        Redistributions in binary form must reproduce the above copyright 
-*		   notice, this list of conditions and the following disclaimer in the
-*		   documentation and/or other materials provided with the distribution. 
-*
-* ·        Neither the name of Adobe Systems Incorporated nor the names of its 
-*		   contributors may be used to endorse or promote products derived from
-*		   this software without specific prior written permission. 
-* 
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-* OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
-* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*******************************************************************************/
+ * Copyright (c) 2009, Adobe Systems Incorporated
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * ·        Redistributions of source code must retain the above copyright 
+ *          notice, this list of conditions and the following disclaimer. 
+ *
+ * ·        Redistributions in binary form must reproduce the above copyright 
+ *		   notice, this list of conditions and the following disclaimer in the
+ *		   documentation and/or other materials provided with the distribution. 
+ *
+ * ·        Neither the name of Adobe Systems Incorporated nor the names of its 
+ *		   contributors may be used to endorse or promote products derived from
+ *		   this software without specific prior written permission. 
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
 
 package com.adobe.dp.epub.ops;
 
@@ -64,9 +64,12 @@ public class OPSDocument {
 
 	public OPSDocument(OPSResource resource) {
 		this.resource = resource;
-		body = new HTMLElement(this, "body");
+		if (resource.getMediaType().equals("image/svg+xml"))
+			body = new SVGElement(this, "svg");
+		else
+			body = new HTMLElement(this, "body");
 	}
-	
+
 	public Element getBody() {
 		return body;
 	}
@@ -159,50 +162,64 @@ public class OPSDocument {
 	public int getEstimatedSize() {
 		return 200 + getBody().getEstimatedSize();
 	}
-	
+
 	/**
-	 * Split the document. Leave enough content in this document to
-	 * produce resource about targetSize bytes; peel off the rest of
-	 * the content and place it in the newResource.
-	 * @param newDoc document where peeled content should be placed
-	 * @param targetSize target size of this document after split
+	 * Split the document. Leave enough content in this document to produce
+	 * resource about targetSize bytes; peel off the rest of the content and
+	 * place it in the newResource.
+	 * 
+	 * @param newDoc
+	 *            document where peeled content should be placed
+	 * @param targetSize
+	 *            target size of this document after split
 	 * @return true if something was peeled
 	 */
 	public boolean peelOffBack(OPSDocument newDoc, int targetSize) {
 		newDoc.styleResources.addAll(styleResources);
 		Element newBody = body.peelElements(newDoc, targetSize);
-		if( newBody == null )
+		if (newBody == null)
 			return false;
 		newDoc.body = newBody;
 		return true;
 	}
-	
+
 	public void serialize(XMLSerializer ser) {
 		ser.startDocument("1.0", "UTF-8");
-		ser.startElement(xhtmlns, "html", null, true);
-		ser.newLine();
-		ser.startElement(xhtmlns, "head", null, false);
-		ser.newLine();
-		ser.startElement(xhtmlns, "title", null, false);
-		ser.endElement(xhtmlns, "title");
-		ser.newLine();
-		Iterator s = styleResources();
-		while (s.hasNext()) {
-			StyleResource sr = (StyleResource) s.next();
-			String href = resource.makeReference(sr, null);
-			SMapImpl attr = new SMapImpl();
-			attr.put(null, "rel", "stylesheet");
-			attr.put(null, "type", "text/css");
-			attr.put(null, "href", href);
-			ser.startElement(xhtmlns, "link", attr, false);
-			ser.endElement(xhtmlns, "link");
+		boolean isSVG = resource.getMediaType().equals("image/svg+xml");
+		if (isSVG) {
+			Iterator s = styleResources();
+			while (s.hasNext()) {
+				StyleResource sr = (StyleResource) s.next();
+				String href = resource.makeReference(sr, null);
+				ser.processingInstruction("xml-stylesheet", "href=\"" + href + "\" type=\"text/css\"");
+			}
+			getBody().serialize(ser);
+		} else {
+			ser.startElement(xhtmlns, "html", null, true);
 			ser.newLine();
+			ser.startElement(xhtmlns, "head", null, false);
+			ser.newLine();
+			ser.startElement(xhtmlns, "title", null, false);
+			ser.endElement(xhtmlns, "title");
+			ser.newLine();
+			Iterator s = styleResources();
+			while (s.hasNext()) {
+				StyleResource sr = (StyleResource) s.next();
+				String href = resource.makeReference(sr, null);
+				SMapImpl attr = new SMapImpl();
+				attr.put(null, "rel", "stylesheet");
+				attr.put(null, "type", "text/css");
+				attr.put(null, "href", href);
+				ser.startElement(xhtmlns, "link", attr, false);
+				ser.endElement(xhtmlns, "link");
+				ser.newLine();
+			}
+			ser.endElement(xhtmlns, "head");
+			ser.newLine();
+			getBody().serialize(ser);
+			ser.newLine();
+			ser.endElement(xhtmlns, "html");
 		}
-		ser.endElement(xhtmlns, "head");
-		ser.newLine();
-		getBody().serialize(ser);
-		ser.newLine();
-		ser.endElement(xhtmlns, "html");
 		ser.newLine();
 		ser.endDocument();
 	}
