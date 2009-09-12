@@ -151,6 +151,10 @@ public class HTMLElement extends Element {
 		super.generateTOCFromHeadings(headings, depth);
 	}
 
+	boolean makeNSDefault() {
+		return elementName.equals("body");
+	}
+	
 	boolean canPeelChild() {
 		return !nonbreakable.contains(elementName);
 	}

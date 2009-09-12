@@ -49,6 +49,7 @@ import com.adobe.dp.otf.ByteArrayFontInputStream;
 import com.adobe.dp.otf.FontInputStream;
 import com.adobe.dp.otf.FontLocator;
 import com.adobe.dp.otf.FontProperties;
+import com.adobe.dp.otf.FontPropertyConstants;
 import com.adobe.dp.otf.OpenTypeFont;
 
 public class ConversionTemplate {
@@ -69,7 +70,25 @@ public class ConversionTemplate {
 			this.fontMap = fontMap;
 		}
 
+		FontProperties substitute(FontProperties key) {
+			
+			/*
+			if ( key.getFamilyName().equals("Tahoma")) {
+				// substitute Tahoma with Calibri
+				key = new FontProperties("Calibri", key.getWeight(), key.getStyle());
+			}
+			*/
+			
+			if (key.getStyle() == FontPropertyConstants.STYLE_ITALIC
+					&& key.getFamilyName().equals("Tahoma")) {
+				// workaround: Tahoma does not have italic, replace with Verdana
+				key = new FontProperties("Verdana", key.getWeight(), key.getStyle());
+			}
+			return key;
+		}
+		
 		String getFontSource(FontProperties key) {
+			key = substitute(key);
 			String fileName = (String) fontMap.get(key);
 			if (fileName == null) {
 				// try a bit bolder...

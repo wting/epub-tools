@@ -43,5 +43,5 @@ public class RGBColor extends Paint {
 	
 	public String toCSSString() {
 		return "#" + Integer.toHexString(rgb | 0xF000000).substring(1);
-	}
+	}	
 }

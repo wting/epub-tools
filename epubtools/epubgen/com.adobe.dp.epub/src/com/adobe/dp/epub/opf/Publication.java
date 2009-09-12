@@ -446,19 +446,23 @@ public class Publication {
 	}
 
 	/**
-	 * Create a new OPS resource and insert it into this Publication (but not
-	 * spine!). Roughly speaking OPS is XHTML with other embedded content.
+	 * Create a new XHTML OPS resource and insert it into this Publication (but not
+	 * spine!).
 	 * 
 	 * @param name
 	 *            OPS resource name
 	 * @return new OPSResource
 	 */
 	public OPSResource createOPSResource(String name) {
-		OPSResource resource = new OPSResource(name);
+		return createOPSResource(name, "application/xhtml+xml");
+	}
+
+	public OPSResource createOPSResource(String name, String mediaType) {
+		OPSResource resource = new OPSResource(name, mediaType);
 		resourcesByName.put(name, resource);
 		return resource;
 	}
-
+	
 	public void removeResource(Resource r) {
 		resourcesByName.remove(r.getName());
 	}

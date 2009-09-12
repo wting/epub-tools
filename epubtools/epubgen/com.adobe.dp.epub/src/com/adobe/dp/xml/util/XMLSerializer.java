@@ -116,7 +116,7 @@ public class XMLSerializer implements SDocumentHandler {
 			index++;
 		}
 		prefixMap.put(prefix, namespace);
-		prefixMap.put(namespace, prefix);
+		namespaceMap.put(namespace, prefix);
 		OpenElement e = (OpenElement) openElements.peek();
 		if (e.localNamespaces == null)
 			e.localNamespaces = new HashSet();
@@ -161,6 +161,14 @@ public class XMLSerializer implements SDocumentHandler {
 		out.print("\" encoding=\"");
 		out.print(encoding);
 		out.println("\"?>");
+	}
+
+	public void processingInstruction(String name, String value) {
+		out.print("<?");
+		out.print(name);
+		out.print(" ");
+		out.print(value);
+		out.println("?>");
 	}
 
 	public void endDocument() {
