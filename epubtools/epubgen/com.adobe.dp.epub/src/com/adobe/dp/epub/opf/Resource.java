@@ -74,7 +74,7 @@ public class Resource {
 	public String getMediaType() {
 		return mediaType;
 	}
-
+	
 	/**
 	 * Make a relative URL that points to another resource in the same
 	 * Publication

@@ -30,6 +30,8 @@
 
 package com.adobe.dp.office.conv;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Hashtable;
 import java.util.Iterator;
 
@@ -38,6 +40,8 @@ import com.adobe.dp.epub.opf.NCXResource;
 import com.adobe.dp.epub.opf.OPSResource;
 import com.adobe.dp.epub.opf.Publication;
 import com.adobe.dp.epub.opf.StyleResource;
+import com.adobe.dp.epub.otf.FontEmbeddingReport;
+import com.adobe.dp.epub.style.CSSLength;
 import com.adobe.dp.epub.style.Rule;
 import com.adobe.dp.epub.style.Selector;
 import com.adobe.dp.epub.style.Stylesheet;
@@ -75,10 +79,10 @@ public class Converter {
 	public Converter(WordDocument doc, Publication epub) {
 		this.doc = doc;
 		this.epub = epub;
-		
+
 		global = epub.createStyleResource("OPS/global.css");
 		Stylesheet globalStylesheet = global.getStylesheet();
-		
+
 		styles = epub.createStyleResource("OPS/style.css");
 		Stylesheet stylesheet = styles.getStylesheet();
 		styleConverter = new StyleConverter(stylesheet, false);
@@ -91,10 +95,13 @@ public class Converter {
 			if (sz instanceof Number)
 				defaultFontSize = ((Number) sz).doubleValue();
 			Rule bodyRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("body", null));
-			styleConverter.addDirectProperties(bodyRule, rp, 1);
+			styleConverter.addDirectProperties("body", bodyRule, rp, 1);
 		}
 		if (defaultFontSize < 1)
 			defaultFontSize = 20;
+
+		Rule bodyEmbedRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("body", "embed"));
+		bodyEmbedRule.set("font-size", new CSSLength(defaultFontSize / 2, "px"));
 
 		styleConverter.setDefaultFontSize(defaultFontSize);
 		styleConverter.setDocumentDefaultParagraphStyle(doc.getDocumentDefaultParagraphStyle());
@@ -105,26 +112,26 @@ public class Converter {
 		tableRule.set("border-spacing", "0px");
 
 		// default paragraph styles
+		// unlike XHTML, Word's default spacing/margings are zero
 		Rule pRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("p", null));
-		// unlike XHTML, Word's default spacing is zero
 		pRule.set("margin-top", "0px");
-		pRule.set("margin-bottom", "0px");
+		pRule.set("margin-bottom", "0px");		
+		Rule ulRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("ul", null));
+		ulRule.set("margin-left", "0px");
 	}
 
 	public void setFontLocator(FontLocator fontLocator) {
 		this.fontLocator = fontLocator;
 	}
 
+	public static String dateToW3CDTF(Date date) {
+		SimpleDateFormat w3cdtf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
+		String s = w3cdtf.format(date);
+		int index = s.length() - 2;
+		return s.substring(0, index) + ":" + s.substring(index);
+	}
+	
 	public void convert() {
-
-		Iterator metadata = doc.metadata();
-		while (metadata.hasNext()) {
-			MetadataItem item = (MetadataItem) metadata.next();
-			epub.addMetadata(item.getNS(), item.getName(), item.getValue());
-			if (item.getNS().equals("http://purl.org/dc/terms/") && item.getName().equals("modified")) {
-				epub.addDCMetadata("date", item.getValue());
-			}
-		}
 
 		OPSResource footnotes = null;
 		if (doc.getFootnotes() != null) {
@@ -134,9 +141,7 @@ public class Converter {
 			WordMLConverter footnoteConv = new WordMLConverter(doc, epub, styleConverter);
 			footnoteConv.setFootnoteMap(footnoteMap);
 			footnoteConv.setWordResources(wordResources);
-			footnotes.getDocument().addStyleResource(global);
-			footnotes.getDocument().addStyleResource(styles);
-			footnoteConv.convert(fbody, footnotes);
+			footnoteConv.convert(fbody, footnotes, false);
 			if (footnoteMap.size() > 0) {
 				Stylesheet ss = styles.getStylesheet();
 				Selector selector = ss.getSimpleSelector(null, "footnote-ref");
@@ -159,22 +164,38 @@ public class Converter {
 		bodyConv.setWordResources(wordResources);
 		bodyConv.findLists(body);
 		OPSResource ops = epub.createOPSResource("OPS/document.xhtml");
-		epub.addToSpine(ops);
-		ops.getDocument().addStyleResource(global);
-		ops.getDocument().addStyleResource(styles);
-		bodyConv.convert(body, ops);
+		bodyConv.convert(body, ops, true);
 
 		if (footnotes != null)
 			epub.addToSpine(footnotes);
 
+		if (bodyConv.includeWordMetadata) {
+			// add EPUB metadata from Word metadata, do it in the end, so that
+			// metadata from commands comes first
+			Iterator metadata = doc.metadata();
+			while (metadata.hasNext()) {
+				MetadataItem item = (MetadataItem) metadata.next();
+				epub.addMetadata(item.getNS(), item.getName(), item.getValue());
+				if (item.getNS().equals("http://purl.org/dc/terms/") && item.getName().equals("modified")) {
+					epub.addDCMetadata("date", item.getValue());
+				}
+			}
+		}
+
+		epub.addMetadata(null, "DOCX2EPUB.version", Main.VERSION);
+		epub.addMetadata(null, "DOCX2EPUB.conversionDate", dateToW3CDTF(new Date()));
+		
 		epub.generateTOCFromHeadings(5);
 		epub.splitLargeChapters();
-		if (fontLocator != null)
-			epub.addFonts(global, fontLocator);
-		else
-			epub.addFonts(global); // use system fonts
 	}
 
+	public FontEmbeddingReport embedFonts() {
+		if (fontLocator != null)
+			return epub.addFonts(global, fontLocator);
+		else
+			return epub.addFonts(global); // use system fonts
+	}
+	
 	public void setWordResources(ContainerSource source) {
 		wordResources = source;
 	}

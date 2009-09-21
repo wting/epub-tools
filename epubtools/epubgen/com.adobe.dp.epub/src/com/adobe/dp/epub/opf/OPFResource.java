@@ -126,6 +126,8 @@ public class OPFResource extends Resource {
 		ser.newLine();
 		attrs = new SMapImpl();
 		attrs.put(null, "toc", owner.assignId(owner.toc));
+		if( owner.pageMap != null )
+			attrs.put(null, "page-map", owner.assignId(owner.pageMap));			
 		ser.startElement(opfns, "spine", attrs, false);
 		ser.newLine();
 		it = owner.spine();

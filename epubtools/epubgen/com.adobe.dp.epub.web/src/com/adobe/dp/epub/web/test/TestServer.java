@@ -39,6 +39,7 @@ import org.mortbay.util.InetAddrPort;
 
 import com.adobe.dp.epub.web.servlet.DOCXConverterServlet;
 import com.adobe.dp.epub.web.servlet.FB2ConverterServlet;
+import com.adobe.dp.epub.web.servlet.FontsServlet;
 
 public class TestServer {
 	public static void main(String[] args) {
@@ -53,9 +54,11 @@ public class TestServer {
 			cx.addHandler(resourceHandler);
 			cx.setResourceBase(root.getAbsolutePath());
 
-			cx.addServlet("DOCX", "/svc/docx2epub", DOCXConverterServlet.class
+			cx.addServlet("DOCX", "/epubgen/docx2epub", DOCXConverterServlet.class
 					.getName());
-			cx.addServlet("FB2", "/svc/fb2epub", FB2ConverterServlet.class
+			cx.addServlet("FB2", "/epubgen/fb2epub", FB2ConverterServlet.class
+					.getName());
+			cx.addServlet("Fonts", "/epubgen/fonts", FontsServlet.class
 					.getName());
 
 			svr.addContext(cx);

@@ -50,6 +50,7 @@ import java.util.zip.ZipFile;
 import com.adobe.dp.epub.io.ContainerWriter;
 import com.adobe.dp.epub.io.DataSource;
 import com.adobe.dp.epub.ncx.TOCEntry;
+import com.adobe.dp.epub.otf.FontEmbeddingReport;
 import com.adobe.dp.epub.otf.FontSubsetter;
 import com.adobe.dp.epub.util.TOCLevel;
 import com.adobe.dp.otf.DefaultFontLocator;
@@ -110,6 +111,8 @@ public class Publication {
 	private byte[] idpfMask;
 
 	private byte[] adobeMask;
+
+	PageMapResource pageMap;
 
 	static class SimpleMetadata {
 
@@ -446,8 +449,8 @@ public class Publication {
 	}
 
 	/**
-	 * Create a new XHTML OPS resource and insert it into this Publication (but not
-	 * spine!).
+	 * Create a new XHTML OPS resource and insert it into this Publication (but
+	 * not spine!).
 	 * 
 	 * @param name
 	 *            OPS resource name
@@ -462,9 +465,15 @@ public class Publication {
 		resourcesByName.put(name, resource);
 		return resource;
 	}
-	
+
 	public void removeResource(Resource r) {
-		resourcesByName.remove(r.getName());
+		resourcesByName.remove(r.name);
+	}
+
+	public void renameResource(Resource r, String newName) {
+		resourcesByName.remove(r.name);
+		r.name = newName;
+		resourcesByName.put(newName, r);
 	}
 
 	/**
@@ -580,6 +589,14 @@ public class Publication {
 		}
 	}
 
+	public void usePageMap() {
+		if (pageMap == null) {
+			String name = makeUniqueResourceName("OPS/pageMap.xml");
+			pageMap = new PageMapResource(this, name);
+			resourcesByName.put(name, pageMap);
+		}
+	}
+
 	/**
 	 * Add embedded font resources to this Publication and add corresponding
 	 * &#064;font-face rules for the embedded fonts. Fonts are taken from the
@@ -588,8 +605,8 @@ public class Publication {
 	 * @param styleResource
 	 *            style resource where &#064;font-face rules will be added
 	 */
-	public void addFonts(StyleResource styleResource) {
-		addFonts(styleResource, DefaultFontLocator.getInstance());
+	public FontEmbeddingReport addFonts(StyleResource styleResource) {
+		return addFonts(styleResource, DefaultFontLocator.getInstance());
 	}
 
 	/**
@@ -602,7 +619,7 @@ public class Publication {
 	 * @param fontLocator
 	 *            FontLocator object to lookup font files
 	 */
-	public void addFonts(StyleResource styleResource, FontLocator locator) {
+	public FontEmbeddingReport addFonts(StyleResource styleResource, FontLocator locator) {
 		FontSubsetter subsetter = new FontSubsetter(this, styleResource, locator);
 		Iterator res = resources();
 		while (res.hasNext()) {
@@ -613,6 +630,7 @@ public class Publication {
 			}
 		}
 		subsetter.addFonts(this);
+		return subsetter;
 	}
 
 	static String strip(String source) {
@@ -688,6 +706,14 @@ public class Publication {
 	 *             if I/O error occurs while writing
 	 */
 	public void serialize(ContainerWriter container) throws IOException {
+		Iterator spine = spine();
+		int playOrder = 0;
+		while (spine.hasNext()) {
+			Object sp = spine.next();
+			if (sp instanceof OPSResource) {
+				playOrder = ((OPSResource) sp).getDocument().assignPlayOrder(playOrder);
+			}
+		}
 		Enumeration names = resourcesByName.keys();
 		boolean needEnc = false;
 		while (names.hasMoreElements()) {

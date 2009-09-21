@@ -37,6 +37,7 @@ public class XRef {
 	
 	OPSResource targetResource;
 	Element targetElement;
+	int playOrder;
 	
 	public XRef(OPSResource resource, Element element) {
 		targetElement = element;
@@ -62,4 +63,13 @@ public class XRef {
 	public String makeReference( Resource fromResource ) {
 		return fromResource.makeReference(targetResource, getTargetId());
 	}
+
+	public int getPlayOrder() {
+		return playOrder;
+	}
+
+	public void setPlayOrder(int playOrder) {
+		this.playOrder = playOrder;
+	}
+		
 }

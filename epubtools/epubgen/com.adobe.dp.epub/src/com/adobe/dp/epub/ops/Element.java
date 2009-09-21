@@ -35,7 +35,6 @@ import java.util.Iterator;
 import java.util.Stack;
 import java.util.Vector;
 
-import com.adobe.dp.epub.opf.OPSResource;
 import com.adobe.dp.epub.opf.StyleResource;
 import com.adobe.dp.epub.otf.FontSubsetter;
 import com.adobe.dp.epub.style.InlineStyleRule;
@@ -73,6 +72,10 @@ abstract public class Element {
 	abstract public String getNamespaceURI();
 
 	abstract Element cloneElementShallow(OPSDocument newDoc);
+	
+	public Element cloneElementShallow() {
+		return cloneElementShallow(document);
+	}
 
 	protected Object getBuiltInProperty(String propName) {
 		return null;
@@ -367,5 +370,18 @@ abstract public class Element {
 
 	public void setStyle(InlineStyleRule style) {
 		this.style = style;
+	}
+	
+	public int assignPlayOrder(int playOrder) {
+		if( selfRef != null ) {
+			selfRef.setPlayOrder(++playOrder);
+		}
+		Iterator it = content();
+		while (it.hasNext()) {
+			Object next = it.next();
+			if (next instanceof Element)
+				playOrder = ((Element) next).assignPlayOrder(playOrder);
+		}		
+		return playOrder;
 	}
 }
