@@ -29,7 +29,7 @@
 *******************************************************************************/
 
 // have to give it some package...
-package com.adobe.dp.util;
+package com.adobe.dp.epub.util;
 
 /**
  * <p>Encodes and decodes to and from Base64 notation.</p>

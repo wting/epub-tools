@@ -1,38 +1,39 @@
 /*******************************************************************************
-* Copyright (c) 2009, Adobe Systems Incorporated
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without 
-* modification, are permitted provided that the following conditions are met:
-*
-* ·        Redistributions of source code must retain the above copyright 
-*          notice, this list of conditions and the following disclaimer. 
-*
-* ·        Redistributions in binary form must reproduce the above copyright 
-*		   notice, this list of conditions and the following disclaimer in the
-*		   documentation and/or other materials provided with the distribution. 
-*
-* ·        Neither the name of Adobe Systems Incorporated nor the names of its 
-*		   contributors may be used to endorse or promote products derived from
-*		   this software without specific prior written permission. 
-* 
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-* OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
-* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*******************************************************************************/
+ * Copyright (c) 2009, Adobe Systems Incorporated
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * ·        Redistributions of source code must retain the above copyright 
+ *          notice, this list of conditions and the following disclaimer. 
+ *
+ * ·        Redistributions in binary form must reproduce the above copyright 
+ *		   notice, this list of conditions and the following disclaimer in the
+ *		   documentation and/or other materials provided with the distribution. 
+ *
+ * ·        Neither the name of Adobe Systems Incorporated nor the names of its 
+ *		   contributors may be used to endorse or promote products derived from
+ *		   this software without specific prior written permission. 
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
 
 package com.adobe.dp.epub.opf;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Iterator;
+import java.util.Vector;
 
 import com.adobe.dp.epub.ncx.TOCEntry;
 import com.adobe.dp.epub.ops.XRef;
@@ -48,7 +49,20 @@ public class NCXResource extends Resource {
 
 	int entryCount;
 
+	Vector pages = new Vector();
+
 	private static final String ncxns = "http://www.daisy.org/z3986/2005/ncx/";
+
+	static class Page {
+		String name;
+
+		XRef xref;
+
+		Page(String name, XRef xref) {
+			this.name = name;
+			this.xref = xref;
+		}
+	}
 
 	NCXResource(Publication owner, String name) {
 		super(name, "application/x-dtbncx+xml", null);
@@ -61,6 +75,164 @@ public class NCXResource extends Resource {
 
 	public TOCEntry createTOCEntry(String title, XRef xref) {
 		return new TOCEntry(title, xref);
+	}
+
+	private static int parseRoman(String roman) {
+		int acc = 0;
+		int lastDigit = 0;
+		int len = roman.length();
+		for (int i = 0; i < len; i++) {
+			char c = roman.charAt(i);
+			int digit = 0;
+			switch (c) {
+			case 'i':
+				digit = 1;
+				break;
+			case 'v':
+				digit = 5;
+				break;
+			case 'x':
+				digit = 10;
+				break;
+			case 'l':
+				digit = 50;
+				break;
+			case 'c':
+				digit = 100;
+				break;
+			case 'd':
+				digit = 500;
+				break;
+			case 'm':
+				digit = 1000;
+				break;
+			default:
+				return 0;
+			}
+			if (lastDigit >= digit) {
+				acc += lastDigit;
+			} else {
+				acc -= lastDigit;
+			}
+			lastDigit = digit;
+		}
+		acc += lastDigit;
+		return acc;
+	}
+
+	private static String printRoman(int n) {
+		switch (n) {
+		case 1:
+			return "i";
+		case 2:
+			return "ii";
+		case 3:
+			return "iii";
+		case 4:
+			return "iv";
+		case 5:
+			return "v";
+		case 9:
+			return "ix";
+		case 10:
+			return "x";
+		case 40:
+			return "xl";
+		case 50:
+			return "l";
+		case 90:
+			return "xc";
+		case 100:
+			return "c";
+		case 400:
+			return "cd";
+		case 500:
+			return "d";
+		case 900:
+			return "cm";
+		case 1000:
+			return "m";
+		}
+		if (5 < n && n <= 8)
+			return "v" + printRoman(n - 5);
+		if (10 < n && n <= 20)
+			return "x" + printRoman(n - 10);
+		if (20 < n && n <= 30)
+			return "xx" + printRoman(n - 20);
+		if (30 < n && n <= 39)
+			return "xxx" + printRoman(n - 30);
+		if (40 < n && n <= 49)
+			return "xl" + printRoman(n - 40);
+		if (50 < n && n <= 89)
+			return "l" + printRoman(n - 50);
+		if (90 < n && n <= 99)
+			return "xc" + printRoman(n - 90);
+		if (100 < n && n <= 200)
+			return "c" + printRoman(n - 100);
+		if (200 < n && n <= 300)
+			return "cc" + printRoman(n - 200);
+		if (300 < n && n < 400)
+			return "ccc" + printRoman(n - 300);
+		if (400 < n && n < 500)
+			return "cd" + printRoman(n - 400);
+		if (500 < n && n < 900)
+			return "d" + printRoman(n - 500);
+		if (900 < n && n < 1000)
+			return "cm" + printRoman(n - 900);
+		if (1000 < n && n <= 2000)
+			return "m" + printRoman(n - 1000);
+		if (2000 < n && n <= 3000)
+			return "mm" + printRoman(n - 2000);
+		if (3000 < n && n < 4000)
+			return "mmm" + printRoman(n - 3000);
+		return null;
+	}
+
+	private static String increment(String pageName) {
+		int len = pageName.length();
+		int numberStart = len - 1;
+		char c;
+		do {
+			c = pageName.charAt(numberStart);
+			if ('0' > c || c > '9')
+				break;
+			numberStart--;
+		} while (numberStart >= 0);
+		numberStart++;
+		if (numberStart != len) {
+			// ends with number
+			int n = Integer.parseInt(pageName.substring(numberStart));
+			return pageName.substring(0, numberStart) + (n + 1);
+		}
+		// hmm, see if it is lowercase roman numeral
+		int n = parseRoman(pageName);
+		if (n > 0)
+			return printRoman(n + 1);
+		return null; // don't know what it is
+	}
+
+	public void addPage(String name, XRef location) {
+
+		for (int i = 50; i < 3999; i++) {
+			String r = printRoman(i);
+			int k = parseRoman(r);
+			if (k != i) {
+				System.err.println("bad: " + i + " " + r);
+			}
+		}
+
+		if (name == null || name.isEmpty()) {
+			if (pages.size() > 0) {
+				Page lastPage = (Page) pages.lastElement();
+				String lastName = lastPage.name;
+				name = increment(lastName);
+			}
+			if (name == null || name.isEmpty())
+				name = Integer.toString(pages.size() + 1);
+		} else if (name.equals("."))
+			name = "";
+
+		pages.add(new Page(name, location));
 	}
 
 	public void serialize(OutputStream out) throws IOException {
@@ -93,13 +265,13 @@ public class NCXResource extends Resource {
 		ser.newLine();
 		attrs = new SMapImpl();
 		attrs.put(null, "name", "dtb:totalPageNumber");
-		attrs.put(null, "content", "0");
+		attrs.put(null, "content", Integer.toString(pages.size()));
 		ser.startElement(ncxns, "meta", attrs, false);
 		ser.endElement(ncxns, "meta");
 		ser.newLine();
 		attrs = new SMapImpl();
 		attrs.put(null, "name", "dtb:maxPageNumber");
-		attrs.put(null, "content", "0");
+		attrs.put(null, "content", Integer.toString(pages.size()));
 		ser.startElement(ncxns, "meta", attrs, false);
 		ser.endElement(ncxns, "meta");
 		ser.newLine();
@@ -123,6 +295,41 @@ public class NCXResource extends Resource {
 		serializeChildEntries(rootTOCEntry, ser);
 		ser.endElement(ncxns, "navMap");
 		ser.newLine();
+		if (pages.size() > 0) {
+			ser.startElement(ncxns, "pageList", null, false);
+			ser.startElement(ncxns, "navLabel", null, false);
+			ser.startElement(ncxns, "text", null, false);
+			ser.endElement(ncxns, "text");
+			ser.endElement(ncxns, "navLabel");
+			ser.newLine();
+			Iterator pages = this.pages.iterator();
+			int count = 1;
+			while (pages.hasNext()) {
+				Page page = (Page) pages.next();
+				attrs = new SMapImpl();
+				String countStr = Integer.toString(count++);
+				attrs.put(null, "value", countStr);
+				attrs.put(null, "type", "normal");
+				attrs.put(null, "playOrder", Integer.toString(page.xref.getPlayOrder()));
+				ser.startElement(ncxns, "pageTarget", attrs, false);
+				ser.newLine();
+				ser.startElement(ncxns, "navLabel", null, false);
+				ser.startElement(ncxns, "text", null, false);
+				char[] text = page.name.toCharArray();
+				ser.text(text, 0, text.length);
+				ser.endElement(ncxns, "text");
+				ser.endElement(ncxns, "navLabel");
+				ser.newLine();
+				attrs = new SMapImpl();
+				attrs.put(null, "src", page.xref.makeReference(this));
+				ser.startElement(ncxns, "content", attrs, false);
+				ser.endElement(ncxns, "content");
+				ser.newLine();
+				ser.endElement(ncxns, "pageTarget");
+				ser.newLine();
+			}
+			ser.endElement(ncxns, "pageList");
+		}
 		ser.endElement(ncxns, "ncx");
 		ser.newLine();
 		ser.endDocument();
@@ -145,7 +352,7 @@ public class NCXResource extends Resource {
 		while (it.hasNext()) {
 			TOCEntry child = (TOCEntry) it.next();
 			SMapImpl attrs = new SMapImpl();
-			attrs.put(null, "playOrder", Integer.toString(entryCount));
+			attrs.put(null, "playOrder", Integer.toString(child.getXRef().getPlayOrder()));
 			attrs.put(null, "id", "id" + entryCount);
 			entryCount++;
 			ser.startElement(ncxns, "navPoint", attrs, false);
@@ -173,5 +380,25 @@ public class NCXResource extends Resource {
 			ser.endElement(ncxns, "navPoint");
 			ser.newLine();
 		}
+	}
+
+	void serializePageMap(PageMapResource pageMap, OutputStream out) throws IOException {
+		final String pagemapns = "http://www.idpf.org/2007/opf";
+		XMLSerializer ser = new XMLSerializer(out);
+		ser.startDocument("1.0", "UTF-8");
+		ser.startElement(pagemapns, "page-map", null, true);
+		ser.newLine();
+		Iterator pages = this.pages.iterator();
+		while (pages.hasNext()) {
+			Page page = (Page) pages.next();
+			SMapImpl attrs = new SMapImpl();
+			attrs.put(null, "name", page.name);
+			attrs.put(null, "href", page.xref.makeReference(pageMap));
+			ser.startElement(pagemapns, "page", attrs, false);
+			ser.endElement(pagemapns, "page");
+			ser.newLine();
+		}
+		ser.endElement(pagemapns, "page-map");
+		ser.endDocument();
 	}
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright (c) 2009, Adobe Systems Incorporated
+ * Copyright (c) 2009, Adobe Systems Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -31,9 +31,12 @@
 package com.adobe.dp.epub.otf;
 
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.Stack;
+import java.util.TreeSet;
 import java.util.Vector;
 
 import com.adobe.dp.epub.io.BufferedDataSource;
@@ -56,7 +59,7 @@ import com.adobe.dp.otf.FontProperties;
 import com.adobe.dp.otf.FontPropertyConstants;
 import com.adobe.dp.otf.OpenTypeFont;
 
-public class FontSubsetter {
+public class FontSubsetter implements FontEmbeddingReport {
 
 	class SubsetterEntry {
 		OpenTypeFont font;
@@ -140,11 +143,37 @@ public class FontSubsetter {
 
 	FontLocator fontLocator;
 
+	Set missingFonts = new TreeSet();
+
+	Set prohibitedFonts = new TreeSet();
+
 	long totalPlay;
 
 	public FontSubsetter(Publication epub, StyleResource styleResource, FontLocator locator) {
 		this.styleResource = styleResource;
 		this.fontLocator = locator;
+	}
+
+	public Iterator missingFonts() {
+		return missingFonts.iterator();
+	}
+
+	public Iterator prohibitedFonts() {
+		return prohibitedFonts.iterator();
+	}
+
+	public Iterator usedFonts() {
+		Iterator keys = subsetters.keySet().iterator();
+		Set usedFonts = new TreeSet();
+		while( keys.hasNext() ) {
+			FontEntry entry = (FontEntry)keys.next();
+			if( entry.subsetter.used )
+			{
+				FontProperties prop = new FontProperties(entry.familyName, entry.weight, entry.style);
+				usedFonts.add(prop);
+			}
+		}
+		return usedFonts.iterator();
 	}
 
 	public void setStyles(Vector styles) {
@@ -265,7 +294,7 @@ public class FontSubsetter {
 				Iterator families = currentEntry.familyName.values();
 				while (families.hasNext()) {
 					String family = getStringValue(families.next());
-					if (family.equals("serif") || family.equals("san-serif") || family.equals("monospace"))
+					if (family.equals("serif") || family.equals("sans-serif") || family.equals("monospace"))
 						continue; // built-in
 					FontEntry entry = new FontEntry();
 					entry.familyName = family;
@@ -274,8 +303,8 @@ public class FontSubsetter {
 					SubsetterEntry subsetter = (SubsetterEntry) subsetters.get(entry);
 					if (subsetter == null) {
 						try {
-							FontInputStream stream = fontLocator
-									.locateFont(entry.familyName, entry.weight, entry.style);
+							FontProperties prop = new FontProperties(entry.familyName, entry.weight, entry.style);
+							FontInputStream stream = fontLocator.locateFont(prop);
 							if (stream != null) {
 								OpenTypeFont font = new OpenTypeFont(stream);
 								if (font.canEmbedForReading() && font.canSubset()) {
@@ -283,7 +312,11 @@ public class FontSubsetter {
 									subsetter.font = font;
 									subsetters.put(entry, subsetter);
 									entry.subsetter = subsetter;
+								} else {
+									prohibitedFonts.add(prop);
 								}
+							} else {
+								missingFonts.add(prop);
 							}
 						} catch (Exception ex) {
 							ex.printStackTrace();

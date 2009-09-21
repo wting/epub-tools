@@ -38,9 +38,7 @@ import java.util.Hashtable;
 import java.util.Stack;
 
 import com.adobe.dp.epub.ncx.TOCEntry;
-import com.adobe.dp.epub.style.Rule;
 import com.adobe.dp.epub.style.Selector;
-import com.adobe.dp.epub.style.SimpleStylesheetParser;
 import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.epub.util.TOCLevel;
 

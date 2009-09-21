@@ -40,6 +40,9 @@ public abstract class SimpleFontLocator extends FontLocator {
 	private Hashtable fontMap;
 
 	protected SimpleFontLocator() {
+	}
+	
+	protected void init() {
 		fontMap = new Hashtable();
 		collectFonts(fontMap);
 	}

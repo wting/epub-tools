@@ -54,4 +54,12 @@ public class SVGImageElement extends SVGElement {
 		attrs.put(OPSDocument.xlinkns, "href", document.resource.makeReference(imageResource, null));
 		return attrs;
 	}
+	
+	Element cloneElementShallow(OPSDocument newDoc) {
+		SVGImageElement e = new SVGImageElement(newDoc, getElementName());
+		e.className = className;
+		e.attrs = attrs.cloneSMap();
+		e.imageResource = imageResource;
+		return e;
+	}	
 }

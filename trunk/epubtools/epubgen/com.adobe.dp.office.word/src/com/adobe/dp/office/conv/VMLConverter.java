@@ -33,6 +33,7 @@ package com.adobe.dp.office.conv;
 import java.util.Hashtable;
 import java.util.Iterator;
 
+import com.adobe.dp.epub.opf.OPSResource;
 import com.adobe.dp.epub.opf.Publication;
 import com.adobe.dp.epub.opf.StyleResource;
 import com.adobe.dp.epub.ops.OPSDocument;
@@ -46,12 +47,17 @@ import com.adobe.dp.office.vml.VMLLineElement;
 import com.adobe.dp.office.vml.VMLOvalElement;
 import com.adobe.dp.office.vml.VMLPathConverter;
 import com.adobe.dp.office.vml.VMLRectElement;
+import com.adobe.dp.office.vml.VMLShadow;
 import com.adobe.dp.office.vml.VMLShapeElement;
 import com.adobe.dp.office.word.TXBXContentElement;
 
 public class VMLConverter {
 
 	private Publication epub;
+
+	private OPSDocument chapter;
+	
+	private OPSResource resource;
 	
 	private WordMLConverter wordConverter;
 
@@ -73,10 +79,12 @@ public class VMLConverter {
 		}
 	}
 
-	void convertVML(OPSDocument chapter, SVGElement svg, VMLGroupElement group) {
+	void convertVML(OPSResource resource, SVGElement svg, VMLGroupElement group) {
 		Hashtable style = group.getStyle();
 		if (style == null)
 			return;
+		this.resource = resource;
+		this.chapter = resource.getDocument();
 		String widthStr = (String) style.get("width");
 		String heightStr = (String) style.get("height");
 		VMLCoordPair origin = group.getOrigin();
@@ -86,7 +94,7 @@ public class VMLConverter {
 		float heightPt = VMLPathConverter.readCSSLength(heightStr, 100);
 
 		if (!embedded) {
-			StyleResource global = (StyleResource)epub.getResourceByName("OPS/global.css");
+			StyleResource global = (StyleResource) epub.getResourceByName("OPS/global.css");
 			chapter.addStyleResource(global);
 			chapter.addStyleResource(styles);
 			svg.setAttribute("width", Float.toString(widthPt));
@@ -96,10 +104,10 @@ public class VMLConverter {
 		float scaleX = size.x / widthPt;
 		float scaleY = size.y / heightPt;
 		svg.setAttribute("viewBox", origin.x + " " + origin.y + " " + size.x + " " + size.y);
-		convertVMLChildren(chapter, svg, group, scaleX, scaleY);
+		convertVMLChildren(svg, group, scaleX, scaleY);
 	}
 
-	private void convertVMLChildren(OPSDocument chapter, SVGElement svg, VMLElement vml, float scaleX, float scaleY) {
+	private void convertVMLChildren(SVGElement svg, VMLElement vml, float scaleX, float scaleY) {
 		Iterator it = vml.content();
 		while (it.hasNext()) {
 			Object child = it.next();
@@ -107,18 +115,6 @@ public class VMLConverter {
 				convertVMLChild(chapter, svg, (VMLElement) child, scaleX, scaleY);
 			}
 		}
-	}
-
-	private static float getNumberValue(Hashtable style, String propName, float def) {
-		Object propVal = style.get(propName);
-		if (propVal != null) {
-			try {
-				return Float.parseFloat(propVal.toString());
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
-		return def;
 	}
 
 	private void convertVMLChild(OPSDocument chapter, SVGElement parentSVG, VMLElement vml, float scaleX, float scaleY) {
@@ -140,10 +136,10 @@ public class VMLConverter {
 					e.printStackTrace();
 				}
 			}
-			float top = getNumberValue(style, "top", 0);
-			float left = getNumberValue(style, "left", 0);
-			float width = getNumberValue(style, "width", 0);
-			float height = getNumberValue(style, "height", 0);
+			float top = VMLElement.getNumberValue(style, "top", 0);
+			float left = VMLElement.getNumberValue(style, "left", 0);
+			float width = VMLElement.getNumberValue(style, "width", 0);
+			float height = VMLElement.getNumberValue(style, "height", 0);
 			float cx = left + width / 2;
 			float cy = top + height / 2;
 			String flip = (String) style.get("flip");
@@ -194,6 +190,7 @@ public class VMLConverter {
 					transform.append("rotate(" + rotation + ")");
 				if (flipX || flipY)
 					transform.append("scale(" + (flipX ? -1 : 1) + " " + (flipY ? -1 : 1) + ")");
+				VMLShadow shadow = vml.getShadow();
 				if (transform.length() > 0)
 					childSVG.setAttribute("transform", transform.toString());
 				RGBColor fill = vml.getFill();
@@ -208,26 +205,42 @@ public class VMLConverter {
 							childSVG.setAttribute("stroke-width", Float.toString(scaleX * sw));
 					}
 				}
+				if (shadow != null) {
+					SVGElement svgShadow = (SVGElement)childSVG.cloneElementShallow();
+					String shadowOffset = "translate(" + scaleX * shadow.getOffsetX() + "," + scaleY
+							* shadow.getOffsetY() + ")";
+					svgShadow.setAttribute("transform", shadowOffset + transform);
+					svgShadow.setAttribute("fill", shadow.getColor().toCSSString());
+					if( stroke != null )
+						svgShadow.setAttribute("stroke", shadow.getColor().toCSSString());						
+					if (shadow.getOpacity() != 1)
+						svgShadow.setAttribute("opacity", Float.toString(shadow.getOpacity()));
+					parentSVG.add(svgShadow);
+				}
 				float opacity = vml.getOpacity();
 				if (opacity != 1)
 					childSVG.setAttribute("opacity", Float.toString(opacity));
 				parentSVG.add(childSVG);
 				TXBXContentElement textboxContent = vml.getTextBoxContentElement();
-				if (textbox != null && textboxContent != null) {
-					SVGElement foreignObject = chapter.createSVGElement("foreignObject");
-					float scaleAdj = Math.round(100 * scaleY) / 100.0f;
-					foreignObject.setAttribute("transform", transform + "scale(" + scaleAdj + " " + scaleAdj + ")");
-					foreignObject.setAttribute("x", Float.toString(textbox[0]/scaleY));
-					foreignObject.setAttribute("y", Float.toString(textbox[1]/scaleY));
-					foreignObject.setAttribute("width", Float.toString((textbox[2] - textbox[0])/scaleY));
-					foreignObject.setAttribute("height", Float.toString((textbox[3] - textbox[1])/scaleY));
-					parentSVG.add(foreignObject);
-					WordMLConverter wordConv;
-					if (embedded)
-						wordConv = new WordMLConverter(wordConverter);
-					else
-						wordConv = new WordMLConverter(wordConverter, styleConverter);
-					wordConv.appendConvertedElement(textboxContent, foreignObject, chapter, 1);
+				if (textboxContent != null) {
+					if (textbox == null)
+						textbox = vml.getTextBox();
+					if (textbox != null) {
+						SVGElement foreignObject = chapter.createSVGElement("foreignObject");
+						float scaleAdj = Math.round(100 * scaleY) / 100.0f;
+						foreignObject.setAttribute("transform", transform + "scale(" + scaleAdj + " " + scaleAdj + ")");
+						foreignObject.setAttribute("x", Float.toString(textbox[0] / scaleY));
+						foreignObject.setAttribute("y", Float.toString(textbox[1] / scaleY));
+						foreignObject.setAttribute("width", Float.toString((textbox[2] - textbox[0]) / scaleY));
+						foreignObject.setAttribute("height", Float.toString((textbox[3] - textbox[1]) / scaleY));
+						parentSVG.add(foreignObject);
+						WordMLConverter wordConv;
+						if (embedded)
+							wordConv = new WordMLConverter(wordConverter, resource);
+						else
+							wordConv = new WordMLConverter(wordConverter, styleConverter);
+						wordConv.appendConvertedElement(textboxContent, foreignObject, 1, 1);
+					}
 				}
 			}
 		} catch (Exception e) {

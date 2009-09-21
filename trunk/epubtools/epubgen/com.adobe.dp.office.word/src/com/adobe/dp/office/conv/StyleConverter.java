@@ -12,6 +12,7 @@ import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.office.types.Border;
 import com.adobe.dp.office.types.BorderSide;
 import com.adobe.dp.office.types.FontFamily;
+import com.adobe.dp.office.types.Frame;
 import com.adobe.dp.office.types.Indent;
 import com.adobe.dp.office.types.Paint;
 import com.adobe.dp.office.types.RGBColor;
@@ -75,8 +76,8 @@ public class StyleConverter {
 		this.defaultFontSize = defaultFontSize;
 	}
 
-	void addDirectProperties(BaseRule rule, BaseProperties prop, float emScale) {
-		addDirectPropertiesWithREM(rule, prop, emScale);
+	void addDirectProperties(String elementName, BaseRule rule, BaseProperties prop, float emScale) {
+		addDirectPropertiesWithREM(elementName, rule, prop, emScale);
 		resolveREM(rule, emScale);
 	}
 
@@ -154,7 +155,9 @@ public class StyleConverter {
 	}
 
 	static void setIfNotPresent(BaseRule rule, String name, Object value) {
-		if (rule.get(name) == null)
+		Object val = rule.get(name);
+		// space in front means it was not an implied, not explicitly set value
+		if (val == null || (val instanceof String && ((String) val).startsWith(" ")))
 			rule.set(name, value);
 	}
 
@@ -167,7 +170,7 @@ public class StyleConverter {
 		Paint paint = side.getColor();
 		String color = (paint instanceof RGBColor ? ((RGBColor) paint).toCSSString() : "black");
 		double width = side.getWidth() / 8.0;
-		return (width > 0.7 ? width + "pt " : "1px ") + type + " " + color;
+		return (width > 1 ? width + "px " : "1px ") + type + " " + color;
 	}
 
 	private String getFontFamilyString(FontFamily family) {
@@ -205,7 +208,7 @@ public class StyleConverter {
 		if (border == null)
 			return;
 		if (border.getInsideH() != null) {
-			CSSLength paddingDef = new CSSLength(border.getInsideH().getSpace() / 8.0, "pt");
+			CSSLength paddingDef = new CSSLength(border.getInsideH().getSpace() / 8.0, "px");
 			String borderDef = convertBorderSide(border.getInsideH());
 			setIfNotPresent(rule, "padding-top", paddingDef);
 			setIfNotPresent(rule, "padding-bottom", paddingDef);
@@ -213,7 +216,7 @@ public class StyleConverter {
 			setIfNotPresent(rule, "border-bottom", borderDef);
 		}
 		if (border.getInsideV() != null) {
-			CSSLength paddingDef = new CSSLength(border.getInsideV().getSpace() / 8.0, "pt");
+			CSSLength paddingDef = new CSSLength(border.getInsideV().getSpace() / 8.0, "px");
 			String borderDef = convertBorderSide(border.getInsideV());
 			setIfNotPresent(rule, "padding-left", paddingDef);
 			setIfNotPresent(rule, "padding-right", paddingDef);
@@ -222,7 +225,8 @@ public class StyleConverter {
 		}
 	}
 
-	void addDirectPropertiesWithREM(BaseRule rule, BaseProperties prop, float emScale) {
+	void addDirectPropertiesWithREM(String elementName, BaseRule rule, BaseProperties prop, float emScale) {
+		final float normalWidth = 612; // convert to percentages of this
 		if (prop == null || prop.isEmpty())
 			return;
 		Iterator props = prop.properties();
@@ -268,19 +272,19 @@ public class StyleConverter {
 			} else if (name.equals("pBdr") || name.equals("tblBorders")) {
 				Border border = (Border) value;
 				if (border.getTop() != null) {
-					setIfNotPresent(rule, "padding-top", new CSSLength(border.getTop().getSpace() / 8.0, "pt"));
+					setIfNotPresent(rule, "padding-top", new CSSLength(border.getTop().getSpace() / 8.0, "px"));
 					setIfNotPresent(rule, "border-top", convertBorderSide(border.getTop()));
 				}
 				if (border.getBottom() != null) {
-					setIfNotPresent(rule, "padding-bottom", new CSSLength(border.getBottom().getSpace() / 8.0, "pt"));
+					setIfNotPresent(rule, "padding-bottom", new CSSLength(border.getBottom().getSpace() / 8.0, "px"));
 					setIfNotPresent(rule, "border-bottom", convertBorderSide(border.getBottom()));
 				}
 				if (border.getLeft() != null) {
-					setIfNotPresent(rule, "padding-left", new CSSLength(border.getLeft().getSpace() / 8.0, "pt"));
+					setIfNotPresent(rule, "padding-left", new CSSLength(border.getLeft().getSpace() / 8.0, "px"));
 					setIfNotPresent(rule, "border-left", convertBorderSide(border.getLeft()));
 				}
 				if (border.getRight() != null) {
-					setIfNotPresent(rule, "padding-right", new CSSLength(border.getRight().getSpace() / 8.0, "pt"));
+					setIfNotPresent(rule, "padding-right", new CSSLength(border.getRight().getSpace() / 8.0, "px"));
 					setIfNotPresent(rule, "border-right", convertBorderSide(border.getRight()));
 				}
 			} else if (name.equals("jc")) {
@@ -298,7 +302,7 @@ public class StyleConverter {
 				Spacing insets = (Spacing) value;
 				double halfPtSize = insets.getBefore() / 10.0;
 				if (usingPX) {
-					double pxSize = halfPtSize/2;
+					double pxSize = halfPtSize / 2;
 					setIfNotPresent(rule, "margin-top", new CSSLength(pxSize, "px"));
 				} else {
 					double remSize = halfPtSize / defaultFontSize;
@@ -324,11 +328,12 @@ public class StyleConverter {
 				}
 			} else if (name.equals("ind")) {
 				Indent ind = (Indent) value;
-				final float normalWidth = 612; // convert to percentages of this
 				if (ind.getLeft() > 0) {
 					float pts = ind.getLeft() / 20;
-					float percent = 100 * pts / normalWidth;
-					setIfNotPresent(rule, "margin-left", new CSSLength(percent, "%"));
+					if (pts > 0) {
+						float percent = 100 * pts / normalWidth;
+						setIfNotPresent(rule, "margin-left", new CSSLength(percent, "%"));
+					}
 				}
 				if (ind.getRight() > 0) {
 					float pts = ind.getRight() / 20;
@@ -338,12 +343,42 @@ public class StyleConverter {
 				if (ind.getFirstLine() > 0) {
 					double halfPtSize = ind.getFirstLine() / 10.0;
 					if (usingPX) {
-						double pxSize = halfPtSize/2;
+						double pxSize = halfPtSize / 2;
 						setIfNotPresent(rule, "text-indent", new CSSLength(pxSize, "px"));
 					} else {
 						double remSize = halfPtSize / defaultFontSize;
 						setIfNotPresent(rule, "text-indent", new CSSLength(remSize, "rem"));
 					}
+				}
+			} else if (name.equals("framePr")) {
+				Frame f = (Frame) value;
+				String align = f.getAlign();
+				if (align != null) {
+					setIfNotPresent(rule, "float", align);
+				} else {
+					// extra space indicates it was not explicitly set
+					align = "left";
+					setIfNotPresent(rule, "float", " left");
+				}
+				float width = f.getWidth();
+				if (width > 0) {
+					float pts = width / 20;
+					float percent = 100 * pts / normalWidth;
+					setIfNotPresent(rule, "width", new CSSLength(percent, "%"));
+				}
+				float hSpace = f.getHSpace();
+				if (hSpace > 0) {
+					float pts = hSpace / 20;
+					CSSLength margin = new CSSLength(pts, "px");
+					if (align == null || align.equals("left"))
+						setIfNotPresent(rule, "margin-right", margin);
+					else
+						setIfNotPresent(rule, "margin-left", margin);
+				}
+				float vSpace = f.getVSpace();
+				if (vSpace > 0) {
+					float pts = vSpace / 20;
+					setIfNotPresent(rule, "margin-bottom", new CSSLength(pts, "px"));
 				}
 			}
 		}
@@ -378,26 +413,26 @@ public class StyleConverter {
 		}
 	}
 
-	private void convertStylingRule(BaseRule rule, BaseProperties prop, String elementName, float emScale) {
+	private void convertStylingRule(String elementName, BaseRule rule, BaseProperties prop, float emScale) {
 		boolean runOnly = prop instanceof RunProperties;
 		Style style;
 		if (runOnly) {
 			RunProperties rp = (RunProperties) prop;
-			addDirectPropertiesWithREM(rule, prop, emScale);
+			addDirectPropertiesWithREM(elementName, rule, prop, emScale);
 			style = rp.getRunStyle();
 		} else {
 			ParagraphProperties pp = (ParagraphProperties) prop;
-			addDirectPropertiesWithREM(rule, prop, emScale);
+			addDirectPropertiesWithREM(elementName, rule, prop, emScale);
 			style = pp.getParagraphStyle();
 		}
 		while (style != null) {
-			addDirectPropertiesWithREM(rule, style.getRunProperties(), emScale);
+			addDirectPropertiesWithREM(elementName, rule, style.getRunProperties(), emScale);
 			if (!runOnly)
-				addDirectPropertiesWithREM(rule, style.getParagraphProperties(), emScale);
+				addDirectPropertiesWithREM(elementName,rule, style.getParagraphProperties(), emScale);
 			style = style.getParent();
 		}
 		if (!runOnly && documentDefaultParagraphStyle != null)
-			addDirectPropertiesWithREM(rule, documentDefaultParagraphStyle.getParagraphProperties(), emScale);
+			addDirectPropertiesWithREM(elementName, rule, documentDefaultParagraphStyle.getParagraphProperties(), emScale);
 		if (elementName != null && elementName.startsWith("h")) {
 			if (rule.get("font-weight") == null)
 				rule.set("font-weight", "normal");
@@ -456,9 +491,16 @@ public class StyleConverter {
 			}
 		}
 		PrototypeRule pr = stylesheet.createPrototypeRule();
-		convertStylingRule(pr, prop, null, emScale);
+		convertStylingRule((elementName==null?"p":elementName), pr, prop, emScale);
+		if (elementName != null && elementName.equals("li")) {
+			// leading space indicates implicit value
+			pr.set("margin-top", " 0px");
+			pr.set("margin-bottom", " 0px");
+		}
 		Rule rule = stylesheet.getClassRuleForPrototype(pr);
 		if (rule == null) {
+			if (className == null)
+				className = findUniqueClassName("p", false);
 			rule = stylesheet.createClassRuleForPrototype(className, pr);
 			classNames.add(className);
 		} else {

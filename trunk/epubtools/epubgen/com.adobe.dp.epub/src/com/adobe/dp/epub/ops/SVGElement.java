@@ -47,7 +47,7 @@ public class SVGElement extends Element {
 	Element cloneElementShallow(OPSDocument newDoc) {
 		SVGElement e = new SVGElement(newDoc, getElementName());
 		e.className = className;
-		e.attrs = attrs;
+		e.attrs = attrs.cloneSMap();
 		return e;
 	}
 
@@ -77,5 +77,5 @@ public class SVGElement extends Element {
 	boolean isSection() {
 		return elementName.equals("svg") || elementName.equals("g") || elementName.equals("foreignObject");
 	}
-
+	
 }

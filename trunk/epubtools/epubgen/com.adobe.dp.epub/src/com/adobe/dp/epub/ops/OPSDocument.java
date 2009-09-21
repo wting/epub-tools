@@ -69,6 +69,11 @@ public class OPSDocument {
 		else
 			body = new HTMLElement(this, "body");
 	}
+	
+	public int assignPlayOrder(int playOrder) {
+		getRootXRef().setPlayOrder(++playOrder);
+		return body.assignPlayOrder(playOrder);
+	}
 
 	public Element getBody() {
 		return body;

@@ -56,35 +56,26 @@ import org.apache.log4j.Logger;
 import com.adobe.dp.epub.io.OCFContainerWriter;
 import com.adobe.dp.epub.io.ZipContainerSource;
 import com.adobe.dp.epub.opf.Publication;
-import com.adobe.dp.epub.util.ConversionTemplate;
+import com.adobe.dp.epub.otf.FontEmbeddingReport;
 import com.adobe.dp.epub.util.Translit;
-import com.adobe.dp.epub.web.log.LogInitializer;
+import com.adobe.dp.epub.web.font.FontCookieSet;
+import com.adobe.dp.epub.web.font.SharedFontSet;
+import com.adobe.dp.epub.web.util.Initializer;
 import com.adobe.dp.office.conv.Converter;
 import com.adobe.dp.office.word.WordDocument;
+import com.adobe.dp.otf.FontLocator;
 
 public class DOCXConverterServlet extends HttpServlet {
 	public static final long serialVersionUID = 0;
 
 	static Logger logger;
 
-	static File home;
-
 	static HashSet activeStreams = new HashSet();
 
-	static ConversionTemplate defaultTemplate;
-
 	static {
-		home = LogInitializer.getHome();
-
 		logger = Logger.getLogger(DOCXConverterServlet.class);
 		logger.setLevel(Level.ALL);
 		logger.trace("servlet loaded");
-		try {
-			File defaultTemplateFile = new File(home, "epubconv/DefaultTemplate.zip");
-			defaultTemplate = ConversionTemplate.getConversionTemplate(defaultTemplateFile.getAbsolutePath());
-		} catch (Exception e) {
-			logger.error("Error loading default template");
-		}
 	}
 
 	void reportError(HttpServletResponse resp, String err) throws IOException {
@@ -113,13 +104,16 @@ public class DOCXConverterServlet extends HttpServlet {
 			FileItem template = null;
 			boolean translit = false;
 			boolean useurl = false;
+			boolean fontReport = false;
 			String docxurl = null;
-			File workPath = new File(home, "work");
+			File workPath = Initializer.getWorkDir();
+			String ref = null;
+			String lang = "en";
 			workPath.mkdir();
 			String docxpath = null;
 			if (post && ServletFileUpload.isMultipartContent(req)) {
 				DiskFileItemFactory itemFac = new DiskFileItemFactory();
-				File repositoryPath = new File(home, "upload");
+				File repositoryPath = Initializer.getUploadDir();
 				repositoryPath.mkdir();
 				itemFac.setRepository(repositoryPath);
 				ServletFileUpload servletFileUpload = new ServletFileUpload(itemFac);
@@ -139,11 +133,17 @@ public class DOCXConverterServlet extends HttpServlet {
 							template = item;
 					} else if (paramName.equals("translit"))
 						translit = t.equals("on") || t.equals("yes");
+					else if (paramName.equals("fontReport"))
+						fontReport = t.equals("on") || t.equals("yes");
 					else if (paramName.equals("useurl"))
 						useurl = t.equals("on") || t.equals("yes");
 					else if (paramName.equals("url")) {
 						if (t.length() > 0)
 							docxurl = t;
+					} else if (paramName.equals("ref")) {
+						ref = item.getString();
+					} else if (paramName.equals("lang")) {
+						lang = item.getString();
 					}
 				}
 				if (!useurl && book != null) {
@@ -156,6 +156,10 @@ public class DOCXConverterServlet extends HttpServlet {
 				docxurl = req.getParameter("url");
 				String t = req.getParameter("translit");
 				translit = t != null && (t.equals("on") || t.equals("yes"));
+				t = req.getParameter("fontReport");
+				fontReport = t.equals("on") || t.equals("yes");
+				ref = req.getParameter("ref");
+				lang = req.getParameter("lang");
 			}
 			if (docxin == null) {
 				if (docxurl == null) {
@@ -209,31 +213,42 @@ public class DOCXConverterServlet extends HttpServlet {
 			Publication epub = new Publication();
 			epub.setTranslit(translit);
 			epub.useAdobeFontMangling();
-			String title = null;
-			String fname;
-			if (title == null) {
-				if (docxpath != null) {
-					fname = docxpath;
-					epub.addDCMetadata("title", docxpath);
-				} else
-					fname = "book";
-			} else
-				fname = Translit.translit(title).replace(' ', '_').replace('\t', '_').replace('\n', '_').replace('\r',
-						'_');
-			resp.setContentType("application/epub+zip");
-			resp.setHeader("Content-Disposition", "attachment; filename=" + fname + ".epub");
-			OutputStream out = resp.getOutputStream();
-			OCFContainerWriter container = new OCFContainerWriter(out);
 			Converter conv = new Converter(doc, epub);
 			if (templatein != null) {
 				if (template != null)
 					template.delete();
 			}
-			if (defaultTemplate != null)
-				conv.setFontLocator(defaultTemplate.getFontLocator());
+			FontLocator fontLocator = Initializer.getDefaultFontLocator();
+			FontCookieSet customFontCookies = new FontCookieSet(req);
+			SharedFontSet sharedFontSet = SharedFontSet.getInstance();
+			fontLocator = sharedFontSet.getFontLocator(customFontCookies, fontLocator);
+			conv.setFontLocator(fontLocator);
 			conv.setWordResources(new ZipContainerSource(docxtmp));
 			conv.convert();
-			epub.serialize(container);
+			FontEmbeddingReport report = conv.embedFonts();
+			if (fontReport) {
+				FontsServlet.reportFonts(resp, report, ref, lang);
+			} else {
+				String title = epub.getDCMetadata("title");
+				String fname;
+				if (title == null) {
+					if (docxpath != null) {
+						fname = docxpath;
+						if (fname.endsWith(".docx"))
+							fname = fname.substring(0, fname.length() - 5);
+						epub.addDCMetadata("title", docxpath);
+					} else
+						fname = "book";
+				} else {
+					fname = Translit.translit(title).replace(' ', '_').replace('\t', '_').replace('\n', '_').replace(
+							'\r', '_');
+				}
+				resp.setContentType("application/epub+zip");
+				resp.setHeader("Content-Disposition", "attachment; filename=" + fname + ".epub");
+				OutputStream out = resp.getOutputStream();
+				OCFContainerWriter container = new OCFContainerWriter(out);
+				epub.serialize(container);
+			}
 			docxtmp.delete();
 		} catch (Exception e) {
 			logger.error("error", e);

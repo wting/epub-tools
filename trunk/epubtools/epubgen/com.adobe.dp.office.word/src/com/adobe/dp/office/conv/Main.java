@@ -45,7 +45,7 @@ public class Main {
 	public static void main(String[] args) {
 		try {
 			Main.processArguments(args);
-			if((Main.source == null) || (Main.dest == null)) {
+			if ((Main.source == null) || (Main.dest == null)) {
 				Main.displayHelp();
 			}
 			File wordFile = new File(Main.source);
@@ -57,7 +57,7 @@ public class Main {
 			else
 				container = new OCFContainerWriter(new FileOutputStream(epubFileOrFolder));
 			Publication epub = new Publication();
-			if (deprecatedFontMangling)
+			if (adobeFontMangling)
 				epub.useAdobeFontMangling();
 			Converter conv = new Converter(doc, epub);
 			conv.setWordResources(new ZipContainerSource(wordFile));
@@ -68,9 +68,9 @@ public class Main {
 		}
 	}
 
-	public static final String VERSION = "0.3.0";
+	public static final String VERSION = "0.4.0";
 
-	public static boolean deprecatedFontMangling = false;
+	public static boolean adobeFontMangling = false;
 
 	public static String source = null;
 
@@ -83,7 +83,7 @@ public class Main {
 	 * <br>
 	 * -h or --help = display usage instructions, and exits. <br>
 	 * -v or --version = display tool version number <br>
-	 * -a or --adobeFontMangling - use the deprecated font mangling algorithm
+	 * -a or --adobeFontMangling - use the Adobe font mangling algorithm
 	 * (default is to use IDPF recommended algorithm.)
 	 * 
 	 * @param args
@@ -102,8 +102,8 @@ public class Main {
 				displayVersion();
 			} else if (args[i].equals("--help") || args[i].equals("-h")) {
 				displayHelp(); // display help message
-			} else if (args[i].equals("--adobeFontVersion") || args[i].equals("-a")) {
-				Main.deprecatedFontMangling = true;
+			} else if (args[i].equals("--adobeFontMangling") || args[i].equals("-a")) {
+				Main.adobeFontMangling = true;
 			} else if (Main.source == null) {
 				Main.source = args[i];
 			} else if (Main.dest == null) {
@@ -128,8 +128,8 @@ public class Main {
 		System.out.println("This tool accepts the following options:");
 		System.out.println("-h or --help 			= Displays this help message, and exits");
 		System.out.println("-v or --version 		= Displays the tool's version number");
-		System.out
-				.println("-a or --adobeFontMangling 	= Uses deprecated font mangling algorithm. \n\t\t\t\tWithout this flag the IDPF algorithm is used.\n");
+		System.out.println("-a or --adobeFontMangling 	= Uses Adobe font mangling algorithm.");
+		System.out.println("\t\t\t\tWithout this flag the IDPF algorithm is used.\n");
 		System.exit(0);
 	}
 

@@ -47,7 +47,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 
-import com.adobe.dp.util.Base64;
+import com.adobe.dp.epub.util.Base64;
 
 public class FB2DocumentParser {
 

@@ -32,6 +32,7 @@ package com.adobe.dp.xml.util;
 
 import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.Iterator;
 
 public class SMapImpl implements SMap {
 
@@ -120,6 +121,12 @@ public class SMapImpl implements SMap {
 
 	public SMapIterator iterator() {
 		return new IteratorImpl();
+	}
+	
+	public SMapImpl cloneSMap() {
+		SMapImpl r = new SMapImpl();
+		r.table = (Hashtable)table.clone();
+		return r;
 	}
 
 }

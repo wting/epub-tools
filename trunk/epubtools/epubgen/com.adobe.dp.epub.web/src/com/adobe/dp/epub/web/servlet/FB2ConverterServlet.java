@@ -54,41 +54,28 @@ import org.apache.log4j.Logger;
 
 import com.adobe.dp.epub.io.OCFContainerWriter;
 import com.adobe.dp.epub.opf.Publication;
-import com.adobe.dp.epub.util.ConversionTemplate;
 import com.adobe.dp.epub.util.Translit;
-import com.adobe.dp.epub.web.log.LogInitializer;
+import com.adobe.dp.epub.web.font.FontCookieSet;
+import com.adobe.dp.epub.web.font.SharedFontSet;
+import com.adobe.dp.epub.web.util.Initializer;
 import com.adobe.dp.fb2.FB2Document;
 import com.adobe.dp.fb2.FB2FormatException;
 import com.adobe.dp.fb2.FB2TitleInfo;
 import com.adobe.dp.fb2.convert.Converter;
+import com.adobe.dp.otf.FontLocator;
 
 public class FB2ConverterServlet extends HttpServlet {
 	public static final long serialVersionUID = 0;
 
 	static Logger logger;
 
-	static File home;
-
 	static HashSet activeStreams = new HashSet();
 
-	static ConversionTemplate sharedTemplate;
-
 	static {
-		
-		home = LogInitializer.getHome();
-		
+
 		logger = Logger.getLogger(FB2ConverterServlet.class);
 		logger.setLevel(Level.ALL);
 		logger.trace("servlet loaded");
-		try {
-			File defaultTemplateFile = new File(home,
-					"epubconv/DefaultTemplate.zip");
-			sharedTemplate = ConversionTemplate
-					.getConversionTemplate(defaultTemplateFile
-							.getAbsolutePath());
-		} catch (Exception e) {
-			logger.error("Error loading default template");
-		}
 	}
 
 	void reportError(HttpServletResponse resp, String err) throws IOException {
@@ -98,18 +85,16 @@ public class FB2ConverterServlet extends HttpServlet {
 		out.write(err);
 	}
 
-	protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-			throws ServletException, IOException {
+	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		doRequest(false, req, resp);
 	}
 
-	protected void doPost(HttpServletRequest req, HttpServletResponse resp)
-			throws ServletException, IOException {
+	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		doRequest(true, req, resp);
 	}
 
-	private void doRequest(boolean post, HttpServletRequest req,
-			HttpServletResponse resp) throws ServletException, IOException {
+	private void doRequest(boolean post, HttpServletRequest req, HttpServletResponse resp) throws ServletException,
+			IOException {
 		String streamIP = null;
 		try {
 			logger.trace("start " + req.getRemoteAddr());
@@ -122,11 +107,10 @@ public class FB2ConverterServlet extends HttpServlet {
 			String fb2url = null;
 			if (post && ServletFileUpload.isMultipartContent(req)) {
 				DiskFileItemFactory itemFac = new DiskFileItemFactory();
-				File repositoryPath = new File(home, "upload");
+				File repositoryPath = Initializer.getUploadDir();
 				repositoryPath.mkdir();
 				itemFac.setRepository(repositoryPath);
-				ServletFileUpload servletFileUpload = new ServletFileUpload(
-						itemFac);
+				ServletFileUpload servletFileUpload = new ServletFileUpload(itemFac);
 				List fileItemList = servletFileUpload.parseRequest(req);
 				Iterator list = fileItemList.iterator();
 				while (list.hasNext()) {
@@ -161,14 +145,12 @@ public class FB2ConverterServlet extends HttpServlet {
 			}
 			if (fb2in == null) {
 				if (fb2url == null) {
-					reportError(resp,
-							"Invalid request: neither fb2 file nor URL is provided");
+					reportError(resp, "Invalid request: neither fb2 file nor URL is provided");
 					return;
 				}
 				URL url = new URL(fb2url);
 				if (!url.getProtocol().equals("http")) {
-					reportError(resp,
-							"Invalid request: fb2 URL protocol is not http");
+					reportError(resp, "Invalid request: fb2 URL protocol is not http");
 					return;
 				}
 				String host = url.getHost();
@@ -181,8 +163,7 @@ public class FB2ConverterServlet extends HttpServlet {
 					}
 				}
 				if (streamIP == null) {
-					reportError(resp, "Only a single connection to the server "
-							+ host + " is allowed");
+					reportError(resp, "Only a single connection to the server " + host + " is allowed");
 					return;
 				}
 				logger.info("downloading from " + fb2url);
@@ -201,16 +182,18 @@ public class FB2ConverterServlet extends HttpServlet {
 			if (title == null)
 				fname = "book";
 			else
-				fname = Translit.translit(title).replace(' ', '_').replace(
-						'\t', '_').replace('\n', '_').replace('\r', '_');
+				fname = Translit.translit(title).replace(' ', '_').replace('\t', '_').replace('\n', '_').replace('\r',
+						'_');
 			resp.setContentType("application/epub+zip");
-			resp.setHeader("Content-Disposition", "attachment; filename="
-					+ fname + ".epub");
+			resp.setHeader("Content-Disposition", "attachment; filename=" + fname + ".epub");
 			OutputStream out = resp.getOutputStream();
 			OCFContainerWriter container = new OCFContainerWriter(out);
 			Converter conv = new Converter();
-			if (sharedTemplate != null)
-				conv.setFontLocator(sharedTemplate.getFontLocator());
+			FontLocator fontLocator = Initializer.getDefaultFontLocator();
+			FontCookieSet customFontCookies = new FontCookieSet(req);
+			SharedFontSet sharedFontSet = SharedFontSet.getInstance();
+			fontLocator = sharedFontSet.getFontLocator(customFontCookies, fontLocator);
+			conv.setFontLocator(fontLocator);
 			if (templatein != null) {
 				conv.setTemplate(templatein);
 				if (template != null)

@@ -52,6 +52,7 @@ import com.adobe.dp.office.embedded.EmbeddedObject;
 import com.adobe.dp.office.types.Border;
 import com.adobe.dp.office.types.BorderSide;
 import com.adobe.dp.office.types.FontFamily;
+import com.adobe.dp.office.types.Frame;
 import com.adobe.dp.office.types.Indent;
 import com.adobe.dp.office.types.Paint;
 import com.adobe.dp.office.types.RGBColor;
@@ -161,7 +162,8 @@ public class WordDocumentParser {
 		propertyParsers.put("rFonts", fontsParser);
 		IndentParser indentParser = new IndentParser();
 		propertyParsers.put("ind", indentParser);
-
+		FrameParser frameParser = new FrameParser();
+		propertyParsers.put("framePr", frameParser);
 		colorTable.put("white", new RGBColor(0xFFFFFF));
 		colorTable.put("black", new RGBColor(0x000000));
 		colorTable.put("red", new RGBColor(0xFF0000));
@@ -388,6 +390,41 @@ public class WordDocumentParser {
 
 	}
 
+	static class FrameParser extends PropertyParser {
+
+		boolean parse(String localName, Attributes attributes, WordDocumentParser self) {
+			propertyName = localName;
+			float width = 0;
+			float hSpace = 0;
+			float vSpace = 0;
+			String widthStr = attributes.getValue(wNS, "w");
+			String hSpaceStr = attributes.getValue(wNS, "hSpace");
+			String vSpaceStr = attributes.getValue(wNS, "vSpace");
+			String align = attributes.getValue(wNS, "xAlign");
+			try {
+				if (widthStr != null)
+					width = Float.parseFloat(widthStr);
+			} catch (NumberFormatException e) {
+				e.printStackTrace();
+			}
+			try {
+				if (hSpaceStr != null)
+					hSpace = Float.parseFloat(hSpaceStr);
+			} catch (NumberFormatException e) {
+				e.printStackTrace();
+			}
+			try {
+				if (vSpaceStr != null)
+					vSpace = Float.parseFloat(vSpaceStr);
+			} catch (NumberFormatException e) {
+				e.printStackTrace();
+			}
+			propertyValue = new Frame(align, width, hSpace, vSpace);
+			return true;
+		}
+
+	}
+
 	static Paint parsePaint(String val) {
 		if (val == null)
 			return null;
@@ -405,7 +442,7 @@ public class WordDocumentParser {
 		return null;
 	}
 
-	static PropertyParser getPropertyParser(BaseProperties properties, String localName) {
+	static PropertyParser getPropertyParser(String localName) {
 		return (PropertyParser) propertyParsers.get(localName);
 	}
 
@@ -543,7 +580,7 @@ public class WordDocumentParser {
 								newContext.font = font;
 								fonts.put(name, font);
 							}
-						} else if (localName.endsWith("Pr")) {
+						} else if (localName.endsWith("Pr") && !localName.equals("framePr")) {
 							BaseProperties prop = createWordProperties(localName);
 							newContext.properties = prop;
 							if (parentContext.parentStyle != null)
@@ -603,11 +640,14 @@ public class WordDocumentParser {
 							} else {
 								if (localName.equals("spacing") && parentContext.properties instanceof RunProperties)
 									localName = "spacing-r";
-								PropertyParser propertyParser = getPropertyParser(parentContext.properties, localName);
+								PropertyParser propertyParser = getPropertyParser(localName);
 								if (propertyParser != null) {
 									if (propertyParser.parse(localName, attributes, WordDocumentParser.this))
 										parentContext.properties.put(propertyParser.propertyName,
 												propertyParser.propertyValue);
+								} else {
+									// System.out.println("unknown property: " +
+									// localName);
 								}
 							}
 						} else if (localName.equals("rPrDefault")) {
