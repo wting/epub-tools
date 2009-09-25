@@ -30,11 +30,13 @@
 
 package com.adobe.dp.office.conv;
 
-import java.text.SimpleDateFormat;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.util.Date;
 import java.util.Hashtable;
 import java.util.Iterator;
 
+import com.adobe.dp.epub.conv.Version;
 import com.adobe.dp.epub.io.ContainerSource;
 import com.adobe.dp.epub.opf.NCXResource;
 import com.adobe.dp.epub.opf.OPSResource;
@@ -50,6 +52,7 @@ import com.adobe.dp.office.word.MetadataItem;
 import com.adobe.dp.office.word.RunProperties;
 import com.adobe.dp.office.word.WordDocument;
 import com.adobe.dp.otf.FontLocator;
+import com.adobe.dp.xml.util.StringUtil;
 
 public class DOCXConverter {
 
@@ -76,6 +79,8 @@ public class DOCXConverter {
 
 	double defaultFontSize;
 
+	PrintWriter log = new PrintWriter(new OutputStreamWriter(System.out));
+	
 	public DOCXConverter(WordDocument doc, Publication epub) {
 		this.doc = doc;
 		this.epub = epub;
@@ -124,11 +129,8 @@ public class DOCXConverter {
 		this.fontLocator = fontLocator;
 	}
 
-	public static String dateToW3CDTF(Date date) {
-		SimpleDateFormat w3cdtf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
-		String s = w3cdtf.format(date);
-		int index = s.length() - 2;
-		return s.substring(0, index) + ":" + s.substring(index);
+	public void setLog(PrintWriter log) {
+		this.log = log;
 	}
 	
 	public void convert() {
@@ -138,7 +140,7 @@ public class DOCXConverter {
 			// process footnotes first to build footnote map
 			BodyElement fbody = doc.getFootnotes();
 			footnotes = epub.createOPSResource("OPS/footnotes.xhtml");
-			WordMLConverter footnoteConv = new WordMLConverter(doc, epub, styleConverter);
+			WordMLConverter footnoteConv = new WordMLConverter(doc, epub, styleConverter, log);
 			footnoteConv.setFootnoteMap(footnoteMap);
 			footnoteConv.setWordResources(wordResources);
 			footnoteConv.convert(fbody, footnotes, false);
@@ -159,7 +161,7 @@ public class DOCXConverter {
 		}
 
 		BodyElement body = doc.getBody();
-		WordMLConverter bodyConv = new WordMLConverter(doc, epub, styleConverter);
+		WordMLConverter bodyConv = new WordMLConverter(doc, epub, styleConverter, log);
 		bodyConv.setFootnoteMap(footnoteMap);
 		bodyConv.setWordResources(wordResources);
 		bodyConv.findLists(body);
@@ -182,8 +184,8 @@ public class DOCXConverter {
 			}
 		}
 
-		epub.addMetadata(null, "DOCX2EPUB.version", Main.VERSION);
-		epub.addMetadata(null, "DOCX2EPUB.conversionDate", dateToW3CDTF(new Date()));
+		epub.addMetadata(null, "DOCX2EPUB.version", Version.VERSION);
+		epub.addMetadata(null, "DOCX2EPUB.conversionDate", StringUtil.dateToW3CDTF(new Date()));
 		
 		epub.generateTOCFromHeadings(5);
 		epub.splitLargeChapters();

@@ -65,6 +65,7 @@ public class RTFConversionService extends ConversionService {
 			epub.setTranslit(translit);
 			epub.useAdobeFontMangling();
 			RTFConverter conv = new RTFConverter(doc, epub);
+			conv.setLog(log);
 			epub.setTranslit(translit);
 			if (adobeMangling)
 				epub.useAdobeFontMangling();
@@ -86,7 +87,7 @@ public class RTFConversionService extends ConversionService {
 				fname = src.getName();
 				epub.addDCMetadata("title", fname);
 				if (fname.endsWith(".rtf"))
-					fname = fname.substring(0, fname.length() - 5);
+					fname = fname.substring(0, fname.length() - 4);
 			} else {
 				fname = Translit.translit(title).replace(' ', '_').replace('\t', '_').replace('\n', '_').replace('\r',
 						'_').replace('/', '_').replace('\\', '_').replace('\"', '_');

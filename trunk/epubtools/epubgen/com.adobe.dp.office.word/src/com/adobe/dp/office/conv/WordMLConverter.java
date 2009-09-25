@@ -31,6 +31,8 @@
 package com.adobe.dp.office.conv;
 
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -117,8 +119,11 @@ class WordMLConverter {
 	boolean chapterSplitAllowed;
 
 	private String nextPageName;
-
-	WordMLConverter(WordDocument doc, Publication epub, StyleConverter styleConverter) {
+	
+	PrintWriter log;
+	
+	WordMLConverter(WordDocument doc, Publication epub, StyleConverter styleConverter, PrintWriter log) {
+		this.log = log;
 		this.doc = doc;
 		this.epub = epub;
 		this.styleConverter = styleConverter;
@@ -127,6 +132,7 @@ class WordMLConverter {
 	}
 
 	WordMLConverter(WordMLConverter parent, OPSResource chapterResource) {
+		this.log = parent.log;
 		this.resource = chapterResource;
 		this.chapter = chapterResource.getDocument();
 		this.doc = parent.doc;
@@ -136,6 +142,7 @@ class WordMLConverter {
 	}
 
 	WordMLConverter(WordMLConverter parent, StyleConverter styleConverter) {
+		this.log = parent.log;
 		this.chapter = parent.chapter;
 		this.doc = parent.doc;
 		this.epub = parent.epub;
@@ -231,7 +238,7 @@ class WordMLConverter {
 					WMFParser parser = new WMFParser(dataSource.getInputStream(), svg);
 					parser.readAll();
 				} catch (IOException e) {
-					e.printStackTrace();
+					e.printStackTrace(log);
 					return null;
 				}
 				dataSource = new StringDataSource(svg.getSVG());
@@ -335,7 +342,7 @@ class WordMLConverter {
 
 	boolean processEPUBCommand(String command, Element parent, int depth) {
 		if (command.startsWith(".")) {
-			System.err.println("Command: " + command);
+			//log.println("Command: " + command);
 			int index = command.indexOf(' ');
 			String cmd;
 			String param;
@@ -350,7 +357,7 @@ class WordMLConverter {
 				String newChapterName = "OPS/" + param;
 				if (chapterNameWasSet) {
 					if (!chapterSplitAllowed || depth > 1)
-						System.err.println("chapter split not allowed here");
+						log.println("chapter split not allowed here");
 					else {
 						resource = epub.createOPSResource(newChapterName);
 						return false;
@@ -601,7 +608,7 @@ class WordMLConverter {
 						}
 					}
 				} catch (Exception e) {
-					e.printStackTrace();
+					e.printStackTrace(log);
 				}
 			}
 			resetSpaceProcessing = true;

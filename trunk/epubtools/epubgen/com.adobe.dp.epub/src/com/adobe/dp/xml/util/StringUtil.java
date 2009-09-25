@@ -30,6 +30,9 @@
 
 package com.adobe.dp.xml.util;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 public class StringUtil {
 
 	public static String replace(String src, String olds, String news) {
@@ -52,4 +55,13 @@ public class StringUtil {
 		String result = sb.toString();
 		return result;
 	}
+	
+	public static String dateToW3CDTF(Date date) {
+		SimpleDateFormat w3cdtf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
+		String s = w3cdtf.format(date);
+		int index = s.length() - 2;
+		return s.substring(0, index) + ":" + s.substring(index);
+	}
+	
+	
 }

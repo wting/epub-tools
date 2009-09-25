@@ -184,7 +184,7 @@ public abstract class MetafileParser {
 		readInt();
 		readInt();
 		int biClrUsed = readInt();
-		int biClrImportant = readInt();
+		readInt();
 		offsetToBytes -= 40;
 		int[] colors = null;
 		if( biClrUsed > 0 ) {

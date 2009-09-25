@@ -16,6 +16,7 @@ import com.adobe.dp.epub.conv.ConversionClient;
 import com.adobe.dp.epub.conv.ConversionService;
 import com.adobe.dp.epub.conv.GUIDriver;
 import com.adobe.dp.epub.io.OCFContainerWriter;
+import com.adobe.dp.epub.io.ZipContainerSource;
 import com.adobe.dp.epub.opf.Publication;
 import com.adobe.dp.epub.util.ConversionTemplate;
 import com.adobe.dp.epub.util.Translit;
@@ -60,12 +61,16 @@ public class DOCXConversionService extends ConversionService {
 	}
 
 	public File convert(File src, File[] aux, ConversionClient client, PrintWriter log) {
+		ZipContainerSource resources = null;
 		try {
 			WordDocument doc = new WordDocument(src);
 			Publication epub = new Publication();
 			epub.setTranslit(translit);
 			epub.useAdobeFontMangling();
 			DOCXConverter conv = new DOCXConverter(doc, epub);
+			conv.setLog(log);
+			resources = new ZipContainerSource(src);
+			conv.setWordResources(resources);
 			epub.setTranslit(translit);
 			if (adobeMangling)
 				epub.useAdobeFontMangling();
@@ -104,6 +109,14 @@ public class DOCXConversionService extends ConversionService {
 			return outFile;
 		} catch (Exception e) {
 			e.printStackTrace(log);
+		} finally {
+			if (resources != null) {
+				try {
+					resources.close();
+				} catch (Exception e) {
+
+				}
+			}
 		}
 		return null;
 	}

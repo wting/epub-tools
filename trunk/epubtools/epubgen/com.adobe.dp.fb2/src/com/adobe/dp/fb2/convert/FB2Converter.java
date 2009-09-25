@@ -32,21 +32,20 @@ package com.adobe.dp.fb2.convert;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Vector;
 
+import com.adobe.dp.epub.conv.Version;
 import com.adobe.dp.epub.io.BufferedDataSource;
-import com.adobe.dp.epub.io.ContainerWriter;
-import com.adobe.dp.epub.io.FolderContainerWriter;
-import com.adobe.dp.epub.io.OCFContainerWriter;
 import com.adobe.dp.epub.ncx.TOCEntry;
 import com.adobe.dp.epub.opf.BitmapImageResource;
 import com.adobe.dp.epub.opf.NCXResource;
@@ -100,8 +99,9 @@ import com.adobe.dp.fb2.FB2TitleInfo;
 import com.adobe.dp.otf.DefaultFontLocator;
 import com.adobe.dp.otf.FontLocator;
 import com.adobe.dp.otf.FontProperties;
+import com.adobe.dp.xml.util.StringUtil;
 
-public class Converter {
+public class FB2Converter {
 
 	final static private int RESOURCE_THRESHOLD_MAX = 45000;
 
@@ -109,11 +109,9 @@ public class Converter {
 
 	private static QuotedString defaultSansSerifFont = new QuotedString("Arial");
 
-	private static QuotedString defaultSerifFont = new QuotedString(
-			"Times New Roman");
+	private static QuotedString defaultSerifFont = new QuotedString("Times New Roman");
 
-	private static QuotedString defaultMonospaceFont = new QuotedString(
-			"Courier New");
+	private static QuotedString defaultMonospaceFont = new QuotedString("Courier New");
 
 	FB2Document doc;
 
@@ -138,8 +136,10 @@ public class Converter {
 	FontLocator fontLocator;
 
 	FontLocator defaultFontLocator;
-	
+
 	static Hashtable builtinRules;
+
+	PrintWriter log = new PrintWriter(new OutputStreamWriter(System.out));
 
 	// static FontLocator builtInFontLocator = new BuiltInFontLocator();
 
@@ -147,9 +147,8 @@ public class Converter {
 
 	static {
 		try {
-			BufferedReader reader = new BufferedReader(new InputStreamReader(
-					Converter.class.getResourceAsStream("stylesheet.css"),
-					"UTF-8"));
+			BufferedReader reader = new BufferedReader(new InputStreamReader(FB2Converter.class
+					.getResourceAsStream("stylesheet.css"), "UTF-8"));
 			SimpleStylesheetParser parser = new SimpleStylesheetParser();
 			parser.readRules(reader);
 			reader.close();
@@ -194,8 +193,7 @@ public class Converter {
 		if (bin == null)
 			return null;
 		String path = "OPS/images/" + name;
-		BitmapImageResource resource = (BitmapImageResource) epub
-				.getResourceByName(path);
+		BitmapImageResource resource = (BitmapImageResource) epub.getResourceByName(path);
 		if (resource == null) {
 			BufferedDataSource data = new BufferedDataSource();
 			try {
@@ -203,8 +201,7 @@ public class Converter {
 			} catch (IOException e) {
 				throw new Error("unexpected exception: " + e);
 			}
-			resource = epub.createBitmapImageResource(path, bin.getMediaType(),
-					data);
+			resource = epub.createBitmapImageResource(path, bin.getMediaType(), data);
 		}
 		return resource;
 	}
@@ -249,8 +246,7 @@ public class Converter {
 	}
 
 	private boolean isBuiltIn(String name) {
-		return name.equals("serif") || name.equals("sans-serif")
-				|| name.equals("monospace");
+		return name.equals("serif") || name.equals("sans-serif") || name.equals("monospace");
 	}
 
 	private void adjustFontList(BaseRule rule) {
@@ -262,8 +258,7 @@ public class Converter {
 			String family = getStringValue(it.next());
 			if (isBuiltIn(family))
 				continue;
-			FontProperties fp = new FontProperties(family,
-					FontProperties.WEIGHT_NORMAL, FontProperties.STYLE_REGULAR);
+			FontProperties fp = new FontProperties(family, FontProperties.WEIGHT_NORMAL, FontProperties.STYLE_REGULAR);
 			if (fontLocator.hasFont(fp))
 				return; // found at least one font
 		}
@@ -325,8 +320,8 @@ public class Converter {
 		}
 	}
 
-	private void convertElement(OPSDocument ops, Element parent, Object fb,
-			TOCEntry entry, int level, boolean insideTitle) {
+	private void convertElement(OPSDocument ops, Element parent, Object fb, TOCEntry entry, int level,
+			boolean insideTitle) {
 		if (fb instanceof FB2Element) {
 			FB2Element fbe = (FB2Element) fb;
 			FB2Title title = null;
@@ -420,8 +415,7 @@ public class Converter {
 							img.setImageResource(resource);
 							if (alt != null)
 								img.setAltText(alt);
-							SimpleSelector imageContent = stylesheet
-									.getSimpleSelector("img", null);
+							SimpleSelector imageContent = stylesheet.getSimpleSelector("img", null);
 							ensureRule(imageContent, null, "image-content");
 						}
 					}
@@ -435,8 +429,7 @@ public class Converter {
 						captionElement.setClassName("image-title");
 						self.add(captionElement);
 						captionElement.add(caption);
-						SimpleSelector imageTitle = stylesheet
-								.getSimpleSelector(null, "image-title");
+						SimpleSelector imageTitle = stylesheet.getSimpleSelector(null, "image-title");
 						ensureRule(imageTitle, null, "image-title");
 					}
 				} else if (name.equals("a")) {
@@ -449,8 +442,8 @@ public class Converter {
 					self = a;
 				} else if (name.equals("td") || name.equals("th")) {
 					FB2TableCell fbt = (FB2TableCell) fbe;
-					TableCellElement td = ops.createTableCellElement(name, fbt
-							.getAlign(), fbt.getColSpan(), fbt.getRowSpan());
+					TableCellElement td = ops.createTableCellElement(name, fbt.getAlign(), fbt.getColSpan(), fbt
+							.getRowSpan());
 					self = td;
 				} else {
 					self = ops.createElement(name);
@@ -471,44 +464,38 @@ public class Converter {
 					record.target = self;
 				}
 				if (title != null && entry != null) {
-					TOCEntry subentry = toc.createTOCEntry(trim(title
-							.contentAsString()), self.getSelfRef());
+					TOCEntry subentry = toc.createTOCEntry(trim(title.contentAsString()), self.getSelfRef());
 					entry.add(subentry);
 					entry = subentry;
 				}
-				SimpleSelector selector = stylesheet.getSimpleSelector(name,
-						className);
+				SimpleSelector selector = stylesheet.getSimpleSelector(name, className);
 				ensureRule(selector, fbName, fbClass);
 			}
 			Object[] children = fbe.getChildren();
 			for (int i = 0; i < children.length; i++)
-				convertElement(ops, self, children[i], entry, level,
-						insideTitle);
+				convertElement(ops, self, children[i], entry, level, insideTitle);
 		} else {
 			parent.add(fb);
 		}
 	}
-	
-	public void setFontLocator( FontLocator fontLocator ) {
+
+	public void setFontLocator(FontLocator fontLocator) {
 		defaultFontLocator = fontLocator;
 	}
 
 	public void setTemplate(Stylesheet stylesheet) throws IOException {
 		templateRules = stylesheet.getRules();
 	}
-	
-	public void setTemplate(InputStream templateStream) throws IOException,
-			FB2FormatException {
+
+	public void setTemplate(InputStream templateStream) throws IOException, FB2FormatException {
 		BufferedInputStream in = new BufferedInputStream(templateStream);
 		byte[] sniff = new byte[4];
 		in.mark(4);
 		in.read(sniff);
 		in.reset();
 		SimpleStylesheetParser parser = new SimpleStylesheetParser();
-		if ((sniff[0] == 'P' && sniff[1] == 'K' && sniff[2] == 3 && sniff[3] == 4)
-				|| sniff[0] == '<'
-				|| ((sniff[0] == (byte) 0xef && sniff[1] == (byte) 0xbb
-						&& sniff[2] == (byte) 0xbf && sniff[3] == '<'))) {
+		if ((sniff[0] == 'P' && sniff[1] == 'K' && sniff[2] == 3 && sniff[3] == 4) || sniff[0] == '<'
+				|| ((sniff[0] == (byte) 0xef && sniff[1] == (byte) 0xbb && sniff[2] == (byte) 0xbf && sniff[3] == '<'))) {
 			// template is FB2 file itself
 			templateDoc = new FB2Document(in);
 			String[] stylesheets = templateDoc.getStylesheets();
@@ -519,8 +506,7 @@ public class Converter {
 			}
 		} else {
 			templateDoc = null;
-			parser.readRules(new BufferedReader(new InputStreamReader(in,
-					"UTF-8")));
+			parser.readRules(new BufferedReader(new InputStreamReader(in, "UTF-8")));
 		}
 		templateRules = parser.getRules();
 	}
@@ -529,14 +515,14 @@ public class Converter {
 		try {
 			setTemplate(new FileInputStream(file));
 		} catch (IOException e) {
-			e.printStackTrace();
+			e.printStackTrace(log);
 		} catch (FB2FormatException e) {
-			e.printStackTrace();
+			e.printStackTrace(log);
 		}
 	}
 
-	private void convertToResource(OPSResource resource, FB2Section section,
-			TOCEntry entry, int level, int index, int length) {
+	private void convertToResource(OPSResource resource, FB2Section section, TOCEntry entry, int level, int index,
+			int length) {
 		OPSDocument ops = resource.getDocument();
 		Element body = ops.getBody();
 		Object[] children = section.getChildren();
@@ -545,8 +531,7 @@ public class Converter {
 	}
 
 	private boolean isLargeSection(Object child) {
-		return child instanceof FB2Section
-				&& ((FB2Section) child).getUTF16Size() >= RESOURCE_THRESHOLD_MIN;
+		return child instanceof FB2Section && ((FB2Section) child).getUTF16Size() >= RESOURCE_THRESHOLD_MIN;
 	}
 
 	private void convertSection(FB2Section section, TOCEntry entry, int level) {
@@ -555,8 +540,7 @@ public class Converter {
 		if (section.getName().equals("body")) {
 			String sectionName = section.getSectionName();
 			if (sectionName != null) {
-				if (sectionName.equals("footnotes")
-						|| sectionName.equals("notes")) {
+				if (sectionName.equals("footnotes") || sectionName.equals("notes")) {
 					entry = null;
 					level += 2;
 				}
@@ -566,8 +550,7 @@ public class Converter {
 		if (title != null && level > 1) {
 			resource = newOPSResource();
 			if (entry != null) {
-				TOCEntry subentry = toc.createTOCEntry(trim(title
-						.contentAsString()), resource.getDocument()
+				TOCEntry subentry = toc.createTOCEntry(trim(title.contentAsString()), resource.getDocument()
 						.getRootXRef());
 				entry.add(subentry);
 				entry = subentry;
@@ -577,8 +560,7 @@ public class Converter {
 		if (size <= RESOURCE_THRESHOLD_MAX) {
 			if (resource == null)
 				resource = newOPSResource();
-			convertToResource(resource, section, entry, level, 0,
-					children.length);
+			convertToResource(resource, section, entry, level, 0, children.length);
 			resource = null;
 		} else {
 			size = 0;
@@ -592,8 +574,7 @@ public class Converter {
 					if (first < i) {
 						if (resource == null)
 							resource = newOPSResource();
-						convertToResource(resource, section, entry, level,
-								first, i - first);
+						convertToResource(resource, section, entry, level, first, i - first);
 						resource = null;
 					}
 					if (isLargeSection(child)) {
@@ -610,15 +591,14 @@ public class Converter {
 			if (first < i) {
 				if (resource == null)
 					resource = newOPSResource();
-				convertToResource(resource, section, entry, level, first, i
-						- first);
+				convertToResource(resource, section, entry, level, first, i - first);
 			}
 		}
 	}
 
 	private boolean isUUID(String id) {
-		return id.length() == 36 && id.charAt(8) == '-' && id.charAt(13) == '-'
-				&& id.charAt(18) == '-' && id.charAt(23) == '-';
+		return id.length() == 36 && id.charAt(8) == '-' && id.charAt(13) == '-' && id.charAt(18) == '-'
+				&& id.charAt(23) == '-';
 	}
 
 	private void convert() {
@@ -637,8 +617,7 @@ public class Converter {
 			FB2AuthorInfo[] translators = bookInfo.getTranslators();
 			if (translators != null) {
 				for (int i = 0; i < translators.length; i++) {
-					epub.addMetadata(null, "FB2.book-info.translator",
-							translators[i].toString());
+					epub.addMetadata(null, "FB2.book-info.translator", translators[i].toString());
 				}
 			}
 			epub.addDCMetadata("language", bookInfo.getLanguage());
@@ -649,49 +628,41 @@ public class Converter {
 			FB2DateInfo date = bookInfo.getDate();
 			if (date != null) {
 				String mr = date.getMachineReadable();
-				epub.addDCMetadata("date", (mr == null ? date
-						.getHumanReadable() : mr));
+				epub.addDCMetadata("date", (mr == null ? date.getHumanReadable() : mr));
 			}
 			FB2GenreInfo[] genres = bookInfo.getGenres();
 			if (genres != null) {
 				for (int i = 0; i < genres.length; i++)
-					epub.addMetadata(null, "FB2.book-info.genre", genres[i]
-							.toString());
+					epub.addMetadata(null, "FB2.book-info.genre", genres[i].toString());
 			}
 			FB2SequenceInfo[] sequences = bookInfo.getSequences();
 			if (sequences != null) {
 				for (int i = 0; i < sequences.length; i++)
-					epub.addMetadata(null, "FB2.book-info.sequence",
-							sequences[i].toString());
+					epub.addMetadata(null, "FB2.book-info.sequence", sequences[i].toString());
 			}
 			String coverpageImage = bookInfo.getCoverpageImage();
 			if (coverpageImage != null) {
 				FB2Binary binary = doc.getBinaryResource(coverpageImage);
 				if (binary != null && binary.getData() != null) {
-					int[] dim = ImageDimensions.getImageDimensions(binary
-							.getData());
+					int[] dim = ImageDimensions.getImageDimensions(binary.getData());
 					if (dim != null) {
 						OPSResource coverRes = newCoverPageResource();
 						OPSDocument coverDoc = coverRes.getDocument();
 						Element body = coverDoc.getBody();
 						body.setClassName("cover");
-						Rule coverBodyRule = stylesheet
-								.getRuleForSelector(stylesheet
-										.getSimpleSelector("body", "cover"));
+						Rule coverBodyRule = stylesheet.getRuleForSelector(stylesheet
+								.getSimpleSelector("body", "cover"));
 						coverBodyRule.set("oeb-column-number", "1");
 						coverBodyRule.set("margin", "0px");
 						coverBodyRule.set("padding", "0px");
 						SVGElement svg = coverDoc.createSVGElement("svg");
-						svg.setAttribute("viewBox", "0 0 " + dim[0] + " "
-								+ dim[1]);
+						svg.setAttribute("viewBox", "0 0 " + dim[0] + " " + dim[1]);
 						svg.setClassName("cover-svg");
 						body.add(svg);
-						Rule svgRule = stylesheet.getRuleForSelector(stylesheet
-								.getSimpleSelector("svg", "cover-svg"));
+						Rule svgRule = stylesheet.getRuleForSelector(stylesheet.getSimpleSelector("svg", "cover-svg"));
 						svgRule.set("width", "100%");
 						svgRule.set("height", "100%");
-						SVGImageElement image = coverDoc
-								.createSVGImageElement("image");
+						SVGImageElement image = coverDoc.createSVGImageElement("image");
 						image.setAttribute("width", Integer.toString(dim[0]));
 						image.setAttribute("height", Integer.toString(dim[1]));
 						BitmapImageResource resource = getBitmapImageResource(coverpageImage);
@@ -709,44 +680,35 @@ public class Converter {
 			}
 			docRules = parser.getRules();
 		}
-		if( defaultFontLocator == null )
+		if (defaultFontLocator == null)
 			defaultFontLocator = DefaultFontLocator.getInstance();
-		fontLocator = new EmbeddedFontLocator(docRules, doc, templateRules,
-				templateDoc, defaultFontLocator);
+		fontLocator = new EmbeddedFontLocator(docRules, doc, templateRules, templateDoc, defaultFontLocator);
 		FB2DocumentInfo docInfo = doc.getDocumentInfo();
 		String ident = null;
 		if (docInfo != null) {
 			FB2AuthorInfo[] authors = docInfo.getAuthors();
 			if (authors != null) {
 				for (int i = 0; i < authors.length; i++) {
-					epub.addMetadata(null, "FB2.document-info.author",
-							authors[i].toString());
+					epub.addMetadata(null, "FB2.document-info.author", authors[i].toString());
 				}
 			}
-			epub.addMetadata(null, "FB2.document-info.program-used", docInfo
-					.getProgramUsed());
+			epub.addMetadata(null, "FB2.document-info.program-used", docInfo.getProgramUsed());
 			String[] urls = docInfo.getSrcUrls();
 			if (urls != null) {
 				for (int i = 0; i < urls.length; i++)
-					epub
-							.addMetadata(null, "FB2.document-info.src-url",
-									urls[i]);
+					epub.addMetadata(null, "FB2.document-info.src-url", urls[i]);
 			}
-			epub.addMetadata(null, "FB2.document-info.src-ocr", docInfo
-					.getSrcOcr());
+			epub.addMetadata(null, "FB2.document-info.src-ocr", docInfo.getSrcOcr());
 			FB2Section history = docInfo.getHistory();
 			if (history != null)
-				epub.addMetadata(null, "FB2.document-info.history", history
-						.contentAsString());
+				epub.addMetadata(null, "FB2.document-info.history", history.contentAsString());
 			ident = docInfo.getId();
 			epub.addMetadata(null, "FB2.document-info.id", ident);
-			epub.addMetadata(null, "FB2.document-info.version", docInfo
-					.getVersion());
+			epub.addMetadata(null, "FB2.document-info.version", docInfo.getVersion());
 			FB2DateInfo date = bookInfo.getDate();
 			if (date != null) {
 				String mr = date.getMachineReadable();
-				epub.addMetadata(null, "FB2.document-info.date",
-						(mr == null ? date.getHumanReadable() : mr));
+				epub.addMetadata(null, "FB2.document-info.date", (mr == null ? date.getHumanReadable() : mr));
 			}
 
 		}
@@ -760,18 +722,14 @@ public class Converter {
 		FB2PublishInfo publishInfo = doc.getPublishInfo();
 		if (publishInfo != null) {
 			epub.addDCMetadata("publisher", publishInfo.getPublisher());
-			epub.addMetadata(null, "FB2.publish-info.book-name", publishInfo
-					.getBookName());
-			epub.addMetadata(null, "FB2.publish-info.city", publishInfo
-					.getCity());
-			epub.addMetadata(null, "FB2.publish-info.year", publishInfo
-					.getYear());
+			epub.addMetadata(null, "FB2.publish-info.book-name", publishInfo.getBookName());
+			epub.addMetadata(null, "FB2.publish-info.city", publishInfo.getCity());
+			epub.addMetadata(null, "FB2.publish-info.year", publishInfo.getYear());
 			String isbn = publishInfo.getISBN();
 			if (isbn != null)
 				epub.addDCMetadata("identifier", "isbn:" + isbn.toUpperCase());
 		}
-		Rule bodyRule = stylesheet.getRuleForSelector(stylesheet
-				.getSimpleSelector("body", null));
+		Rule bodyRule = stylesheet.getRuleForSelector(stylesheet.getSimpleSelector("body", null));
 		mergeRuleStyle(bodyRule, builtinRules, "body", "body");
 		mergeRuleStyle(bodyRule, docRules, "body", "body");
 		mergeRuleStyle(bodyRule, templateRules, "body", "body");
@@ -790,14 +748,17 @@ public class Converter {
 				XRef ref = record.target.getSelfRef();
 				Enumeration sources = record.sources.elements();
 				while (sources.hasMoreElements()) {
-					HyperlinkElement a = (HyperlinkElement) sources
-							.nextElement();
+					HyperlinkElement a = (HyperlinkElement) sources.nextElement();
 					a.setXRef(ref);
 				}
 			}
 		}
+		
+		epub.addMetadata(null, "FB2EPUB.version", Version.VERSION);
+		epub.addMetadata(null, "FB2EPUB.conversionDate", StringUtil.dateToW3CDTF(new Date()));
+		
 	}
-	
+
 	public void embedFonts() {
 		epub.addFonts(styles, fontLocator);
 	}
@@ -808,92 +769,7 @@ public class Converter {
 		convert();
 	}
 
-	private void invoke(File inFile, File outFile) {
-		try {
-			long t0 = System.currentTimeMillis();
-			FB2Document doc = new FB2Document(new FileInputStream(inFile));
-			long t1 = System.currentTimeMillis();
-			if (false)
-				System.out.println("\tparsed in " + (t1 - t0) / 1000.0
-						+ " seconds");
-			File epubFileOrFolder = outFile;
-			ContainerWriter container;
-			if (epubFileOrFolder.isDirectory())
-				container = new FolderContainerWriter(epubFileOrFolder);
-			else
-				container = new OCFContainerWriter(new FileOutputStream(
-						epubFileOrFolder));
-			Publication epub = new Publication();
-			epub.setTranslit(false);
-			//epub.useAdobeFontMangling();
-			convert(doc, epub);
-			long t2 = System.currentTimeMillis();
-			epub.serialize(container);
-			long t3 = System.currentTimeMillis();
-			if (false) {
-				System.out.println("\tserialized in " + (t3 - t2) / 1000.0
-						+ " seconds");
-				System.out.println("Converted in " + (t3 - t0) / 1000.0
-						+ " seconds");
-				System.out.println();
-			}
-		} catch (Exception e) {
-			System.err.println("While converting " + inFile.getName());
-			e.printStackTrace();
-		}
-	}
-
-	public static void main(String[] args) {
-		if (args.length == 0) {
-			System.err.println("Usage:");
-			System.err
-					.println("  java -jar fb2epub.jar [-style styleset.fb2] file.fb2 file.epub");
-			System.err
-					.println("  java -jar fb2epub.jar [-style styleset.fb2] -folders fb2-folder epub-folder");
-			System.exit(2);
-		}
-		String inFile = null;
-		String outFile = null;
-		String styleFile = null;
-		String inFolder = null;
-		String outFolder = null;
-		for (int i = 0; i < args.length; i++)
-			if (args[i].equals("-style")) {
-				styleFile = args[++i];
-			} else if (args[i].equals("-folders")) {
-				inFolder = args[++i];
-				outFolder = args[++i];
-			} else if (inFile == null) {
-				inFile = args[i];
-			} else if (outFile == null) {
-				outFile = args[i];
-			} else {
-				System.err.println("Too many arguments");
-				System.exit(2);
-			}
-		if (inFile != null && (inFolder != null || outFile == null)) {
-			System.err.println("Bad command line syntax");
-			System.exit(2);
-		}
-		if (inFolder != null) {
-			String[] list = (new File(inFolder)).list();
-			for (int i = 0; i < list.length; i++) {
-				if (list[i].endsWith(".fb2") || list[i].endsWith(".fb2.zip")) {
-					String epubName = list[i].substring(0, list[i]
-							.lastIndexOf(".fb2"))
-							+ ".epub";
-					Converter c = new Converter();
-					if (styleFile != null)
-						c.setTemplateFile(styleFile);
-					c.invoke(new File(inFolder, list[i]), new File(outFolder,
-							epubName));
-				}
-			}
-		} else {
-			Converter c = new Converter();
-			if (styleFile != null)
-				c.setTemplateFile(styleFile);
-			c.invoke(new File(inFile), new File(outFile));
-		}
+	public void setLog(PrintWriter log) {
+		this.log = log;
 	}
 }

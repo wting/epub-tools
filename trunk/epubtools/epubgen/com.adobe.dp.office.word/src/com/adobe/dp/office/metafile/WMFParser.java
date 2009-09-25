@@ -1,32 +1,32 @@
 /*******************************************************************************
-* Copyright (c) 2009, Adobe Systems Incorporated
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without 
-* modification, are permitted provided that the following conditions are met:
-*
-* ·        Redistributions of source code must retain the above copyright 
-*          notice, this list of conditions and the following disclaimer. 
-*
-* ·        Redistributions in binary form must reproduce the above copyright 
-*		   notice, this list of conditions and the following disclaimer in the
-*		   documentation and/or other materials provided with the distribution. 
-*
-* ·        Neither the name of Adobe Systems Incorporated nor the names of its 
-*		   contributors may be used to endorse or promote products derived from
-*		   this software without specific prior written permission. 
-* 
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-* OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
-* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*******************************************************************************/
+ * Copyright (c) 2009, Adobe Systems Incorporated
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * ·        Redistributions of source code must retain the above copyright 
+ *          notice, this list of conditions and the following disclaimer. 
+ *
+ * ·        Redistributions in binary form must reproduce the above copyright 
+ *		   notice, this list of conditions and the following disclaimer in the
+ *		   documentation and/or other materials provided with the distribution. 
+ *
+ * ·        Neither the name of Adobe Systems Incorporated nor the names of its 
+ *		   contributors may be used to endorse or promote products derived from
+ *		   this software without specific prior written permission. 
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
 
 package com.adobe.dp.office.metafile;
 
@@ -47,11 +47,11 @@ public class WMFParser extends MetafileParser {
 
 	private static final int META_SAVEDC = 0x1E;
 
-	private static final int META_REALIZEPALETTE = 0x35;
+	// private static final int META_REALIZEPALETTE = 0x35;
 
-	private static final int META_SETPALENTRIES = 0x37;
+	// private static final int META_SETPALENTRIES = 0x37;
 
-	private static final int META_CREATEPALETTE = 0xf7;
+	// private static final int META_CREATEPALETTE = 0xf7;
 
 	private static final int META_SETBKMODE = 0x102;
 
@@ -63,61 +63,61 @@ public class WMFParser extends MetafileParser {
 
 	private static final int META_SETPOLYFILLMODE = 0x106;
 
-	private static final int META_SETSTRETCHBLTMODE = 0x107;
+	// private static final int META_SETSTRETCHBLTMODE = 0x107;
 
-	private static final int META_SETTEXTCHAREXTRA = 0x108;
+	// private static final int META_SETTEXTCHAREXTRA = 0x108;
 
 	private static final int META_RESTOREDC = 0x127;
 
-	private static final int META_INVERTREGION = 0x12A;
+	// private static final int META_INVERTREGION = 0x12A;
 
-	private static final int META_PAINTREGION = 0x12B;
+	// private static final int META_PAINTREGION = 0x12B;
 
-	private static final int META_SELECTCLIPREGION = 0x12C;
+	// private static final int META_SELECTCLIPREGION = 0x12C;
 
 	private static final int META_SELECTOBJECT = 0x12D;
 
 	private static final int META_SETTEXTALIGN = 0x12E;
 
-	private static final int META_RESIZEPALETTE = 0x139;
+	// private static final int META_RESIZEPALETTE = 0x139;
 
-	private static final int META_DIBCREATEPATTERNBRUSH = 0x142;
+	// private static final int META_DIBCREATEPATTERNBRUSH = 0x142;
 
-	private static final int META_SETLAYOUT = 0x149;
+	// private static final int META_SETLAYOUT = 0x149;
 
 	private static final int META_DELETEOBJECT = 0x1F0;
 
-	private static final int META_CREATEPATTERNBRUSH = 0x1F9;
+	// private static final int META_CREATEPATTERNBRUSH = 0x1F9;
 
 	private static final int META_SETBKCOLOR = 0x201;
 
 	private static final int META_SETTEXTCOLOR = 0x209;
 
-	private static final int META_SETTEXTJUSTIFICATION = 0x20A;
+	// private static final int META_SETTEXTJUSTIFICATION = 0x20A;
 
 	private static final int META_SETWINDOWORG = 0x20B;
 
 	private static final int META_SETWINDOWEXT = 0x20C;
 
-	private static final int META_SETVIEWPORTORG = 0x20D;
+	// private static final int META_SETVIEWPORTORG = 0x20D;
 
-	private static final int META_SETVIEWPORTEXT = 0x20E;
+	// private static final int META_SETVIEWPORTEXT = 0x20E;
 
-	private static final int META_OFFSETWINDOWORG = 0x20F;
+	// private static final int META_OFFSETWINDOWORG = 0x20F;
 
-	private static final int META_OFFSETVIEWPORTORG = 0x211;
+	// private static final int META_OFFSETVIEWPORTORG = 0x211;
 
 	private static final int META_LINETO = 0x213;
 
 	private static final int META_MOVETO = 0x214;
 
-	private static final int META_OFFSETCLIPRGN = 0x220;
+	// private static final int META_OFFSETCLIPRGN = 0x220;
 
-	private static final int META_FILLREGION = 0x228;
+	// private static final int META_FILLREGION = 0x228;
 
-	private static final int META_SETMAPPERFLAGS = 0x231;
+	// private static final int META_SETMAPPERFLAGS = 0x231;
 
-	private static final int META_SELECTPALETTE = 0x234;
+	// private static final int META_SELECTPALETTE = 0x234;
 
 	private static final int META_CREATEPENINDIRECT = 0x2FA;
 
@@ -129,57 +129,57 @@ public class WMFParser extends MetafileParser {
 
 	private static final int META_POLYLINE = 0x325;
 
-	private static final int META_SCALEWINDOWEXT = 0x410;
+	// private static final int META_SCALEWINDOWEXT = 0x410;
 
-	private static final int META_SCALEVIEWPORTEXT = 0x412;
+	// private static final int META_SCALEVIEWPORTEXT = 0x412;
 
-	private static final int META_EXCLUDECLIPRECT = 0x415;
+	// private static final int META_EXCLUDECLIPRECT = 0x415;
 
-	private static final int META_INTERSECTCLIPRECT = 0x416;
+	// private static final int META_INTERSECTCLIPRECT = 0x416;
 
 	private static final int META_ELLIPSE = 0x418;
 
-	private static final int META_FLOODFILL = 0x419;
+	// private static final int META_FLOODFILL = 0x419;
 
 	private static final int META_RECTANGLE = 0x41B;
 
-	private static final int META_SETPIXEL = 0x41F;
+	// private static final int META_SETPIXEL = 0x41F;
 
-	private static final int META_FRAMEREGION = 0x429;
+	// private static final int META_FRAMEREGION = 0x429;
 
-	private static final int META_ANIMATEPALETTE = 0x436;
+	// private static final int META_ANIMATEPALETTE = 0x436;
 
-	private static final int META_TEXTOUT = 0x521;
+	// private static final int META_TEXTOUT = 0x521;
 
 	private static final int META_POLYPOLYGON = 0x538;
 
-	private static final int META_EXTFLOODFILL = 0x548;
+	// private static final int META_EXTFLOODFILL = 0x548;
 
-	private static final int META_ROUNDRECT = 0x61C;
+	// private static final int META_ROUNDRECT = 0x61C;
 
-	private static final int META_PATBLT = 0x61D;
+	// private static final int META_PATBLT = 0x61D;
 
-	private static final int META_ESCAPE = 0x626;
+	// private static final int META_ESCAPE = 0x626;
 
-	private static final int META_CREATEREGION = 0x6FF;
+	// private static final int META_CREATEREGION = 0x6FF;
 
-	private static final int META_ARC = 0x817;
+	// private static final int META_ARC = 0x817;
 
-	private static final int META_PIE = 0x81A;
+	// private static final int META_PIE = 0x81A;
 
-	private static final int META_CHORD = 0x830;
+	// private static final int META_CHORD = 0x830;
 
-	private static final int META_BITBLT = 0x922;
+	// private static final int META_BITBLT = 0x922;
 
-	private static final int META_DIBBITBLT = 0x940;
+	// private static final int META_DIBBITBLT = 0x940;
 
 	private static final int META_EXTTEXTOUT = 0xA32;
 
-	private static final int META_STRETCHBLT = 0xB23;
+	//private static final int META_STRETCHBLT = 0xB23;
 
 	private static final int META_DIBSTRETCHBLT = 0xB41;
 
-	private static final int META_SETDIBTODEV = 0xD33;
+	//private static final int META_SETDIBTODEV = 0xD33;
 
 	private static final int META_STRETCHDIB = 0xF43;
 
@@ -246,7 +246,7 @@ public class WMFParser extends MetafileParser {
 				break;
 			}
 			case META_DIBSTRETCHBLT: {
-				int rop = readInt();
+				readInt(); // rop; not supported
 				int srcY = readShort();
 				int srcX = readShort();
 				int srcHeight = readShort();

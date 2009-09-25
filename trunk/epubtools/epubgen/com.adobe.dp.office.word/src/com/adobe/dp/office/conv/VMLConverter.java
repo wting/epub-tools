@@ -30,6 +30,7 @@
 
 package com.adobe.dp.office.conv;
 
+import java.io.PrintWriter;
 import java.util.Hashtable;
 import java.util.Iterator;
 
@@ -67,8 +68,11 @@ public class VMLConverter {
 
 	private boolean embedded;
 
+	PrintWriter log;
+	
 	VMLConverter(WordMLConverter wordConverter, boolean embedded) {
 		this.wordConverter = wordConverter;
+		this.log = wordConverter.log;
 		this.embedded = embedded;
 		if (!embedded) {
 			epub = wordConverter.getPublication();
@@ -133,7 +137,7 @@ public class VMLConverter {
 						rotation = Float.parseFloat(rotationStr);
 					}
 				} catch (Exception e) {
-					e.printStackTrace();
+					e.printStackTrace(log);
 				}
 			}
 			float top = VMLElement.getNumberValue(style, "top", 0);
@@ -245,7 +249,7 @@ public class VMLConverter {
 			}
 		} catch (Exception e) {
 			// VML is very incomplete, don't fail the whole document
-			e.printStackTrace();
+			e.printStackTrace(log);
 		}
 	}
 }

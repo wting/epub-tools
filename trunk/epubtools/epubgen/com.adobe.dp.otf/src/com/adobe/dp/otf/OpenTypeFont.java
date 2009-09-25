@@ -461,7 +461,7 @@ public class OpenTypeFont implements FontPropertyConstants {
 
 	private final static int CFF_INDEX_BINARY_RANGE = 3;
 
-	private String valToStr(Object val) {
+	String valToStr(Object val) {
 		if (val instanceof Object[]) {
 			Object[] arr = (Object[]) val;
 			StringBuffer sb = new StringBuffer();
