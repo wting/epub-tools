@@ -345,23 +345,26 @@ public class GUIDriver extends JFrame {
 				for (int i = 0; i < localDrag.length; i++) {
 					localDrag[i].setDragLocation(dtde.getLocation());
 				}
+				dtde.acceptDrag(DnDConstants.ACTION_MOVE);
+				return;
 			}
 			Transferable t = dtde.getTransferable();
 			try {
 				List files = (List) t.getTransferData(DataFlavor.javaFileListFlavor);
+				if( files == null ) {
+					// well, we cannot really make much of it, just accept
+					dtde.acceptDrag(DnDConstants.ACTION_COPY);	
+					return;
+				}
 				Iterator f = files.iterator();
 				boolean canUse = false;
 				while (f.hasNext()) {
 					File file = ((File) f.next());
-					if ((isEPub(file) || isErrorLog(file)) && localDrag != null) {
-						dtde.acceptDrag(DnDConstants.ACTION_MOVE);
-						return;
-					}
 					Iterator it = ConversionService.registeredSerivces();
 					while (it.hasNext()) {
 						ConversionService service = (ConversionService) it.next();
 						if (service.canConvert(file)) {
-							dtde.acceptDrag(DnDConstants.ACTION_LINK);
+							dtde.acceptDrag(DnDConstants.ACTION_COPY);
 							tabbedPane.setSelectedIndex(0); // doc pane
 							return;
 						}
@@ -371,6 +374,7 @@ public class GUIDriver extends JFrame {
 					}
 				}
 				if (canUse) {
+					dtde.acceptDrag(DnDConstants.ACTION_COPY);
 					tabbedPane.setSelectedIndex(1); // resource pane
 					return;
 				}
@@ -566,8 +570,9 @@ public class GUIDriver extends JFrame {
 					if(blackList.contains(newFile)) {
 						if( newFile.delete() )
 							blackList.remove(newFile);
-					} else if (this == docPane && isErrorLog(newFile)) {
-						FileIcon icon = new FileIcon(newFile, errIcon, null, name);
+					} else if (this == docPane && (isErrorLog(newFile) || isEPub(newFile))) {
+						Image img = isErrorLog(newFile) ? errIcon : epubIcon;
+						FileIcon icon = new FileIcon(newFile, img, null, name);
 						add(icon);
 						repaint = true;
 						icon.setLocation(location);
