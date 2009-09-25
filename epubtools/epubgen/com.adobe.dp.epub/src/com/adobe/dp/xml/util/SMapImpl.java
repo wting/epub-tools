@@ -32,7 +32,6 @@ package com.adobe.dp.xml.util;
 
 import java.util.Enumeration;
 import java.util.Hashtable;
-import java.util.Iterator;
 
 public class SMapImpl implements SMap {
 

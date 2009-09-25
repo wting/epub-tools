@@ -119,7 +119,8 @@ public class FB2ConversionService extends ConversionService {
 			File outFile = client.makeFile(fname + ".epub");
 			OutputStream out = new FileOutputStream(outFile);
 			OCFContainerWriter container = new OCFContainerWriter(out);
-			Converter conv = new Converter();
+			FB2Converter conv = new FB2Converter();
+			conv.setLog(log);
 			FontLocator fontLocator = DefaultFontLocator.getInstance();
 			if( aux != null && aux.length > 0 ) {
 				ConversionTemplate template = new ConversionTemplate(aux);

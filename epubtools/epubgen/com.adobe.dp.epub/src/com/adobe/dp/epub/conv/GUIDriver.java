@@ -258,6 +258,8 @@ public class GUIDriver extends JFrame {
 		public static final long serialVersionUID = 0;
 
 		File folder;
+		
+		HashSet blackList = new HashSet();
 
 		public FilePanel(File folder) {
 			this.folder = folder;
@@ -394,7 +396,7 @@ public class GUIDriver extends JFrame {
 				File target = GUIDriver.makeFile(resourceFolder, file.getName());
 				OutputStream out = new FileOutputStream(target);
 				int len;
-				while( (len = in.read(buffer)) > 0 ) {
+				while ((len = in.read(buffer)) > 0) {
 					out.write(buffer, 0, len);
 				}
 				out.close();
@@ -405,6 +407,38 @@ public class GUIDriver extends JFrame {
 				nextLocation(resourcePane, loc, icon);
 			} catch (IOException e) {
 				e.printStackTrace();
+			}
+		}
+
+		void addFile(File file, Point loc, boolean anyType) {
+			boolean canAddResources = anyType || this == resourcePane;
+			boolean canAddDocs = anyType || this == docPane;
+			if (canAddResources && canUse(file)) {
+				String nm = file.getName().toLowerCase();
+				BufferedImage fileIcon = getResIcon(nm);
+				if (fileIcon != null) {
+					copyResourceFile(file, fileIcon, loc);
+				}
+			}
+			Iterator it = ConversionService.registeredSerivces();
+			while (it.hasNext()) {
+				ConversionService service = (ConversionService) it.next();
+				if (canAddDocs && service.canConvert(file)) {
+					Image image = service.getIcon(file);
+					FileIcon icon = new FileIcon(file, image, service, file.getName());
+					docPane.add(icon);
+					icon.setLocation(loc);
+					nextLocation(docPane, loc, icon);
+					scheduleConversion(icon);
+					break;
+				}
+				if (canAddResources && service.canUse(file)) {
+					Image image = service.getIcon(file);
+					if (image != null) {
+						copyResourceFile(file, image, loc);
+						break;
+					}
+				}
 			}
 		}
 
@@ -426,34 +460,7 @@ public class GUIDriver extends JFrame {
 				Iterator f = files.iterator();
 				while (f.hasNext()) {
 					File file = (File) f.next();
-					if (canUse(file)) {
-						String nm = file.getName().toLowerCase();
-						BufferedImage fileIcon = getResIcon(nm);
-						if (fileIcon != null) {
-							copyResourceFile(file, fileIcon, loc);
-							continue;
-						}
-					}
-					Iterator it = ConversionService.registeredSerivces();
-					while (it.hasNext()) {
-						ConversionService service = (ConversionService) it.next();
-						if (service.canConvert(file)) {
-							Image image = service.getIcon(file);
-							FileIcon icon = new FileIcon(file, image, service, file.getName());
-							docPane.add(icon);
-							icon.setLocation(loc);
-							nextLocation(docPane, loc, icon);
-							scheduleConversion(icon);
-							break;
-						}
-						if (service.canUse(file)) {
-							Image image = service.getIcon(file);
-							if (image != null) {
-								copyResourceFile(file, image, loc);
-								break;
-							}
-						}
-					}
+					addFile(file, loc, true);
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -490,8 +497,8 @@ public class GUIDriver extends JFrame {
 		}
 
 		public void dropActionChanged(DropTargetDragEvent dtde) {
-			//int action = dtde.getDropAction();
-			//System.err.println("Drop action: " + action);
+			// int action = dtde.getDropAction();
+			// System.err.println("Drop action: " + action);
 		}
 
 		public void localDrop(DropTargetDropEvent dtde) {
@@ -518,8 +525,8 @@ public class GUIDriver extends JFrame {
 				remove(localDrag[i]);
 			}
 			localDrag = null;
-			//int action = dsde.getDropAction();
-			//System.err.println("Drop end: " + action);
+			// int action = dsde.getDropAction();
+			// System.err.println("Drop end: " + action);
 
 			// we cannot really trust dsde.getDropSuccess() and action
 			// check if any of our files got removed
@@ -556,25 +563,17 @@ public class GUIDriver extends JFrame {
 					if (names.contains(name))
 						continue;
 					File newFile = new File(folder, name);
-					if (this == docPane) {
-						if (isEPub(newFile) || isErrorLog(newFile)) {
-							FileIcon icon = new FileIcon(newFile, epubIcon, null, name);
-							add(icon);
-							repaint = true;
-							icon.setLocation(location);
-							nextLocation(this, location, icon);
-						}
+					if(blackList.contains(newFile)) {
+						if( newFile.delete() )
+							blackList.remove(newFile);
+					} else if (this == docPane && isErrorLog(newFile)) {
+						FileIcon icon = new FileIcon(newFile, errIcon, null, name);
+						add(icon);
+						repaint = true;
+						icon.setLocation(location);
+						nextLocation(this, location, icon);
 					} else {
-						if (canUse(newFile)) {
-							BufferedImage resIcon = getResIcon(newFile.getName().toLowerCase());
-							if (resIcon != null) {
-								FileIcon icon = new FileIcon(newFile, resIcon, null, name);
-								add(icon);
-								repaint = true;
-								icon.setLocation(location);
-								nextLocation(this, location, icon);
-							}
-						}
+						addFile(newFile, location, false);
 					}
 				}
 			}
@@ -585,20 +584,20 @@ public class GUIDriver extends JFrame {
 		}
 
 		public void dragEnter(DragSourceDragEvent dsde) {
-			//System.err.println("Drag entered");
+			// System.err.println("Drag entered");
 		}
 
 		public void dragExit(DragSourceEvent dse) {
-			//System.err.println("Drag exited");
+			// System.err.println("Drag exited");
 		}
 
 		public void dragOver(DragSourceDragEvent dsde) {
-			//System.err.println("Drag over");
+			// System.err.println("Drag over");
 		}
 
 		public void dropActionChanged(DragSourceDragEvent dsde) {
-			//int action = dsde.getDropAction();
-			//System.err.println("Drop source action: " + action);
+			// int action = dsde.getDropAction();
+			// System.err.println("Drop source action: " + action);
 		}
 
 		public Dimension getPreferredSize() {
@@ -830,9 +829,12 @@ public class GUIDriver extends JFrame {
 		}
 
 		void changeFile(File file, Image icon) {
-			File folder = ((FilePanel) getParent()).folder;
+			FilePanel fp = ((FilePanel) getParent());
+			File folder = fp.folder;
 			if (folder.equals(this.file.getParentFile())) {
-				this.file.delete();
+				if( !this.file.delete() ) {
+					fp.blackList.add(this.file);
+				}
 			}
 			service = null;
 			this.file = file;
@@ -962,10 +964,11 @@ public class GUIDriver extends JFrame {
 
 	}
 
-	public GUIDriver() {
+	public GUIDriver(File home) {
 		super("EPubGen");
 
-		File home = new File(System.getProperty("user.home"));
+		if (home == null || !home.isDirectory())
+			home = new File(System.getProperty("user.home"));
 		File epubgenHome = new File(home, "EPubGen");
 		docFolder = new File(epubgenHome, "Documents");
 		docFolder.mkdirs();
@@ -1044,7 +1047,7 @@ public class GUIDriver extends JFrame {
 		}
 		return file;
 	}
-		
+
 	void scheduleConversion(FileIcon file) {
 		synchronized (conversionQueue) {
 			conversionQueue.add(file);
@@ -1053,7 +1056,13 @@ public class GUIDriver extends JFrame {
 	}
 
 	public static void main(String[] args) {
-		GUIDriver conv = new GUIDriver();
+		File home = null;
+		if (args.length == 1) {
+			home = new File(args[0]);
+			if (!home.isDirectory())
+				System.err.println(args[0] + ": not a folder");
+		}
+		GUIDriver conv = new GUIDriver(home);
 		conv.setVisible(true);
 	}
 

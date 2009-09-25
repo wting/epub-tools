@@ -96,6 +96,7 @@ public class DOCXConverterServlet extends HttpServlet {
 	private void doRequest(boolean post, HttpServletRequest req, HttpServletResponse resp) throws ServletException,
 			IOException {
 		String streamIP = null;
+		ZipContainerSource resources = null;
 		try {
 			logger.trace("start " + req.getRemoteAddr());
 			InputStream docxin = null;
@@ -223,7 +224,8 @@ public class DOCXConverterServlet extends HttpServlet {
 			SharedFontSet sharedFontSet = SharedFontSet.getInstance();
 			fontLocator = sharedFontSet.getFontLocator(customFontCookies, fontLocator);
 			conv.setFontLocator(fontLocator);
-			conv.setWordResources(new ZipContainerSource(docxtmp));
+			resources = new ZipContainerSource(docxtmp);
+			conv.setWordResources(resources);
 			conv.convert();
 			FontEmbeddingReport report = conv.embedFonts();
 			if (fontReport) {
@@ -249,6 +251,7 @@ public class DOCXConverterServlet extends HttpServlet {
 				OCFContainerWriter container = new OCFContainerWriter(out);
 				epub.serialize(container);
 			}
+			resources.close();
 			docxtmp.delete();
 		} catch (Exception e) {
 			logger.error("error", e);
@@ -257,6 +260,9 @@ public class DOCXConverterServlet extends HttpServlet {
 		} catch (Throwable e) {
 			logger.fatal("error", e);
 		} finally {
+			if( resources != null ) {
+				resources.close();
+			}
 			if (streamIP != null) {
 				synchronized (activeStreams) {
 					activeStreams.remove(streamIP);

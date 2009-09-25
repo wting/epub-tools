@@ -32,6 +32,8 @@ package com.adobe.dp.office.conv;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -89,6 +91,8 @@ public class RTFConverter {
 	
 	StyleResource css;
 
+	PrintWriter log = new PrintWriter(new OutputStreamWriter(System.out));
+	
 	int count = 1;
 
 	static String mediaFolder = "OPS/images/";
@@ -440,7 +444,7 @@ public class RTFConverter {
 						pictBytes), svg);
 				parser.readAll();
 			} catch (IOException e) {
-				e.printStackTrace();
+				e.printStackTrace(log);
 				return;
 			}
 			DataSource dataSource = new StringDataSource(svg.getSVG());
@@ -482,4 +486,8 @@ public class RTFConverter {
 	void embedFonts(FontLocator fontLocator) {
 		epub.addFonts(css, fontLocator);
 	}
+	
+	public void setLog(PrintWriter log) {
+		this.log = log;
+	}	
 }

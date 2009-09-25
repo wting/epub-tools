@@ -58,6 +58,10 @@ public class ZipContainerSource extends ContainerSource {
 		}
 
 	}
+	
+	public void close() throws IOException {
+		zip.close();
+	}
 
 	public DataSource getDataSource(String name) {
 		ZipEntry entry = zip.getEntry(name);

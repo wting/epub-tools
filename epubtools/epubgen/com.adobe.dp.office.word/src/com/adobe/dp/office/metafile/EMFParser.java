@@ -1,32 +1,32 @@
 /*******************************************************************************
-* Copyright (c) 2009, Adobe Systems Incorporated
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without 
-* modification, are permitted provided that the following conditions are met:
-*
-* ·        Redistributions of source code must retain the above copyright 
-*          notice, this list of conditions and the following disclaimer. 
-*
-* ·        Redistributions in binary form must reproduce the above copyright 
-*		   notice, this list of conditions and the following disclaimer in the
-*		   documentation and/or other materials provided with the distribution. 
-*
-* ·        Neither the name of Adobe Systems Incorporated nor the names of its 
-*		   contributors may be used to endorse or promote products derived from
-*		   this software without specific prior written permission. 
-* 
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-* OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
-* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*******************************************************************************/
+ * Copyright (c) 2009, Adobe Systems Incorporated
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * ·        Redistributions of source code must retain the above copyright 
+ *          notice, this list of conditions and the following disclaimer. 
+ *
+ * ·        Redistributions in binary form must reproduce the above copyright 
+ *		   notice, this list of conditions and the following disclaimer in the
+ *		   documentation and/or other materials provided with the distribution. 
+ *
+ * ·        Neither the name of Adobe Systems Incorporated nor the names of its 
+ *		   contributors may be used to endorse or promote products derived from
+ *		   this software without specific prior written permission. 
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
 
 package com.adobe.dp.office.metafile;
 
@@ -271,7 +271,7 @@ public class EMFParser extends MetafileParser {
 
 	final private static int GDICOMMENT_UNICODE_END = 0x00000080;
 
-	final private static int GDICOMMENT_MULTIFORMATS = 0x40000004;
+	// final private static int GDICOMMENT_MULTIFORMATS = 0x40000004;
 
 	final private static int GDICOMMENT_WINDOWS_METAFILE = 0x80000001;
 
@@ -529,26 +529,26 @@ public class EMFParser extends MetafileParser {
 			case EMR_SETDIBITSTODEVICE:
 				break;
 			case EMR_STRETCHDIBITS: {
-				int boundsLeft = readInt();
-				int boundsTop = readInt();
-				int boundsRight = readInt();
-				int boundsBottom = readInt();
-				int xDest = readInt(); 
-				int yDest = readInt(); 
-				int xSrc = readInt(); 
-				int ySrc = readInt(); 
-				int cxSrc = readInt(); 
+				readInt(); // boundsLeft
+				readInt(); // boundsTop
+				readInt(); // boundsRight
+				readInt(); // boundsBottom
+				int xDest = readInt();
+				int yDest = readInt();
+				int xSrc = readInt();
+				int ySrc = readInt();
+				int cxSrc = readInt();
 				int cySrc = readInt();
 				int offBmiSrc = readInt();
-				int cbBmiSrc = readInt(); 
-				int offBitsSrc = readInt(); 
-				int cbBitsSrc = readInt(); 
-				int iUsageSrc = readInt(); 
-				int dwRop = readInt(); 
-				int cxDest = readInt(); 
+				readInt(); // cbBmiSrc
+				int offBitsSrc = readInt();
+				readInt(); // cbBitsSrc
+				readInt(); // iUsageSrc
+				readInt(); // dwRop
+				int cxDest = readInt();
 				int cyDest = readInt();
-				skipBytes(offBmiSrc-80);
-				GDIBitmap bitmap = readDIB(offBitsSrc-80);
+				skipBytes(offBmiSrc - 80);
+				GDIBitmap bitmap = readDIB(offBitsSrc - 80);
 				handler.stretchDIB(bitmap, xDest, yDest, cxDest, cyDest, xSrc, ySrc, cxSrc, cySrc);
 				break;
 			}
@@ -563,10 +563,10 @@ public class EMFParser extends MetafileParser {
 				break;
 			case EMR_POLYPOLYLINE16:
 			case EMR_POLYPOLYGON16: {
-				int boundsLeft = readInt();
-				int boundsTop = readInt();
-				int boundsRight = readInt();
-				int boundsBottom = readInt();
+				readInt(); // boundsLeft
+				readInt(); // boundsTop
+				readInt(); // boundsRight
+				readInt(); // boundsBottom
 				int nPolys = readInt();
 				int[] lens = new int[nPolys];
 				int total = 0;
@@ -595,16 +595,16 @@ public class EMFParser extends MetafileParser {
 				break;
 			case EMR_EXTCREATEPEN: {
 				int index = readInt();
-				int dibOffset = readInt();
-				int dibSize = readInt();
-				int brushBitsOffset = readInt();
-				int brushBitsSize = readInt();
+				readInt(); // dibOffset
+				readInt(); // dibSize
+				readInt(); // brushBitsOffset
+				readInt(); // brushBitsSize
 				int style = readInt();
 				int width = readInt();
-				int brushStyle = readInt();
+				readInt(); // brushStyle
 				int color = readRGB();
-				int hatch = readInt();
-				int numEntries = readInt();
+				readInt(); // hatch
+				readInt(); // numEntries
 				// styleEntry[numEntries];
 				GDIPen pen = handler.extCreatePen(style, width, color);
 				storeObject(pen, index);

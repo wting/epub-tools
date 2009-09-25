@@ -61,7 +61,7 @@ import com.adobe.dp.epub.web.util.Initializer;
 import com.adobe.dp.fb2.FB2Document;
 import com.adobe.dp.fb2.FB2FormatException;
 import com.adobe.dp.fb2.FB2TitleInfo;
-import com.adobe.dp.fb2.convert.Converter;
+import com.adobe.dp.fb2.convert.FB2Converter;
 import com.adobe.dp.otf.FontLocator;
 
 public class FB2ConverterServlet extends HttpServlet {
@@ -188,7 +188,7 @@ public class FB2ConverterServlet extends HttpServlet {
 			resp.setHeader("Content-Disposition", "attachment; filename=" + fname + ".epub");
 			OutputStream out = resp.getOutputStream();
 			OCFContainerWriter container = new OCFContainerWriter(out);
-			Converter conv = new Converter();
+			FB2Converter conv = new FB2Converter();
 			FontLocator fontLocator = Initializer.getDefaultFontLocator();
 			FontCookieSet customFontCookies = new FontCookieSet(req);
 			SharedFontSet sharedFontSet = SharedFontSet.getInstance();

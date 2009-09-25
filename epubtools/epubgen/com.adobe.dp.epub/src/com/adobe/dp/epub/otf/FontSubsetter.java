@@ -31,7 +31,6 @@
 package com.adobe.dp.epub.otf;
 
 import java.util.Enumeration;
-import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Set;
