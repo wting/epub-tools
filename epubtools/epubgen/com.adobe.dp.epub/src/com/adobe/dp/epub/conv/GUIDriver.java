@@ -258,7 +258,7 @@ public class GUIDriver extends JFrame {
 		public static final long serialVersionUID = 0;
 
 		File folder;
-		
+
 		HashSet blackList = new HashSet();
 
 		public FilePanel(File folder) {
@@ -351,9 +351,9 @@ public class GUIDriver extends JFrame {
 			Transferable t = dtde.getTransferable();
 			try {
 				List files = (List) t.getTransferData(DataFlavor.javaFileListFlavor);
-				if( files == null ) {
+				if (files == null) {
 					// well, we cannot really make much of it, just accept
-					dtde.acceptDrag(DnDConstants.ACTION_COPY);	
+					dtde.acceptDrag(DnDConstants.ACTION_COPY);
 					return;
 				}
 				Iterator f = files.iterator();
@@ -396,16 +396,19 @@ public class GUIDriver extends JFrame {
 			byte[] buffer = new byte[4096];
 			try {
 				// for now, copy it synchronously
-				InputStream in = new FileInputStream(file);
-				File target = GUIDriver.makeFile(resourceFolder, file.getName());
-				OutputStream out = new FileOutputStream(target);
-				int len;
-				while ((len = in.read(buffer)) > 0) {
-					out.write(buffer, 0, len);
+				if (!resourceFolder.equals(file.getParentFile())) {
+					InputStream in = new FileInputStream(file);
+					File target = GUIDriver.makeFile(resourceFolder, file.getName());
+					OutputStream out = new FileOutputStream(target);
+					int len;
+					while ((len = in.read(buffer)) > 0) {
+						out.write(buffer, 0, len);
+					}
+					out.close();
+					in.close();
+					file = target;
 				}
-				out.close();
-				in.close();
-				FileIcon icon = new FileIcon(target, fileIcon, null, file.getName());
+				FileIcon icon = new FileIcon(file, fileIcon, null, file.getName());
 				resourcePane.add(icon);
 				icon.setLocation(loc);
 				nextLocation(resourcePane, loc, icon);
@@ -567,8 +570,8 @@ public class GUIDriver extends JFrame {
 					if (names.contains(name))
 						continue;
 					File newFile = new File(folder, name);
-					if(blackList.contains(newFile)) {
-						if( newFile.delete() )
+					if (blackList.contains(newFile)) {
+						if (newFile.delete())
 							blackList.remove(newFile);
 					} else if (this == docPane && (isErrorLog(newFile) || isEPub(newFile))) {
 						Image img = isErrorLog(newFile) ? errIcon : epubIcon;
@@ -837,7 +840,7 @@ public class GUIDriver extends JFrame {
 			FilePanel fp = ((FilePanel) getParent());
 			File folder = fp.folder;
 			if (folder.equals(this.file.getParentFile())) {
-				if( !this.file.delete() ) {
+				if (!this.file.delete()) {
 					fp.blackList.add(this.file);
 				}
 			}
