@@ -200,6 +200,7 @@ public class FB2ConverterServlet extends HttpServlet {
 					template.delete();
 			}
 			conv.convert(doc, epub);
+			conv.embedFonts();
 			epub.serialize(container);
 		} catch (FB2FormatException e) {
 			logger.error("error", e);

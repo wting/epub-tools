@@ -59,7 +59,7 @@ public class Main {
 			Publication epub = new Publication();
 			if (adobeFontMangling)
 				epub.useAdobeFontMangling();
-			Converter conv = new Converter(doc, epub);
+			DOCXConverter conv = new DOCXConverter(doc, epub);
 			conv.setWordResources(new ZipContainerSource(wordFile));
 			conv.convert();
 			epub.serialize(container);

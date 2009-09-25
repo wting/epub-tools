@@ -37,23 +37,43 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.util.Properties;
 
 import javax.imageio.ImageIO;
 
 import com.adobe.dp.epub.conv.ConversionClient;
 import com.adobe.dp.epub.conv.ConversionService;
-import com.adobe.dp.epub.conv.GUIDriver;
 import com.adobe.dp.epub.io.OCFContainerWriter;
 import com.adobe.dp.epub.opf.Publication;
+import com.adobe.dp.epub.style.Stylesheet;
+import com.adobe.dp.epub.util.ConversionTemplate;
 import com.adobe.dp.epub.util.Translit;
 import com.adobe.dp.fb2.FB2Document;
 import com.adobe.dp.fb2.FB2TitleInfo;
+import com.adobe.dp.otf.ChainedFontLocator;
 import com.adobe.dp.otf.DefaultFontLocator;
 import com.adobe.dp.otf.FontLocator;
 
-public class FB2ConversionService implements ConversionService {
+public class FB2ConversionService extends ConversionService {
 
 	BufferedImage fb2icon;
+	boolean embedFonts = true;
+	boolean adobeMangling = true;
+	boolean translit = true;
+
+	boolean getBooleanProperty(Properties prop, String name, boolean def) {
+		String s = prop.getProperty(name);
+		if (s == null)
+			return def;
+		return s.toLowerCase().startsWith("t");
+	}
+
+	public void setProperties(Properties prop) {
+		embedFonts = getBooleanProperty(prop, "embedFonts", embedFonts);
+		adobeMangling = getBooleanProperty(prop, "adobeMangling", adobeMangling);
+		translit = getBooleanProperty(prop, "translit", translit);
+	}
 
 	public FB2ConversionService() {
 		InputStream png = FB2ConversionService.class
@@ -71,18 +91,19 @@ public class FB2ConversionService implements ConversionService {
 	}
 
 	public boolean canUse(File src) {
-		String name = src.getName().toLowerCase();
-		return name.endsWith(".css") || name.endsWith(".otf")
-				|| name.endsWith(".ttf") || name.endsWith("ttc");
+		return false;
 	}
 
-	public File convert(File src, File[] aux, ConversionClient client) {
+	public File convert(File src, File[] aux, ConversionClient client, PrintWriter log) {
 		try {
 			InputStream fb2in = new FileInputStream(src);
 			FB2Document doc = new FB2Document(fb2in);
 			Publication epub = new Publication();
-			epub.setTranslit(true);
-			epub.useAdobeFontMangling();
+			epub.setTranslit(translit);
+			if (adobeMangling)
+				epub.useAdobeFontMangling();
+			else
+				epub.useIDPFFontMangling();
 			fb2in.close();
 			FB2TitleInfo bookInfo = doc.getTitleInfo();
 			String title = (bookInfo == null ? null : bookInfo.getBookTitle());
@@ -91,18 +112,31 @@ public class FB2ConversionService implements ConversionService {
 				fname = "book";
 			else
 				fname = Translit.translit(title).replace(' ', '_').replace(
-						'\t', '_').replace('\n', '_').replace('\r', '_');
-			File outFile = File.createTempFile(fname, ".epub");
+						'\t', '_').replace('\n', '_').replace('\r', '_')
+						.replace('/', '_').replace('\\', '_').replace('\"', '_');
+			if( fname.length() == 0 )
+				fname = "book";
+			File outFile = client.makeFile(fname + ".epub");
 			OutputStream out = new FileOutputStream(outFile);
 			OCFContainerWriter container = new OCFContainerWriter(out);
 			Converter conv = new Converter();
 			FontLocator fontLocator = DefaultFontLocator.getInstance();
+			if( aux != null && aux.length > 0 ) {
+				ConversionTemplate template = new ConversionTemplate(aux);
+				FontLocator customLocator = template.getFontLocator();
+				fontLocator = new ChainedFontLocator(customLocator, fontLocator);
+				Stylesheet stylesheet = template.getStylesheet();
+				if( stylesheet != null )
+					conv.setTemplate(stylesheet);
+			}
 			conv.setFontLocator(fontLocator);
 			conv.convert(doc, epub);
+			if( embedFonts )
+				conv.embedFonts();
 			epub.serialize(container);
 			return outFile;
 		} catch (Exception e) {
-			e.printStackTrace();
+			e.printStackTrace(log);
 		}
 		return null;
 	}
@@ -112,6 +146,7 @@ public class FB2ConversionService implements ConversionService {
 	}
 
 	public static void main(String[] args) {
-		GUIDriver.main(args);
+		com.adobe.dp.epub.conv.GUIDriver.main(args);
+		//com.adobe.dp.epub.conv.CLDriver.main(args);
 	}
 }

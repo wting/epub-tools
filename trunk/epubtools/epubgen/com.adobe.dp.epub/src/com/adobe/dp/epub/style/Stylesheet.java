@@ -134,6 +134,10 @@ public class Stylesheet {
 		return content.iterator();
 	}
 
+	public Hashtable getRules() {
+		return rulesBySelector;
+	}
+	
 	public void serialize(PrintWriter pout) {
 		Iterator it = content();
 		while (it.hasNext()) {

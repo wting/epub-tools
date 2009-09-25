@@ -61,7 +61,7 @@ import com.adobe.dp.epub.util.Translit;
 import com.adobe.dp.epub.web.font.FontCookieSet;
 import com.adobe.dp.epub.web.font.SharedFontSet;
 import com.adobe.dp.epub.web.util.Initializer;
-import com.adobe.dp.office.conv.Converter;
+import com.adobe.dp.office.conv.DOCXConverter;
 import com.adobe.dp.office.word.WordDocument;
 import com.adobe.dp.otf.FontLocator;
 
@@ -157,7 +157,7 @@ public class DOCXConverterServlet extends HttpServlet {
 				String t = req.getParameter("translit");
 				translit = t != null && (t.equals("on") || t.equals("yes"));
 				t = req.getParameter("fontReport");
-				fontReport = t.equals("on") || t.equals("yes");
+				fontReport = t != null && (t.equals("on") || t.equals("yes"));
 				ref = req.getParameter("ref");
 				lang = req.getParameter("lang");
 			}
@@ -213,7 +213,7 @@ public class DOCXConverterServlet extends HttpServlet {
 			Publication epub = new Publication();
 			epub.setTranslit(translit);
 			epub.useAdobeFontMangling();
-			Converter conv = new Converter(doc, epub);
+			DOCXConverter conv = new DOCXConverter(doc, epub);
 			if (templatein != null) {
 				if (template != null)
 					template.delete();
