@@ -29,11 +29,18 @@
  *******************************************************************************/
 package com.adobe.dp.epub.conv;
 
+import java.awt.AlphaComposite;
+import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
-import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
@@ -50,6 +57,7 @@ import java.awt.dnd.DropTargetDragEvent;
 import java.awt.dnd.DropTargetDropEvent;
 import java.awt.dnd.DropTargetEvent;
 import java.awt.dnd.DropTargetListener;
+import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -59,32 +67,83 @@ import java.awt.image.BufferedImage;
 import java.awt.image.FilteredImageSource;
 import java.awt.image.ImageFilter;
 import java.awt.image.ImageProducer;
+import java.awt.image.MemoryImageSource;
 import java.awt.image.RGBImageFilter;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.util.Date;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Properties;
+import java.util.Random;
 import java.util.Vector;
 
 import javax.imageio.ImageIO;
+import javax.swing.AbstractAction;
+import javax.swing.Box;
+import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
-public class GUIDriver extends JFrame implements DropTargetListener, DragSourceListener {
+public class GUIDriver extends JFrame {
 
 	public static final long serialVersionUID = 0;
 
 	BufferedImage epubIcon;
 
-	Vector services = new Vector();
+	BufferedImage cssIcon;
+
+	BufferedImage otfIcon;
+
+	BufferedImage ttfIcon;
+
+	BufferedImage errIcon;
 
 	DragSource dragSource = DragSource.getDefaultDragSource();
+
+	boolean dragActive;
 
 	Point dragStart = new Point(0, 0);
 
 	Vector conversionQueue = new Vector();
+
+	FileIcon currentlyConverting;
+
+	FileIcon[] localDrag;
+
+	JTabbedPane tabbedPane;
+
+	FilePanel docPane;
+
+	FilePanel resourcePane;
+
+	SettingsPanel settingsPane;
+
+	File docFolder;
+
+	File resourceFolder;
+
+	File settingsFile;
+
+	File workFolder;
+
+	Properties settings = new Properties();
 
 	static class HighlightedFilter extends RGBImageFilter {
 		public HighlightedFilter() {
@@ -94,6 +153,471 @@ public class GUIDriver extends JFrame implements DropTargetListener, DragSourceL
 		public int filterRGB(int x, int y, int rgb) {
 			return (((rgb & 0xFEFEFE) >> 1) + 0x80) | (rgb & 0xFF000000);
 		}
+	}
+
+	class AlphaFilter extends RGBImageFilter {
+		private int alpha;
+
+		public AlphaFilter() {
+			canFilterIndexColorModel = true;
+		}
+
+		public void setLevel(float f) {
+			alpha = (int) Math.round(f * 255);
+		}
+
+		public int filterRGB(int x, int y, int rgb) {
+			int alpha = ((this.alpha * (rgb >>> 24)) / 255) << 24;
+			return (rgb & 0x00FFFFFF) | alpha;
+		}
+	}
+
+	class Updater extends AbstractAction {
+
+		public static final long serialVersionUID = 0;
+
+		Updater() {
+			new Timer(50, this).start();
+		}
+
+		public void actionPerformed(ActionEvent evt) {
+			if (currentlyConverting != null)
+				currentlyConverting.repaint();
+		}
+	}
+
+	class FileCheck extends AbstractAction {
+
+		public static final long serialVersionUID = 0;
+
+		Timer timer;
+
+		FileCheck() {
+			timer = new Timer(500, this);
+			timer.start();
+		}
+
+		public void actionPerformed(ActionEvent evt) {
+			timer.setDelay(3000);
+			docPane.checkFiles();
+			resourcePane.checkFiles();
+		}
+	}
+
+	class SettingsPanel extends JPanel implements ChangeListener {
+
+		public static final long serialVersionUID = 0;
+
+		JCheckBox translit = new JCheckBox("Transliterate cyrillic metadata");
+
+		JCheckBox embedFonts = new JCheckBox("Embed fonts");
+
+		JCheckBox adobeMangling = new JCheckBox("Use Adobe font mangling");
+
+		SettingsPanel() {
+			Box box = Box.createVerticalBox();
+			add(box);
+			box.add(translit);
+			box.add(embedFonts);
+			box.add(adobeMangling);
+			translit.setSelected(getBooleanProperty("translit", true));
+			embedFonts.setSelected(getBooleanProperty("embedFonts", true));
+			adobeMangling.setSelected(getBooleanProperty("adobeMangling", true));
+			translit.addChangeListener(this);
+			embedFonts.addChangeListener(this);
+			adobeMangling.addChangeListener(this);
+		}
+
+		boolean getBooleanProperty(String name, boolean def) {
+			String s = settings.getProperty(name);
+			if (s == null)
+				return def;
+			return s.toLowerCase().startsWith("t");
+		}
+
+		void setBooleanProperty(String name, boolean val) {
+			settings.setProperty(name, val ? "true" : "false");
+		}
+
+		public void stateChanged(ChangeEvent arg) {
+			setBooleanProperty("translit", translit.isSelected());
+			setBooleanProperty("embedFonts", embedFonts.isSelected());
+			setBooleanProperty("adobeMangling", adobeMangling.isSelected());
+			try {
+				FileOutputStream out = new FileOutputStream(settingsFile);
+				settings.store(out, "EPubGen");
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
+	}
+
+	class FilePanel extends JPanel implements DropTargetListener, DragSourceListener {
+
+		public static final long serialVersionUID = 0;
+
+		File folder;
+
+		public FilePanel(File folder) {
+			this.folder = folder;
+			setBackground(new Color(0xFFFFFFFF));
+			setLayout(null);
+			new DropTarget(this, this);
+			addMouseListener(new MouseAdapter() {
+				public void mousePressed(MouseEvent evt) {
+					resetSelection();
+				}
+			});
+		}
+
+		void resetSelection() {
+			Component[] components = getComponents();
+			for (int i = 0; i < components.length; i++) {
+				if (components[i] instanceof FileIcon) {
+					FileIcon fi = (FileIcon) components[i];
+					fi.clearHighlight();
+				}
+			}
+		}
+
+		private boolean isEPub(File f) {
+			return f.getName().toLowerCase().endsWith(".epub");
+		}
+
+		private boolean isErrorLog(File f) {
+			String nm = f.getName();
+			return nm.startsWith("error") && nm.endsWith(".txt");
+		}
+
+		private boolean canUse(File f) {
+			String nm = f.getName().toLowerCase();
+			return nm.endsWith(".css") || nm.endsWith(".otf") || nm.endsWith(".ttf") || nm.endsWith(".ttc");
+		}
+
+		private BufferedImage getResIcon(String nm) {
+			if (nm.endsWith(".ttf") || nm.endsWith(".ttc"))
+				return ttfIcon;
+			if (nm.endsWith(".otf"))
+				return otfIcon;
+			if (nm.endsWith(".css"))
+				return cssIcon;
+			return null;
+		}
+
+		public void dragEnter(DropTargetDragEvent dtde) {
+			if (!dragActive) {
+				dragActive = true;
+				if (localDrag != null) {
+					for (int i = 0; i < localDrag.length; i++) {
+						localDrag[i].repaint();
+					}
+				}
+			}
+			dragOver(dtde);
+		}
+
+		public void dragExit(DropTargetEvent dte) {
+			if (dragActive) {
+				dragActive = false;
+				if (localDrag != null) {
+					for (int i = 0; i < localDrag.length; i++) {
+						localDrag[i].repaint();
+					}
+				}
+			}
+		}
+
+		public void dragOver(DropTargetDragEvent dtde) {
+			if (!dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
+				if (false) {
+					DataFlavor[] flavors = dtde.getCurrentDataFlavors();
+					if (flavors != null) {
+						for (int i = 0; i < flavors.length; i++)
+							System.out.println("Flavor: " + flavors[i]);
+					}
+				}
+				return;
+			}
+			if (localDrag != null) {
+				for (int i = 0; i < localDrag.length; i++) {
+					localDrag[i].setDragLocation(dtde.getLocation());
+				}
+			}
+			Transferable t = dtde.getTransferable();
+			try {
+				List files = (List) t.getTransferData(DataFlavor.javaFileListFlavor);
+				Iterator f = files.iterator();
+				boolean canUse = false;
+				while (f.hasNext()) {
+					File file = ((File) f.next());
+					if ((isEPub(file) || isErrorLog(file)) && localDrag != null) {
+						dtde.acceptDrag(DnDConstants.ACTION_MOVE);
+						return;
+					}
+					Iterator it = ConversionService.registeredSerivces();
+					while (it.hasNext()) {
+						ConversionService service = (ConversionService) it.next();
+						if (service.canConvert(file)) {
+							dtde.acceptDrag(DnDConstants.ACTION_LINK);
+							tabbedPane.setSelectedIndex(0); // doc pane
+							return;
+						}
+						if (canUse(file) || service.canUse(file)) {
+							canUse = true;
+						}
+					}
+				}
+				if (canUse) {
+					tabbedPane.setSelectedIndex(1); // resource pane
+					return;
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			dtde.rejectDrag();
+		}
+
+		void nextLocation(FilePanel panel, Point loc, FileIcon icon) {
+			loc.x += icon.getWidth() + 5;
+			if (loc.x + icon.getWidth() > panel.getWidth()) {
+				loc.x = 5;
+				loc.y += icon.getHeight() + 5;
+			}
+		}
+
+		private void copyResourceFile(File file, Image fileIcon, Point loc) {
+			byte[] buffer = new byte[4096];
+			try {
+				// for now, copy it synchronously
+				InputStream in = new FileInputStream(file);
+				File target = GUIDriver.makeFile(resourceFolder, file.getName());
+				OutputStream out = new FileOutputStream(target);
+				int len;
+				while( (len = in.read(buffer)) > 0 ) {
+					out.write(buffer, 0, len);
+				}
+				out.close();
+				in.close();
+				FileIcon icon = new FileIcon(target, fileIcon, null, file.getName());
+				resourcePane.add(icon);
+				icon.setLocation(loc);
+				nextLocation(resourcePane, loc, icon);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+
+		public void drop(DropTargetDropEvent dtde) {
+			dragActive = false;
+			if (!dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
+				dtde.rejectDrop();
+				return;
+			}
+			dtde.acceptDrop(DnDConstants.ACTION_LINK);
+			Transferable t = dtde.getTransferable();
+			if (dtde.isLocalTransfer()) {
+				localDrop(dtde);
+				return;
+			}
+			try {
+				Point loc = dtde.getLocation();
+				List files = (List) t.getTransferData(DataFlavor.javaFileListFlavor);
+				Iterator f = files.iterator();
+				while (f.hasNext()) {
+					File file = (File) f.next();
+					if (canUse(file)) {
+						String nm = file.getName().toLowerCase();
+						BufferedImage fileIcon = getResIcon(nm);
+						if (fileIcon != null) {
+							copyResourceFile(file, fileIcon, loc);
+							continue;
+						}
+					}
+					Iterator it = ConversionService.registeredSerivces();
+					while (it.hasNext()) {
+						ConversionService service = (ConversionService) it.next();
+						if (service.canConvert(file)) {
+							Image image = service.getIcon(file);
+							FileIcon icon = new FileIcon(file, image, service, file.getName());
+							docPane.add(icon);
+							icon.setLocation(loc);
+							nextLocation(docPane, loc, icon);
+							scheduleConversion(icon);
+							break;
+						}
+						if (service.canUse(file)) {
+							Image image = service.getIcon(file);
+							if (image != null) {
+								copyResourceFile(file, image, loc);
+								break;
+							}
+						}
+					}
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
+		public void startDrag(FileIcon src, DragGestureEvent dge) {
+			InputEvent trigger = dge.getTriggerEvent();
+			if (trigger instanceof MouseEvent) {
+				dragStart = ((MouseEvent) trigger).getPoint();
+				Point pos = src.getLocation();
+				dragStart.x += pos.x;
+				dragStart.y += pos.y;
+			}
+			Vector files = new Vector();
+			Vector dragIcons = new Vector();
+			Component[] components = getComponents();
+			for (int i = 0; i < components.length; i++) {
+				if (components[i] instanceof FileIcon) {
+					FileIcon fi = (FileIcon) components[i];
+					if (fi.highlighted) {
+						files.add(fi.file);
+						FileIcon di = fi.makeDragIcon();
+						dragIcons.add(di);
+						add(di);
+						setComponentZOrder(di, 0);
+					}
+				}
+			}
+			Transferable transferable = new FileTransferable(files);
+			dge.startDrag(null, transferable, this);
+			localDrag = new FileIcon[dragIcons.size()];
+			dragIcons.copyInto(localDrag);
+		}
+
+		public void dropActionChanged(DropTargetDragEvent dtde) {
+			//int action = dtde.getDropAction();
+			//System.err.println("Drop action: " + action);
+		}
+
+		public void localDrop(DropTargetDropEvent dtde) {
+			Point dragEnd = dtde.getLocation();
+			int dx = dragEnd.x - dragStart.x;
+			int dy = dragEnd.y - dragStart.y;
+			Component[] components = getComponents();
+			for (int i = 0; i < components.length; i++) {
+				if (components[i] instanceof FileIcon) {
+					FileIcon fi = (FileIcon) components[i];
+					if (fi.highlighted) {
+						Point loc = fi.getLocation();
+						loc.x += dx;
+						loc.y += dy;
+						fi.setLocation(loc);
+					}
+				}
+			}
+
+		}
+
+		public void dragDropEnd(DragSourceDropEvent dsde) {
+			for (int i = 0; i < localDrag.length; i++) {
+				remove(localDrag[i]);
+			}
+			localDrag = null;
+			//int action = dsde.getDropAction();
+			//System.err.println("Drop end: " + action);
+
+			// we cannot really trust dsde.getDropSuccess() and action
+			// check if any of our files got removed
+			checkFiles();
+		}
+
+		public void checkFiles() {
+			Component[] components = getComponents();
+			boolean repaint = false;
+			HashSet names = new HashSet();
+			int maxy = 0;
+			for (int i = 0; i < components.length; i++) {
+				if (components[i] instanceof FileIcon) {
+					FileIcon fi = (FileIcon) components[i];
+					if (fi.file == null)
+						return;
+					if (!fi.file.exists()) {
+						// file was moved
+						remove(fi);
+						repaint = true;
+					} else if (fi.file.getParentFile().equals(folder)) {
+						names.add(fi.file.getName());
+						int y = fi.getY() + fi.getHeight();
+						if (y > maxy)
+							maxy = y;
+					}
+				}
+			}
+			Point location = new Point(5, maxy + 5);
+			String[] list = folder.list();
+			if (list != null) {
+				for (int i = 0; i < list.length; i++) {
+					String name = list[i];
+					if (names.contains(name))
+						continue;
+					File newFile = new File(folder, name);
+					if (this == docPane) {
+						if (isEPub(newFile) || isErrorLog(newFile)) {
+							FileIcon icon = new FileIcon(newFile, epubIcon, null, name);
+							add(icon);
+							repaint = true;
+							icon.setLocation(location);
+							nextLocation(this, location, icon);
+						}
+					} else {
+						if (canUse(newFile)) {
+							BufferedImage resIcon = getResIcon(newFile.getName().toLowerCase());
+							if (resIcon != null) {
+								FileIcon icon = new FileIcon(newFile, resIcon, null, name);
+								add(icon);
+								repaint = true;
+								icon.setLocation(location);
+								nextLocation(this, location, icon);
+							}
+						}
+					}
+				}
+			}
+			if (repaint) {
+				validate();
+				repaint();
+			}
+		}
+
+		public void dragEnter(DragSourceDragEvent dsde) {
+			//System.err.println("Drag entered");
+		}
+
+		public void dragExit(DragSourceEvent dse) {
+			//System.err.println("Drag exited");
+		}
+
+		public void dragOver(DragSourceDragEvent dsde) {
+			//System.err.println("Drag over");
+		}
+
+		public void dropActionChanged(DragSourceDragEvent dsde) {
+			//int action = dsde.getDropAction();
+			//System.err.println("Drop source action: " + action);
+		}
+
+		public Dimension getPreferredSize() {
+			Component[] components = getComponents();
+			int width = 100;
+			int height = 100;
+			if (components != null)
+				for (int i = 0; i < components.length; i++) {
+					Component c = components[i];
+					int w = c.getX() + c.getWidth();
+					int h = c.getY() + c.getHeight();
+					if (w > width)
+						width = w;
+					if (h > height)
+						height = h;
+				}
+			return new Dimension(width, height);
+		}
+
 	}
 
 	class FileIcon extends JComponent implements DragGestureListener {
@@ -110,29 +634,45 @@ public class GUIDriver extends JFrame implements DropTargetListener, DragSourceL
 
 		boolean highlighted;
 
-		boolean isAPrivateCopy;
+		boolean dragIcon;
 
-		FileIcon(File file, Image icon, ConversionService service, boolean isAPrivateCopy) {
+		String name;
+
+		Point initial;
+
+		String log;
+
+		FileIcon(File file, Image icon, ConversionService service, String name) {
 			this.file = file;
 			this.icon = icon;
-			this.isAPrivateCopy = isAPrivateCopy;
 			this.service = service;
+			this.name = name;
+			this.dragIcon = file == null;
 			setOpaque(false);
-			setSize(34, 50);
-			addMouseListener(new MouseAdapter() {
-				public void mousePressed(MouseEvent evt) {
-					highlighted = true;
-					repaint();
-				}
-			});
+			setSize(64, 88);
+			if (!FileIcon.this.dragIcon) {
+				addMouseListener(new MouseAdapter() {
+					public void mousePressed(MouseEvent evt) {
+						if (!highlighted && !evt.isControlDown())
+							((FilePanel) getParent()).resetSelection();
+						highlighted = true;
+						repaint();
+					}
 
-			int actions = DnDConstants.ACTION_COPY | DnDConstants.ACTION_MOVE;
-			dragSource.createDefaultDragGestureRecognizer(this, actions, this);
+					public void mouseReleased(MouseEvent evt) {
+						if (highlighted && !evt.isControlDown()) {
+							((FilePanel) getParent()).resetSelection();
+							highlighted = true;
+						}
+					}
+				});
+				int actions = DnDConstants.ACTION_COPY_OR_MOVE;
+				dragSource.createDefaultDragGestureRecognizer(this, actions, this);
+			}
+		}
 
-			ImageFilter filter = new HighlightedFilter();
-			ImageProducer producer = new FilteredImageSource(icon.getSource(), filter);
-			highlightedIcon = createImage(producer);
-
+		void setLog(String log) {
+			this.log = log;
 		}
 
 		void clearHighlight() {
@@ -140,21 +680,166 @@ public class GUIDriver extends JFrame implements DropTargetListener, DragSourceL
 			repaint();
 		}
 
+		FileIcon makeDragIcon() {
+			FileIcon fi = new FileIcon(null, icon, null, name);
+			fi.highlighted = true;
+			fi.initial = getLocation();
+			fi.setLocation(fi.initial);
+			return fi;
+		}
+
+		void setDragLocation(Point dragNow) {
+			if (dragStart != null) {
+				int newX = initial.x + dragNow.x - dragStart.x;
+				int newY = initial.y + dragNow.y - dragStart.y;
+				setLocation(newX, newY);
+			}
+		}
+
 		public void paint(Graphics g) {
+			Graphics baseG = g;
+			BufferedImage group = null;
+			if (dragIcon) {
+				if (!dragActive)
+					return;
+				group = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_ARGB);
+				g = group.getGraphics();
+			}
+			Graphics2D g2d = ((Graphics2D) g);
 			int width = getWidth();
-			int height = 34;
-			int iwidth = icon.getWidth(this);
-			int iheight = icon.getHeight(this);
-			int x = (width - iwidth) / 2;
-			int y = (height - iheight) / 2;
-			if (highlighted)
-				g.drawImage(highlightedIcon, x, y, this);
-			else
-				g.drawImage(icon, x, y, this);
+			int height = 50;
+			if (this == currentlyConverting) {
+				// show being converted
+				Random r = new Random();
+				int[] pix = new int[50 * 50];
+				for (int i = 0; i < 50; i++) {
+					int xd;
+					if (i < 11)
+						xd = 11 - i;
+					else if (i > 38)
+						xd = i - 38;
+					else
+						xd = 0;
+					for (int j = 0; j < 50; j++) {
+						int yd;
+						if (j < 11)
+							yd = 11 - j;
+						else if (j > 38)
+							yd = j - 38;
+						else
+							yd = 0;
+						float d;
+						if (xd == 0 && yd == 0)
+							d = 11;
+						else
+							d = 11 - (float) Math.sqrt(xd * xd + yd * yd);
+						float p = 20 * r.nextFloat();
+						if (d > p) {
+							p = 11 * r.nextFloat();
+							if (p > d)
+								pix[i * 50 + j] = 0xFFFFFF00;
+							else
+								pix[i * 50 + j] = 0xFFFF0000;
+						} else
+							pix[i * 50 + j] = 0;
+					}
+				}
+				Image img = createImage(new MemoryImageSource(50, 50, pix, 0, 50));
+				g.drawImage(img, 7, 0, null);
+			}
+			if (icon != null) {
+				int iwidth = icon.getWidth(this);
+				int iheight = icon.getHeight(this);
+				int x = (width - iwidth) / 2;
+				int y = (height - iheight) / 2;
+				if (highlighted) {
+					if (highlightedIcon == null) {
+						ImageFilter filter = new HighlightedFilter();
+						ImageProducer producer = new FilteredImageSource(icon.getSource(), filter);
+						highlightedIcon = createImage(producer);
+					}
+					g.drawImage(highlightedIcon, x, y, this);
+				} else
+					g.drawImage(icon, x, y, this);
+			}
+			int[] lineBreaks = new int[3];
+			int[] offx = new int[lineBreaks.length];
+			int lbi = 0;
+			Font font = new Font("SansSerif", Font.PLAIN, 11);
+			g.setFont(font);
+			FontMetrics fm = g.getFontMetrics();
+			int em = fm.charWidth('m');
+			int emlen = width / em;
+			char[] nameChars = name.toCharArray();
+			int chi = 0;
+			while (chi < nameChars.length && lbi < lineBreaks.length) {
+				int len = emlen;
+				if (chi + len > nameChars.length)
+					len = nameChars.length - chi;
+				int chw = fm.charsWidth(nameChars, chi, len);
+				if (chw > width) {
+					while (len > 1) {
+						len--;
+						chw = fm.charsWidth(nameChars, chi, len);
+						if (chw <= width)
+							break;
+					}
+				} else {
+					while (chi + len < nameChars.length) {
+						len++;
+						int chw1 = fm.charsWidth(nameChars, chi, len);
+						if (chw1 > width) {
+							len--;
+							break;
+						}
+						chw = chw1;
+					}
+				}
+				chi += len;
+				offx[lbi] = (width - chw) / 2;
+				lineBreaks[lbi++] = chi;
+			}
+			chi = 0;
+			if (highlighted) {
+				// g.setColor(new Color(0x4070C0));
+				g2d.setPaint(new Color(0, 0.2f, 0.8f, 0.75f));
+				Rectangle rect = new Rectangle(0, getHeight() - lineBreaks.length * fm.getHeight(), width, lbi
+						* fm.getHeight());
+				g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
+				g2d.fill(rect);
+				g.setColor(Color.white);
+			}
+			for (int line = 0; line < lbi; line++) {
+				int chi1 = lineBreaks[line];
+				int ty = getHeight() - fm.getDescent() - (lineBreaks.length - 1 - line) * fm.getHeight();
+				g.drawString(name.substring(chi, chi1), offx[line], ty);
+				chi = chi1;
+			}
+			if (group != null) {
+				g.dispose();
+				AlphaFilter filter = new AlphaFilter();
+				filter.setLevel(0.5f);
+				ImageProducer producer = new FilteredImageSource(group.getSource(), filter);
+				Image filtered = createImage(producer);
+				baseG.drawImage(filtered, 0, 0, null);
+			}
 		}
 
 		public void dragGestureRecognized(DragGestureEvent dge) {
-			startDrag(this, dge);
+			((FilePanel) getParent()).startDrag(this, dge);
+		}
+
+		void changeFile(File file, Image icon) {
+			File folder = ((FilePanel) getParent()).folder;
+			if (folder.equals(this.file.getParentFile())) {
+				this.file.delete();
+			}
+			service = null;
+			this.file = file;
+			this.icon = icon;
+			this.name = file.getName();
+			highlightedIcon = null;
+			repaint();
 		}
 	}
 
@@ -202,23 +887,64 @@ public class GUIDriver extends JFrame implements DropTargetListener, DragSourceL
 					}
 					item = (FileIcon) conversionQueue.get(0);
 					conversionQueue.removeElementAt(0);
+					currentlyConverting = item;
 				}
-				reportProgress(0);
-				final File res = item.service.convert(item.file, null, this);
-				final FileIcon srcItem = item;
-				if (res != null) {
-					try {
-						SwingUtilities.invokeAndWait(new Runnable() {
-							public void run() {
-								FileIcon resItem = new FileIcon(res, epubIcon, null, true);
-								getContentPane().add(resItem);
-								resItem.setLocation(srcItem.getLocation());
-								getContentPane().remove(srcItem);
+				final Vector resources = new Vector();
+				try {
+					SwingUtilities.invokeAndWait(new Runnable() {
+						public void run() {
+							Component[] components = resourcePane.getComponents();
+							for (int i = 0; i < components.length; i++) {
+								if (components[i] instanceof FileIcon) {
+									FileIcon fi = (FileIcon) components[i];
+									if (fi.file != null) {
+										resources.add(fi.file);
+									}
+								}
 							}
-						});
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
+						}
+					});
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				File[] reslist = new File[resources.size()];
+				resources.copyInto(reslist);
+				reportProgress(0);
+				item.service.setProperties(settings);
+				final FileIcon srcItem = item;
+				StringWriter log = new StringWriter();
+				PrintWriter plog = new PrintWriter(log);
+				plog.println("Conversion log for " + item.file.getAbsolutePath());
+				plog.println("Start: " + new Date());
+				final File res = item.service.convert(item.file, reslist, this, plog);
+				plog.println("End: " + new Date());
+				final String logTxt = log.toString();
+				try {
+					SwingUtilities.invokeAndWait(new Runnable() {
+						public void run() {
+							if (res == null) {
+								File dest = GUIDriver.makeFile(docFolder, "error.txt");
+								try {
+									Writer out = new OutputStreamWriter(new FileOutputStream(dest), "UTF-8");
+									out.write(logTxt);
+									out.close();
+								} catch (Exception e) {
+									e.printStackTrace();
+								}
+								srcItem.changeFile(dest, errIcon);
+							} else {
+								File dest = GUIDriver.makeFile(docFolder, res.getName());
+								if (res.renameTo(dest))
+									srcItem.changeFile(dest, epubIcon);
+								else
+									srcItem.changeFile(res, epubIcon);
+							}
+							srcItem.setLog(logTxt);
+							currentlyConverting = null;
+						}
+					});
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
 				reportProgress(1);
 			}
@@ -229,180 +955,96 @@ public class GUIDriver extends JFrame implements DropTargetListener, DragSourceL
 
 		public void reportProgress(float progress) {
 		}
+
+		public File makeFile(String baseName) {
+			return GUIDriver.makeFile(workFolder, baseName);
+		}
+
 	}
 
 	public GUIDriver() {
-		setSize(200, 200);
-		setLayout(null);
-		addWindowListener(new WindowAdapter() {
-			public void windowClosing(WindowEvent e) {
-				GUIDriver.this.dispose();
+		super("EPubGen");
+
+		File home = new File(System.getProperty("user.home"));
+		File epubgenHome = new File(home, "EPubGen");
+		docFolder = new File(epubgenHome, "Documents");
+		docFolder.mkdirs();
+		resourceFolder = new File(epubgenHome, "Resources");
+		resourceFolder.mkdirs();
+		File settingsFolder = new File(epubgenHome, "Settings");
+		settingsFolder.mkdirs();
+		settingsFile = new File(settingsFolder, "settings.prop");
+		workFolder = new File(epubgenHome, "Work");
+		workFolder.mkdirs();
+
+		if (settingsFile.exists()) {
+			try {
+				settings.load(new FileInputStream(settingsFile));
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
-		});
-		getContentPane().addMouseListener(new MouseAdapter() {
-			public void mousePressed(MouseEvent evt) {
-				Component[] components = getContentPane().getComponents();
-				for (int i = 0; i < components.length; i++) {
-					if (components[i] instanceof FileIcon) {
-						FileIcon fi = (FileIcon) components[i];
-						fi.clearHighlight();
-					}
-				}
-			}
-		});
-		new DropTarget(getContentPane(), this);
-		try {
-			services.add(Class.forName("com.adobe.dp.fb2.convert.FB2ConversionService").newInstance());
-		} catch (Exception e) {
-			e.printStackTrace();
 		}
 
-		InputStream png = GUIDriver.class.getResourceAsStream("epub.png");
+		docPane = new FilePanel(docFolder);
+		resourcePane = new FilePanel(resourceFolder);
+		settingsPane = new SettingsPanel();
+		tabbedPane = new JTabbedPane();
+		getContentPane().setLayout(new BorderLayout());
+		getContentPane().add(tabbedPane);
+		tabbedPane.add("Documents", new JScrollPane(docPane));
+		tabbedPane.add("Resources", new JScrollPane(resourcePane));
+		tabbedPane.add("Settings", new JScrollPane(settingsPane));
+		addWindowListener(new WindowAdapter() {
+			public void windowClosing(WindowEvent e) {
+				System.exit(0);
+			}
+		});
+		setSize(300, 200);
+
 		try {
+			InputStream png = GUIDriver.class.getResourceAsStream("epub.png");
 			epubIcon = ImageIO.read(png);
+			png = GUIDriver.class.getResourceAsStream("css.png");
+			cssIcon = ImageIO.read(png);
+			png = GUIDriver.class.getResourceAsStream("otf.png");
+			otfIcon = ImageIO.read(png);
+			png = GUIDriver.class.getResourceAsStream("ttf.png");
+			ttfIcon = ImageIO.read(png);
+			png = GUIDriver.class.getResourceAsStream("err.png");
+			errIcon = ImageIO.read(png);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+
 		(new Converter()).start();
+		new Updater();
+		new FileCheck();
 	}
 
-	public void dragEnter(DropTargetDragEvent dtde) {
-		dragOver(dtde);
-	}
-
-	public void dragExit(DropTargetEvent dte) {
-	}
-
-	public void dragOver(DropTargetDragEvent dtde) {
-		if (!dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
-			if (false) {
-				DataFlavor[] flavors = dtde.getCurrentDataFlavors();
-				if (flavors != null) {
-					for (int i = 0; i < flavors.length; i++)
-						System.out.println("Flavor: " + flavors[i]);
-				}
+	public static File makeFile(File folder, String baseName) {
+		File file = new File(folder, baseName);
+		if (file.exists()) {
+			String baseStr;
+			String extStr;
+			int ext = baseName.indexOf('.');
+			if (ext < 0) {
+				baseStr = baseName;
+				extStr = "";
+			} else {
+				baseStr = baseName.substring(0, ext);
+				extStr = baseName.substring(ext);
 			}
-			return;
-		}
-		Transferable t = dtde.getTransferable();
-		try {
-			List files = (List) t.getTransferData(DataFlavor.javaFileListFlavor);
-			Iterator f = files.iterator();
-			while (f.hasNext()) {
-				File file = ((File) f.next());
-				Iterator it = services.iterator();
-				while (it.hasNext()) {
-					ConversionService service = (ConversionService) it.next();
-					if (service.canConvert(file) || service.canUse(file)) {
-						dtde.acceptDrag(DnDConstants.ACTION_COPY);
-						return;
-					}
-				}
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		dtde.rejectDrag();
-	}
-
-	public void drop(DropTargetDropEvent dtde) {
-		if (!dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
-			dtde.rejectDrop();
-			return;
-		}
-		dtde.acceptDrop(DnDConstants.ACTION_COPY);
-		Transferable t = dtde.getTransferable();
-		if (dtde.isLocalTransfer()) {
-			localDrop(dtde);
-			return;
-		}
-		try {
-			List files = (List) t.getTransferData(DataFlavor.javaFileListFlavor);
-			Iterator f = files.iterator();
-			while (f.hasNext()) {
-				File file = (File) f.next();
-				Iterator it = services.iterator();
-				while (it.hasNext()) {
-					ConversionService service = (ConversionService) it.next();
-					if (service.canConvert(file) || service.canUse(file)) {
-						Image image = service.getIcon(file);
-						FileIcon icon = new FileIcon(file, image, service, false);
-						getContentPane().add(icon);
-						Point loc = dtde.getLocation();
-						icon.setLocation(loc);
-						scheduleConversion(icon);
-						return;
-					}
-				}
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	public void startDrag(FileIcon src, DragGestureEvent dge) {
-		Vector files = new Vector();
-		Component[] components = getContentPane().getComponents();
-		for (int i = 0; i < components.length; i++) {
-			if (components[i] instanceof FileIcon) {
-				FileIcon fi = (FileIcon) components[i];
-				if (fi.highlighted)
-					files.add(fi.file);
+			int count = 1;
+			while (true) {
+				file = new File(folder, baseStr + "-" + count + extStr);
+				if (!file.exists())
+					break;
+				count++;
 			}
 		}
-		Transferable transferable = new FileTransferable(files);
-		InputEvent trigger = dge.getTriggerEvent();
-		if (trigger instanceof MouseEvent) {
-			dragStart = ((MouseEvent) trigger).getPoint();
-			Point pos = src.getLocation();
-			dragStart.x += pos.x;
-			dragStart.y += pos.y;
-		}
-		dragSource.startDrag(dge, new Cursor(Cursor.MOVE_CURSOR), transferable, this);
+		return file;
 	}
-
-	public void localDrop(DropTargetDropEvent dtde) {
-		Point dragEnd = dtde.getLocation();
-		int dx = dragEnd.x - dragStart.x;
-		int dy = dragEnd.y - dragStart.y;
-		Component[] components = getContentPane().getComponents();
-		for (int i = 0; i < components.length; i++) {
-			if (components[i] instanceof FileIcon) {
-				FileIcon fi = (FileIcon) components[i];
-				if (fi.highlighted) {
-					Point loc = fi.getLocation();
-					loc.x += dx;
-					loc.y += dy;
-					fi.setLocation(loc);
-				}
-			}
-		}
-
-	}
-
-	public void dropActionChanged(DropTargetDragEvent dtde) {
-	}
-
-	public void dragDropEnd(DragSourceDropEvent dsde) {
-		// TODO Auto-generated method stub
-	}
-
-	public void dragEnter(DragSourceDragEvent dsde) {
-		// TODO Auto-generated method stub
-	}
-
-	public void dragExit(DragSourceEvent dse) {
-		// TODO Auto-generated method stub
-	}
-
-	public void dragOver(DragSourceDragEvent dsde) {
-		// TODO Auto-generated method stub
-	}
-
-	public void dropActionChanged(DragSourceDragEvent dsde) {
-		// TODO Auto-generated method stub
-	}
-
+		
 	void scheduleConversion(FileIcon file) {
 		synchronized (conversionQueue) {
 			conversionQueue.add(file);

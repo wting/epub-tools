@@ -29,9 +29,13 @@
  *******************************************************************************/
 package com.adobe.dp.epub.conv;
 
-public interface ConversionClient {
+import java.io.File;
 
+public interface ConversionClient {
+	
 	public void reportProgress( float progress );
 	
 	public void reportIssue( String errorCode );
+	
+	public File makeFile( String baseName );
 }

@@ -32,6 +32,7 @@ package com.adobe.dp.epub.util;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -40,12 +41,14 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.Vector;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import com.adobe.dp.epub.style.SimpleStylesheetParser;
 import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.otf.ByteArrayFontInputStream;
+import com.adobe.dp.otf.FileFontInputStream;
 import com.adobe.dp.otf.FontInputStream;
 import com.adobe.dp.otf.FontLocator;
 import com.adobe.dp.otf.FontProperties;
@@ -55,6 +58,8 @@ import com.adobe.dp.otf.OpenTypeFont;
 public class ConversionTemplate {
 
 	ZipFile zip;
+
+	File[] files;
 
 	Stylesheet stylesheet;
 
@@ -71,22 +76,20 @@ public class ConversionTemplate {
 		}
 
 		FontProperties substitute(FontProperties key) {
-			
+
 			/*
-			if ( key.getFamilyName().equals("Tahoma")) {
-				// substitute Tahoma with Calibri
-				key = new FontProperties("Calibri", key.getWeight(), key.getStyle());
-			}
-			*/
-			
-			if (key.getStyle() == FontPropertyConstants.STYLE_ITALIC
-					&& key.getFamilyName().equals("Tahoma")) {
+			 * if ( key.getFamilyName().equals("Tahoma")) { // substitute Tahoma
+			 * with Calibri key = new FontProperties("Calibri", key.getWeight(),
+			 * key.getStyle()); }
+			 */
+
+			if (key.getStyle() == FontPropertyConstants.STYLE_ITALIC && key.getFamilyName().equals("Tahoma")) {
 				// workaround: Tahoma does not have italic, replace with Verdana
 				key = new FontProperties("Verdana", key.getWeight(), key.getStyle());
 			}
 			return key;
 		}
-		
+
 		String getFontSource(FontProperties key) {
 			key = substitute(key);
 			String fileName = (String) fontMap.get(key);
@@ -118,25 +121,49 @@ public class ConversionTemplate {
 
 	}
 
-	public ConversionTemplate(File templateFile) throws IOException {
-		zip = new ZipFile(templateFile);
+	public ConversionTemplate(File zippedResources) throws IOException {
+		zip = new ZipFile(zippedResources);
 		Enumeration entries = zip.entries();
-		HashSet fonts = new HashSet();
-		Hashtable fontMap = new Hashtable();
+		Vector names = new Vector();
 		while (entries.hasMoreElements()) {
 			ZipEntry entry = (ZipEntry) entries.nextElement();
-			String name = entry.getName().toLowerCase();
-			if (name.endsWith(".css")) {
-				if (stylesheet != null) {
-					Reader reader = new InputStreamReader(zip.getInputStream(entry), "UTF-8");
-					SimpleStylesheetParser parser = new SimpleStylesheetParser();
-					parser.readRules(reader);
-					stylesheet = new Stylesheet(null, parser);
-					fontMap = parser.getRules();
-				}
-			} else if (name.endsWith(".ttf") || name.endsWith(".otf") || name.endsWith(".ttc")) {
-				fonts.add(entry.getName());
+			String name = entry.getName();
+			names.add(name);
+		}
+		init(names);
+	}
+
+	public ConversionTemplate(File[] resourceFileSet) throws IOException {
+		files = resourceFileSet;
+		Vector names = new Vector();
+		for (int i = 0; i < resourceFileSet.length; i++) {
+			String name = resourceFileSet[i].getAbsolutePath();
+			names.add(name);
+		}
+		init(names);
+	}
+
+	void init(Vector names) throws IOException {
+		Enumeration entries = names.elements();
+		HashSet fonts = new HashSet();
+		Hashtable fontMap = new Hashtable();
+		SimpleStylesheetParser parser = null;
+		while (entries.hasMoreElements()) {
+			String name = entries.nextElement().toString();
+			String lname = name.toLowerCase();
+			if (lname.endsWith(".css")) {
+				Reader reader = new InputStreamReader(getInputStream(name), "UTF-8");
+				if (parser == null)
+					parser = new SimpleStylesheetParser();
+				parser.readRules(reader);
+			} else if (lname.endsWith(".ttf") || lname.endsWith(".otf") || lname.endsWith(".ttc")) {
+				fonts.add(name);
 			}
+		}
+
+		if (parser != null) {
+			stylesheet = new Stylesheet(null, parser);
+			fontMap = parser.getRules();
 		}
 
 		Enumeration srcs = fontMap.elements();
@@ -166,20 +193,38 @@ public class ConversionTemplate {
 		fontLocator = new TemplateFontLocator(fontMap);
 	}
 
-	FontInputStream fontStreamForName(String src) throws IOException {
-		ZipEntry entry = zip.getEntry(src);
-		if (entry == null)
-			throw new IOException("Entry " + src + ": not found");
-		InputStream in = zip.getInputStream(entry);
-		if (in == null)
-			throw new IOException("Entry " + src + ": cannot read");
-		ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-		byte[] buf = new byte[4096];
-		int len;
-		while ((len = in.read(buf)) >= 0) {
-			buffer.write(buf, 0, len);
+	InputStream getInputStream(String src) throws IOException {
+		if (zip != null) {
+			ZipEntry entry = zip.getEntry(src);
+			if (entry == null)
+				throw new IOException("Entry " + src + ": not found");
+			InputStream in = zip.getInputStream(entry);
+			if (in == null)
+				throw new IOException("Entry " + src + ": cannot read");
+			return in;
+		} else {
+			return new FileInputStream(src);
 		}
-		return new ByteArrayFontInputStream(buffer.toByteArray());
+	}
+
+	FontInputStream fontStreamForName(String src) throws IOException {
+		if (zip != null) {
+			ZipEntry entry = zip.getEntry(src);
+			if (entry == null)
+				throw new IOException("Entry " + src + ": not found");
+			InputStream in = zip.getInputStream(entry);
+			if (in == null)
+				throw new IOException("Entry " + src + ": cannot read");
+			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+			byte[] buf = new byte[4096];
+			int len;
+			while ((len = in.read(buf)) >= 0) {
+				buffer.write(buf, 0, len);
+			}
+			return new ByteArrayFontInputStream(buffer.toByteArray());
+		} else {
+			return new FileFontInputStream(new File(src));
+		}
 	}
 
 	public FontLocator getFontLocator() {

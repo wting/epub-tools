@@ -493,6 +493,10 @@ public class Converter {
 		defaultFontLocator = fontLocator;
 	}
 
+	public void setTemplate(Stylesheet stylesheet) throws IOException {
+		templateRules = stylesheet.getRules();
+	}
+	
 	public void setTemplate(InputStream templateStream) throws IOException,
 			FB2FormatException {
 		BufferedInputStream in = new BufferedInputStream(templateStream);
@@ -772,14 +776,12 @@ public class Converter {
 		mergeRuleStyle(bodyRule, docRules, "body", "body");
 		mergeRuleStyle(bodyRule, templateRules, "body", "body");
 		adjustFontList(bodyRule);
-		long t0 = System.currentTimeMillis();
 		FB2Section[] bodySections = doc.getBodySections();
 		toc = epub.getTOC();
 		TOCEntry entry = toc.getRootTOCEntry();
 		for (int i = 0; i < bodySections.length; i++) {
 			convertSection(bodySections[i], entry, 1);
 		}
-		long t1 = System.currentTimeMillis();
 		Enumeration keys = idMap.keys();
 		while (keys.hasMoreElements()) {
 			String id = (String) keys.nextElement();
@@ -794,17 +796,10 @@ public class Converter {
 				}
 			}
 		}
-		long t2 = System.currentTimeMillis();
+	}
+	
+	public void embedFonts() {
 		epub.addFonts(styles, fontLocator);
-		long t3 = System.currentTimeMillis();
-		if (false) {
-			System.out.println("\ttext converted in " + (t1 - t0) / 1000.0
-					+ " seconds");
-			System.out.println("\txrefs resolved in " + (t2 - t1) / 1000.0
-					+ " seconds");
-			System.out.println("\tfont embedded in " + (t3 - t2) / 1000.0
-					+ " seconds");
-		}
 	}
 
 	public void convert(FB2Document doc, Publication epub) {

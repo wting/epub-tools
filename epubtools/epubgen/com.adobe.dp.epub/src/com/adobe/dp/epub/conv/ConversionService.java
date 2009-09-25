@@ -31,14 +31,42 @@ package com.adobe.dp.epub.conv;
 
 import java.awt.Image;
 import java.io.File;
+import java.io.PrintWriter;
+import java.util.Iterator;
+import java.util.Properties;
+import java.util.Vector;
 
-public interface ConversionService {
+public abstract class ConversionService {
 
-	public boolean canConvert( File src );
-	
-	public boolean canUse( File src );
-	
-	public Image getIcon( File src );
-	
-	public File convert( File src, File[] aux, ConversionClient client );
+	private static final String[] defaultConversionSerices = { "com.adobe.dp.fb2.convert.FB2ConversionService",
+			"com.adobe.dp.office.conv.DOCXConversionService", "com.adobe.dp.office.conv.RTFConversionService" };
+
+	static Vector conversionSericeList = new Vector();
+
+	static {
+		for (int i = 0; i < defaultConversionSerices.length; i++)
+			addConversionService(defaultConversionSerices[i]);
+	}
+
+	private static void addConversionService(String className) {
+		try {
+			conversionSericeList.add(Class.forName(className).newInstance());
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static Iterator registeredSerivces() {
+		return conversionSericeList.iterator();
+	}
+
+	public abstract void setProperties(Properties prop);
+
+	public abstract boolean canConvert(File src);
+
+	public abstract boolean canUse(File src);
+
+	public abstract Image getIcon(File src);
+
+	public abstract File convert(File src, File[] aux, ConversionClient client, PrintWriter log);
 }

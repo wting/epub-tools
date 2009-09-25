@@ -51,7 +51,7 @@ import com.adobe.dp.office.word.RunProperties;
 import com.adobe.dp.office.word.WordDocument;
 import com.adobe.dp.otf.FontLocator;
 
-public class Converter {
+public class DOCXConverter {
 
 	WordDocument doc;
 
@@ -76,7 +76,7 @@ public class Converter {
 
 	double defaultFontSize;
 
-	public Converter(WordDocument doc, Publication epub) {
+	public DOCXConverter(WordDocument doc, Publication epub) {
 		this.doc = doc;
 		this.epub = epub;
 
