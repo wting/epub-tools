@@ -67,6 +67,7 @@ import com.adobe.dp.office.word.ContainerElement;
 import com.adobe.dp.office.word.DrawingElement;
 import com.adobe.dp.office.word.FootnoteElement;
 import com.adobe.dp.office.word.FootnoteReferenceElement;
+import com.adobe.dp.office.word.LastRenderedPageBreakElement;
 import com.adobe.dp.office.word.NumberingProperties;
 import com.adobe.dp.office.word.ParagraphElement;
 import com.adobe.dp.office.word.ParagraphProperties;
@@ -116,8 +117,10 @@ class WordMLConverter {
 	boolean chapterNameWasSet;
 
 	boolean chapterSplitAllowed;
-
+	
 	private String nextPageName;
+	
+	boolean useWordPageBreaks;
 	
 	PrintWriter log;
 	
@@ -212,6 +215,10 @@ class WordMLConverter {
 		}
 	}
 
+	void useWordPageBreaks() {
+		useWordPageBreaks = true;
+	}
+	
 	void setFootnoteMap(Hashtable footnoteMap) {
 		this.footnoteMap = footnoteMap;
 	}
@@ -558,6 +565,18 @@ class WordMLConverter {
 				ft.add(fid);
 			}
 			resetSpaceProcessing = true;
+		} else if (we instanceof LastRenderedPageBreakElement ) {
+			if( useWordPageBreaks ) {
+				XRef xref;
+				if (!parent.content().hasNext()) {
+					// no children yet, use parent
+					xref = parent.getSelfRef();
+				} else {
+					conv = chapter.createElement("span");
+					xref = conv.getSelfRef();
+				}
+				epub.getTOC().addPage(null, xref);
+			}
 		} else if (we instanceof TableElement) {
 			TableElement wt = (TableElement) we;
 			TableProperties tp = wt.getTableProperties();

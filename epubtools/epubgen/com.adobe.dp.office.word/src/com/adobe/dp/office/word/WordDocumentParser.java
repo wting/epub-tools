@@ -544,7 +544,6 @@ public class WordDocumentParser {
 		}
 
 		public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
-			// TODO: handle <w:lastRenderedPageBreak />
 			ParseContext newContext = new ParseContext();
 			if (contextStack.isEmpty()) {
 				if (uri.equals(wNS) && localName.equals("footnotes")) {
@@ -924,6 +923,8 @@ public class WordDocumentParser {
 			fe.id = attributes.getValue(wNS, "id");
 			return fe;
 		}
+		if( localName.equals("lastRenderedPageBreak"))
+			return new LastRenderedPageBreakElement();
 		return null;
 	}
 }

@@ -72,7 +72,7 @@ public class FB2ConverterServlet extends HttpServlet {
 	static HashSet activeStreams = new HashSet();
 
 	static {
-
+		Initializer.init();
 		logger = Logger.getLogger(FB2ConverterServlet.class);
 		logger.setLevel(Level.ALL);
 		logger.trace("servlet loaded");

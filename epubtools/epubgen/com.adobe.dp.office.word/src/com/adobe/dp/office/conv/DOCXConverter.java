@@ -80,7 +80,9 @@ public class DOCXConverter {
 	double defaultFontSize;
 
 	PrintWriter log = new PrintWriter(new OutputStreamWriter(System.out));
-	
+
+	boolean useWordPageBreaks;
+
 	public DOCXConverter(WordDocument doc, Publication epub) {
 		this.doc = doc;
 		this.epub = epub;
@@ -120,7 +122,7 @@ public class DOCXConverter {
 		// unlike XHTML, Word's default spacing/margings are zero
 		Rule pRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("p", null));
 		pRule.set("margin-top", "0px");
-		pRule.set("margin-bottom", "0px");		
+		pRule.set("margin-bottom", "0px");
 		Rule ulRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("ul", null));
 		ulRule.set("margin-left", "0px");
 	}
@@ -132,7 +134,7 @@ public class DOCXConverter {
 	public void setLog(PrintWriter log) {
 		this.log = log;
 	}
-	
+
 	public void convert() {
 
 		OPSResource footnotes = null;
@@ -166,6 +168,10 @@ public class DOCXConverter {
 		bodyConv.setWordResources(wordResources);
 		bodyConv.findLists(body);
 		OPSResource ops = epub.createOPSResource("OPS/document.xhtml");
+		if (useWordPageBreaks) {
+			epub.getTOC().addPage(null, ops.getDocument().getRootXRef());
+			bodyConv.useWordPageBreaks();
+		}
 		bodyConv.convert(body, ops, true);
 
 		if (footnotes != null)
@@ -186,18 +192,24 @@ public class DOCXConverter {
 
 		epub.addMetadata(null, "DOCX2EPUB.version", Version.VERSION);
 		epub.addMetadata(null, "DOCX2EPUB.conversionDate", StringUtil.dateToW3CDTF(new Date()));
-		
+
 		epub.generateTOCFromHeadings(5);
 		epub.splitLargeChapters();
+
+		log.flush();
 	}
 
+	public void useWordPageBreaks() {
+		useWordPageBreaks = true;
+	}
+	
 	public FontEmbeddingReport embedFonts() {
 		if (fontLocator != null)
 			return epub.addFonts(global, fontLocator);
 		else
 			return epub.addFonts(global); // use system fonts
 	}
-	
+
 	public void setWordResources(ContainerSource source) {
 		wordResources = source;
 	}

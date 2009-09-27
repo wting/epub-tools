@@ -213,14 +213,6 @@ public class NCXResource extends Resource {
 
 	public void addPage(String name, XRef location) {
 
-		for (int i = 50; i < 3999; i++) {
-			String r = printRoman(i);
-			int k = parseRoman(r);
-			if (k != i) {
-				System.err.println("bad: " + i + " " + r);
-			}
-		}
-
 		if (name == null || name.isEmpty()) {
 			if (pages.size() > 0) {
 				Page lastPage = (Page) pages.lastElement();
@@ -383,6 +375,7 @@ public class NCXResource extends Resource {
 	}
 
 	void serializePageMap(PageMapResource pageMap, OutputStream out) throws IOException {
+		fixUpPageMap();
 		final String pagemapns = "http://www.idpf.org/2007/opf";
 		XMLSerializer ser = new XMLSerializer(out);
 		ser.startDocument("1.0", "UTF-8");
@@ -400,5 +393,28 @@ public class NCXResource extends Resource {
 		}
 		ser.endElement(pagemapns, "page-map");
 		ser.endDocument();
+	}
+	
+	/**
+	 * Adobe renderer has a bug that is page map is used, each chapter must
+	 * start on page boundary. This is a workaround for this bug.
+	 */
+	public void fixUpPageMap() {
+		Iterator pages = this.pages.iterator();
+		OPSResource lastResource = null;
+		while (pages.hasNext()) {
+			Page page = (Page) pages.next();
+			OPSResource resource = page.xref.getTargetResource();
+			if( resource == lastResource )
+				continue;
+			// chapter change: move back to the chapter boundary
+			lastResource = resource;
+			if( page.xref.getTargetId() != null ) {
+				System.out.println("chapter break is fixed");
+				page.xref = resource.getDocument().getRootXRef();
+			} else {
+				System.out.println("chapter break is good as is");
+			}
+		}
 	}
 }

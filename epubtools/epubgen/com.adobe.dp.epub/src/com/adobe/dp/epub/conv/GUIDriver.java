@@ -213,6 +213,8 @@ public class GUIDriver extends JFrame {
 		JCheckBox embedFonts = new JCheckBox("Embed fonts");
 
 		JCheckBox adobeMangling = new JCheckBox("Use Adobe font mangling");
+		
+		JCheckBox pageBreaks = new JCheckBox("Add page map using page breaks (DOCX only)");
 
 		SettingsPanel() {
 			Box box = Box.createVerticalBox();
@@ -220,12 +222,15 @@ public class GUIDriver extends JFrame {
 			box.add(translit);
 			box.add(embedFonts);
 			box.add(adobeMangling);
+			box.add(pageBreaks);
 			translit.setSelected(getBooleanProperty("translit", true));
 			embedFonts.setSelected(getBooleanProperty("embedFonts", true));
 			adobeMangling.setSelected(getBooleanProperty("adobeMangling", true));
+			pageBreaks.setSelected(getBooleanProperty("pageBreaks", false));
 			translit.addChangeListener(this);
 			embedFonts.addChangeListener(this);
 			adobeMangling.addChangeListener(this);
+			pageBreaks.addChangeListener(this);
 		}
 
 		boolean getBooleanProperty(String name, boolean def) {
@@ -243,6 +248,7 @@ public class GUIDriver extends JFrame {
 			setBooleanProperty("translit", translit.isSelected());
 			setBooleanProperty("embedFonts", embedFonts.isSelected());
 			setBooleanProperty("adobeMangling", adobeMangling.isSelected());
+			setBooleanProperty("pageBreaks", pageBreaks.isSelected());
 			try {
 				FileOutputStream out = new FileOutputStream(settingsFile);
 				settings.store(out, "EPubGen");

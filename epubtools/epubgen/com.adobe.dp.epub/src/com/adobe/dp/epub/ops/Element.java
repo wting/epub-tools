@@ -259,6 +259,12 @@ abstract public class Element {
 		if (selfRef != null) {
 			selfRef.targetResource = newDoc.resource;
 		}
+		Iterator it = content();
+		while (it.hasNext()) {
+			Object next = it.next();
+			if (next instanceof Element)
+				((Element) next).transferToDocument(newDoc);
+		}
 	}
 
 	final Element peelElements(OPSDocument newDoc, int targetSize) {
