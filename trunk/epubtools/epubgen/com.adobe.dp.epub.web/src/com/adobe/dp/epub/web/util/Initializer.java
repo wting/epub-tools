@@ -49,6 +49,10 @@ public class Initializer {
 		}
 	}
 
+	public static void init() {
+		// a call to make sure class is loaded
+	}
+	
 	public static File getEPubGenHome() {
 		return epubgenHome;
 	}

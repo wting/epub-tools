@@ -34,6 +34,8 @@ public class DOCXConversionService extends ConversionService {
 	boolean adobeMangling = true;
 
 	boolean translit = true;
+	
+	boolean pageBreaks = false;
 
 	boolean getBooleanProperty(Properties prop, String name, boolean def) {
 		String s = prop.getProperty(name);
@@ -86,6 +88,10 @@ public class DOCXConversionService extends ConversionService {
 				// conv.setStylesheet(stylesheet);
 			}
 			conv.setFontLocator(fontLocator);
+			if( pageBreaks ) {
+				conv.useWordPageBreaks();
+				epub.usePageMap();
+			}
 			conv.convert();
 			if (embedFonts)
 				conv.embedFonts();
@@ -129,6 +135,7 @@ public class DOCXConversionService extends ConversionService {
 		embedFonts = getBooleanProperty(prop, "embedFonts", embedFonts);
 		adobeMangling = getBooleanProperty(prop, "adobeMangling", adobeMangling);
 		translit = getBooleanProperty(prop, "translit", translit);
+		pageBreaks = getBooleanProperty(prop, "pageBreaks", pageBreaks);
 	}
 
 	public static void main(String[] args) {

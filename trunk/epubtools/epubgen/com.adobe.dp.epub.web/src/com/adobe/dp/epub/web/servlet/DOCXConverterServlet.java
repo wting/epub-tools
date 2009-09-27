@@ -73,6 +73,7 @@ public class DOCXConverterServlet extends HttpServlet {
 	static HashSet activeStreams = new HashSet();
 
 	static {
+		Initializer.init();
 		logger = Logger.getLogger(DOCXConverterServlet.class);
 		logger.setLevel(Level.ALL);
 		logger.trace("servlet loaded");
