@@ -92,6 +92,7 @@ import javax.swing.AbstractAction;
 import javax.swing.Box;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
+import javax.swing.JEditorPane;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -134,6 +135,8 @@ public class GUIDriver extends JFrame {
 	FilePanel resourcePane;
 
 	SettingsPanel settingsPane;
+
+	JEditorPane helpPane;
 
 	File docFolder;
 
@@ -251,7 +254,7 @@ public class GUIDriver extends JFrame {
 			setBooleanProperty("pageBreaks", pageBreaks.isSelected());
 			try {
 				FileOutputStream out = new FileOutputStream(settingsFile);
-				settings.store(out, "EPubGen");
+				settings.store(out, "EPUBGen");
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -289,6 +292,38 @@ public class GUIDriver extends JFrame {
 			}
 		}
 
+		public void paint(Graphics g) {
+			super.paint(g);
+			if (getComponentCount() == 0) {
+				String label;
+				if (this == docPane)
+					label = "Drop documents here";
+				else
+					label = "Drop resources here";
+
+				Dimension d = getSize();
+				int size = 20;
+				Font f = new Font("Serif", Font.PLAIN, size);
+				g.setFont(f);
+				FontMetrics fm = g.getFontMetrics();
+				char[] arr = label.toCharArray();
+				int width = fm.charsWidth(arr, 0, arr.length);
+				int fs = (2 * size * d.width) / (3 * width);
+				f = new Font("Serif", Font.PLAIN, fs);
+				g.setFont(f);
+				int x = (d.width - (fs * width) / size) / 2;
+				int y = (d.height + (2 * fs) / 3) / 2;
+				g.setColor(new Color(0xCCCCCC));
+				g.drawString(label, x, y);
+			}
+		}
+
+		public void add(FileIcon component) {
+			if( getComponentCount() == 0 )
+				repaint();
+			super.add(component);
+		}
+		
 		private boolean isEPub(File f) {
 			return f.getName().toLowerCase().endsWith(".epub");
 		}
@@ -470,7 +505,7 @@ public class GUIDriver extends JFrame {
 				boolean success = false;
 				while (f.hasNext()) {
 					File file = (File) f.next();
-					if( addFile(file, loc, true) )
+					if (addFile(file, loc, true))
 						success = true;
 				}
 				dtde.dropComplete(success);
@@ -987,12 +1022,14 @@ public class GUIDriver extends JFrame {
 
 	}
 
-	public GUIDriver(File home) {
-		super("EPubGen");
+	public GUIDriver(File epubgenHome) {
+		super("EPUBGen - Buttonless Converter");
 
-		if (home == null || !home.isDirectory())
-			home = new File(System.getProperty("user.home"));
-		File epubgenHome = new File(home, "EPubGen");
+		if (epubgenHome == null || !epubgenHome.isDirectory()) {
+			File home = new File(System.getProperty("user.home"));
+			epubgenHome = new File(home, "EPUBGen");
+		}
+		
 		docFolder = new File(epubgenHome, "Documents");
 		docFolder.mkdirs();
 		resourceFolder = new File(epubgenHome, "Resources");
@@ -1015,17 +1052,25 @@ public class GUIDriver extends JFrame {
 		resourcePane = new FilePanel(resourceFolder);
 		settingsPane = new SettingsPanel();
 		tabbedPane = new JTabbedPane();
+		try {
+			helpPane = new JEditorPane(GUIDriver.class.getResource("help.html"));
+			helpPane.setEditable(false);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		getContentPane().setLayout(new BorderLayout());
 		getContentPane().add(tabbedPane);
 		tabbedPane.add("Documents", new JScrollPane(docPane));
 		tabbedPane.add("Resources", new JScrollPane(resourcePane));
 		tabbedPane.add("Settings", new JScrollPane(settingsPane));
+		if (helpPane != null)
+			tabbedPane.add("Help", new JScrollPane(helpPane));
 		addWindowListener(new WindowAdapter() {
 			public void windowClosing(WindowEvent e) {
 				System.exit(0);
 			}
 		});
-		setSize(300, 200);
+		setSize(350, 250);
 
 		try {
 			InputStream png = GUIDriver.class.getResourceAsStream("epub.png");
