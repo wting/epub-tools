@@ -79,12 +79,14 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.net.URL;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
+import java.util.StringTokenizer;
 import java.util.Vector;
 
 import javax.imageio.ImageIO;
@@ -147,6 +149,16 @@ public class GUIDriver extends JFrame {
 	File workFolder;
 
 	Properties settings = new Properties();
+
+	static DataFlavor urilist;
+
+	static {
+		try {
+			urilist = new DataFlavor("text/uri-list;class=java.lang.String");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 
 	static class HighlightedFilter extends RGBImageFilter {
 		public HighlightedFilter() {
@@ -319,11 +331,11 @@ public class GUIDriver extends JFrame {
 		}
 
 		public void add(FileIcon component) {
-			if( getComponentCount() == 0 )
+			if (getComponentCount() == 0)
 				repaint();
 			super.add(component);
 		}
-		
+
 		private boolean isEPub(File f) {
 			return f.getName().toLowerCase().endsWith(".epub");
 		}
@@ -371,8 +383,31 @@ public class GUIDriver extends JFrame {
 			}
 		}
 
+		private List getFilesFromTransferable(Transferable t) throws Exception {
+			if (t.isDataFlavorSupported(DataFlavor.javaFileListFlavor))
+				return (List) t.getTransferData(DataFlavor.javaFileListFlavor);
+			String uris = (String) t.getTransferData(urilist);
+			StringTokenizer tok = new StringTokenizer(uris);
+			Vector files = new Vector();
+			while (tok.hasMoreTokens()) {
+				String uri = tok.nextToken();
+				try {
+					URL url = new URL(uri);
+					if (url.getProtocol().equals("file")) {
+						files.add(new File(url.getFile()));
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+			return files;
+		}
+
 		public void dragOver(DropTargetDragEvent dtde) {
-			if (!dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
+			if (!dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor) && !dtde.isDataFlavorSupported(urilist)) {
+				// DataFlavor[] list = dtde.getCurrentDataFlavors();
+				// for( int i = 0 ; i < list.length ; i++ )
+				// System.out.println("" + list[i]);
 				return;
 			}
 			if (localDrag != null) {
@@ -384,7 +419,7 @@ public class GUIDriver extends JFrame {
 			}
 			Transferable t = dtde.getTransferable();
 			try {
-				List files = (List) t.getTransferData(DataFlavor.javaFileListFlavor);
+				List files = getFilesFromTransferable(t);
 				if (files == null) {
 					// well, we cannot really make much of it, just accept
 					dtde.acceptDrag(DnDConstants.ACTION_COPY);
@@ -487,7 +522,7 @@ public class GUIDriver extends JFrame {
 
 		public void drop(DropTargetDropEvent dtde) {
 			dragActive = false;
-			if (!dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
+			if (!dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor) && !dtde.isDataFlavorSupported(urilist)) {
 				dtde.rejectDrop();
 				return;
 			}
@@ -500,7 +535,7 @@ public class GUIDriver extends JFrame {
 			}
 			try {
 				Point loc = dtde.getLocation();
-				List files = (List) t.getTransferData(DataFlavor.javaFileListFlavor);
+				List files = getFilesFromTransferable(t);
 				Iterator f = files.iterator();
 				boolean success = false;
 				while (f.hasNext()) {
@@ -912,18 +947,29 @@ public class GUIDriver extends JFrame {
 		}
 
 		public Object getTransferData(DataFlavor flavor) throws UnsupportedFlavorException, IOException {
-			if (flavor == DataFlavor.javaFileListFlavor)
+			if (flavor.equals(DataFlavor.javaFileListFlavor))
 				return list;
+			if (flavor.equals(urilist)) {
+				StringBuffer sb = new StringBuffer();
+				Iterator it = list.iterator();
+				while (it.hasNext()) {
+					File f = (File) it.next();
+					if (sb.length() > 0)
+						sb.append(' ');
+					sb.append(f.toURI());
+				}
+				return sb.toString();
+			}
 			throw new UnsupportedFlavorException(flavor);
 		}
 
 		public DataFlavor[] getTransferDataFlavors() {
-			DataFlavor[] flavors = { DataFlavor.javaFileListFlavor };
+			DataFlavor[] flavors = { DataFlavor.javaFileListFlavor, urilist };
 			return flavors;
 		}
 
 		public boolean isDataFlavorSupported(DataFlavor flavor) {
-			return flavor == DataFlavor.javaFileListFlavor;
+			return flavor.equals(DataFlavor.javaFileListFlavor) || flavor.equals(urilist);
 		}
 
 	}
@@ -1029,7 +1075,7 @@ public class GUIDriver extends JFrame {
 			File home = new File(System.getProperty("user.home"));
 			epubgenHome = new File(home, "EPUBGen");
 		}
-		
+
 		docFolder = new File(epubgenHome, "Documents");
 		docFolder.mkdirs();
 		resourceFolder = new File(epubgenHome, "Resources");
