@@ -40,11 +40,9 @@ public class DefaultFontLocator extends SimpleFontLocator {
 	private static DefaultFontLocator instance = new DefaultFontLocator();
 
 	final String[] dirs;
-	
+
 	private DefaultFontLocator() {
-		String[] builtInDirs = { "C:\\windows\\fonts",
-				System.getProperty("user.home") + "/.epubfonts" };
-		// private static String[] builtInDirs = { "//Library//Fonts" };
+		String[] builtInDirs = { "C:\\windows\\fonts" /* win */, "/Library/Fonts" /* mac */};
 		dirs = builtInDirs;
 		init();
 	}
