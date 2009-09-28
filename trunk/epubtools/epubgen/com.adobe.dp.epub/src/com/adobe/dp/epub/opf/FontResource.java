@@ -34,7 +34,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.zip.Deflater;
-import java.util.zip.DeflaterInputStream;
 
 import com.adobe.dp.epub.io.DataSource;
 
@@ -47,10 +46,62 @@ public class FontResource extends Resource {
 		this.owner = owner;
 	}
 
+	static class DeflaterInputStreamImpl extends InputStream {
+
+		InputStream in;
+
+		Deflater def;
+
+		DeflaterInputStreamImpl(InputStream in, Deflater def) {
+			this.in = in;
+			this.def = def;
+		}
+
+		public void close() throws IOException {
+			def.end();
+		}
+
+		public int read() throws IOException {
+			byte[] b = new byte[1];
+			if (read(b) == 1)
+				return b[0] & 0xFF;
+			return -1;
+		}
+
+		public int read(byte[] b, int off, int len) throws IOException {
+			int total = 0;
+			while (len > 0) {
+				int got = def.deflate(b, off, len);
+				if (got <= 0) {
+					if (in != null && def.needsInput()) {
+						byte[] buffer = new byte[4096];
+						int rlen = in.read(buffer);
+						if (rlen <= 0) {
+							def.finish();
+							in.close();
+							in = null;
+						} else {
+							def.setInput(buffer, 0, rlen);
+						}
+					} else {
+						break;
+					}
+				} else {
+					total += got;
+					off += got;
+					len -= got;
+				}
+			}
+			return total;
+		}
+
+	}
+
 	/**
 	 * Serializes this embedded font. Implements the Obfuscation Algorithm
 	 * either from
-	 * http://www.openebook.org/doc_library/informationaldocs/FontManglingSpec.html or from
+	 * http://www.openebook.org/doc_library/informationaldocs/FontManglingSpec
+	 * .html or from
 	 * http://www.adobe.com/devnet/digitalpublishing/pdfs/content_protection.pdf
 	 * depending on the type of font mangling used
 	 */
@@ -75,7 +126,7 @@ public class FontResource extends Resource {
 			if (mask != null) {
 				// encryption assumes compression
 				def = new Deflater(9, true);
-				in = new DeflaterInputStream(in, def);
+				in = new DeflaterInputStreamImpl(in, def);
 			}
 			boolean first = true;
 			while ((len = in.read(buffer)) > 0) {

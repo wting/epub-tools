@@ -377,10 +377,10 @@ class WordMLConverter {
 				rule.set("oeb-column-number", param);
 				resource.getDocument().getBody().setStyle(rule);
 			} else if (cmd.equals("pageMap")) {
-				if (param.isEmpty() || param.toLowerCase().startsWith("t") || param.equals("1"))
+				if (param.length() == 0 || param.toLowerCase().startsWith("t") || param.equals("1"))
 					epub.usePageMap();
 			} else if (cmd.equals("translit")) {
-				if (param.isEmpty() || param.toLowerCase().startsWith("t") || param.equals("1"))
+				if (param.length() == 0 || param.toLowerCase().startsWith("t") || param.equals("1"))
 					epub.setTranslit(true);
 				else
 					epub.setTranslit(false);
