@@ -213,7 +213,7 @@ public class GUIDriver extends JFrame {
 		JCheckBox embedFonts = new JCheckBox("Embed fonts");
 
 		JCheckBox adobeMangling = new JCheckBox("Use Adobe font mangling");
-		
+
 		JCheckBox pageBreaks = new JCheckBox("Add page map using page breaks (DOCX only)");
 
 		SettingsPanel() {
@@ -416,7 +416,7 @@ public class GUIDriver extends JFrame {
 			}
 		}
 
-		void addFile(File file, Point loc, boolean anyType) {
+		boolean addFile(File file, Point loc, boolean anyType) {
 			boolean canAddResources = anyType || this == resourcePane;
 			boolean canAddDocs = anyType || this == docPane;
 			if (canAddResources && canUse(file)) {
@@ -424,6 +424,7 @@ public class GUIDriver extends JFrame {
 				BufferedImage fileIcon = getResIcon(nm);
 				if (fileIcon != null) {
 					copyResourceFile(file, fileIcon, loc);
+					return true;
 				}
 			}
 			Iterator it = ConversionService.registeredSerivces();
@@ -436,16 +437,17 @@ public class GUIDriver extends JFrame {
 					icon.setLocation(loc);
 					nextLocation(docPane, loc, icon);
 					scheduleConversion(icon);
-					break;
+					return true;
 				}
 				if (canAddResources && service.canUse(file)) {
 					Image image = service.getIcon(file);
 					if (image != null) {
 						copyResourceFile(file, image, loc);
-						break;
+						return true;
 					}
 				}
 			}
+			return false;
 		}
 
 		public void drop(DropTargetDropEvent dtde) {
@@ -458,16 +460,20 @@ public class GUIDriver extends JFrame {
 			Transferable t = dtde.getTransferable();
 			if (dtde.isLocalTransfer()) {
 				localDrop(dtde);
+				dtde.dropComplete(true);
 				return;
 			}
 			try {
 				Point loc = dtde.getLocation();
 				List files = (List) t.getTransferData(DataFlavor.javaFileListFlavor);
 				Iterator f = files.iterator();
+				boolean success = false;
 				while (f.hasNext()) {
 					File file = (File) f.next();
-					addFile(file, loc, true);
+					if( addFile(file, loc, true) )
+						success = true;
 				}
+				dtde.dropComplete(success);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -475,11 +481,11 @@ public class GUIDriver extends JFrame {
 
 		public void startDrag(FileIcon src, DragGestureEvent dge) {
 			InputEvent trigger = dge.getTriggerEvent();
+			Point dragStart = null;
 			if (trigger instanceof MouseEvent) {
 				dragStart = ((MouseEvent) trigger).getPoint();
 				Point pos = src.getLocation();
-				dragStart.x += pos.x;
-				dragStart.y += pos.y;
+				GUIDriver.this.dragStart = new Point(dragStart.x + pos.x, dragStart.y + pos.y);
 			}
 			Vector files = new Vector();
 			Vector dragIcons = new Vector();
@@ -497,7 +503,17 @@ public class GUIDriver extends JFrame {
 				}
 			}
 			Transferable transferable = new FileTransferable(files);
-			dge.startDrag(null, transferable, this);
+			if (DragSource.isDragImageSupported()) {
+				BufferedImage dragImage = new BufferedImage(src.getWidth(), src.getHeight(),
+						BufferedImage.TYPE_INT_ARGB);
+				Graphics g = dragImage.getGraphics();
+				src.paint(g);
+				g.dispose();
+				Point imageOffset = new Point(-dragStart.x, -dragStart.y);
+				dge.startDrag(null, dragImage, imageOffset, transferable, this);
+			} else {
+				dge.startDrag(null, transferable, this);
+			}
 			localDrag = new FileIcon[dragIcons.size()];
 			dragIcons.copyInto(localDrag);
 		}

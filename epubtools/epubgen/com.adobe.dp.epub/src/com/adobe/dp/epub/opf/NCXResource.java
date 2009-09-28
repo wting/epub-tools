@@ -396,8 +396,9 @@ public class NCXResource extends Resource {
 	}
 
 	/**
-	 * Adobe renderer has a bug that is page map is used, each chapter must
-	 * start on page boundary. This is a workaround for this bug.
+	 * Adobe renderer has a bug that if a page map is used, each chapter must
+	 * start on page boundary. This code works around for this bug by moving the
+	 * first page break in the chapter to the beginning of the chapter.
 	 */
 	public void fixUpPageMap() {
 		Iterator pages = this.pages.iterator();
@@ -410,10 +411,10 @@ public class NCXResource extends Resource {
 			// chapter change: move back to the chapter boundary
 			lastResource = resource;
 			if (page.xref.getTargetId() != null) {
-				System.out.println("chapter break is fixed");
+				// System.out.println("chapter break is fixed");
 				page.xref = resource.getDocument().getRootXRef();
 			} else {
-				System.out.println("chapter break is good as is");
+				// System.out.println("chapter break is good as is");
 			}
 		}
 	}
