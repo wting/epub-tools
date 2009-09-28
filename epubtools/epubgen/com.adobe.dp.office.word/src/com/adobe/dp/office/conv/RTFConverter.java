@@ -423,20 +423,6 @@ public class RTFConverter {
 			res = epub.createBitmapImageResource(resName, contentType,
 					dataSource);
 		} else if (contentType.equals("image/x-wmf")) {
-			if (false) {
-				// saving WMF original
-				String wmfName = epub.makeUniqueResourceName(mediaFolder
-						+ "pict.wmf");
-				BufferedDataSource bds = new BufferedDataSource();
-				try {
-					bds.getOutputStream().write(pictBytes);
-				} catch (IOException e) {
-					throw new Error(
-							"Unexpected IOException for memory buffer stream: "
-									+ e.getMessage());
-				}
-				epub.createResource(wmfName, "image/x-wmf", bds);
-			}
 			WMFResourceWriter dw = new WMFResourceWriter();
 			GDISVGSurface svg = new GDISVGSurface(dw);
 			try {

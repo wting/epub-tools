@@ -338,13 +338,6 @@ public class GUIDriver extends JFrame {
 
 		public void dragOver(DropTargetDragEvent dtde) {
 			if (!dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
-				if (false) {
-					DataFlavor[] flavors = dtde.getCurrentDataFlavors();
-					if (flavors != null) {
-						for (int i = 0; i < flavors.length; i++)
-							System.out.println("Flavor: " + flavors[i]);
-					}
-				}
 				return;
 			}
 			if (localDrag != null) {

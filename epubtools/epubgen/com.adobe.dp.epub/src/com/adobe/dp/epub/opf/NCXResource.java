@@ -213,13 +213,13 @@ public class NCXResource extends Resource {
 
 	public void addPage(String name, XRef location) {
 
-		if (name == null || name.isEmpty()) {
+		if (name == null || name.length() == 0) {
 			if (pages.size() > 0) {
 				Page lastPage = (Page) pages.lastElement();
 				String lastName = lastPage.name;
 				name = increment(lastName);
 			}
-			if (name == null || name.isEmpty())
+			if (name == null || name.length() == 0)
 				name = Integer.toString(pages.size() + 1);
 		} else if (name.equals("."))
 			name = "";
@@ -394,7 +394,7 @@ public class NCXResource extends Resource {
 		ser.endElement(pagemapns, "page-map");
 		ser.endDocument();
 	}
-	
+
 	/**
 	 * Adobe renderer has a bug that is page map is used, each chapter must
 	 * start on page boundary. This is a workaround for this bug.
@@ -405,11 +405,11 @@ public class NCXResource extends Resource {
 		while (pages.hasNext()) {
 			Page page = (Page) pages.next();
 			OPSResource resource = page.xref.getTargetResource();
-			if( resource == lastResource )
+			if (resource == lastResource)
 				continue;
 			// chapter change: move back to the chapter boundary
 			lastResource = resource;
-			if( page.xref.getTargetId() != null ) {
+			if (page.xref.getTargetId() != null) {
 				System.out.println("chapter break is fixed");
 				page.xref = resource.getDocument().getRootXRef();
 			} else {
