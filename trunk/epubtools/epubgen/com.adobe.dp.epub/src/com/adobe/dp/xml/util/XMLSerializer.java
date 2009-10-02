@@ -105,6 +105,8 @@ public class XMLSerializer implements SDocumentHandler {
 	}
 
 	private String getPrefix(String namespace) {
+		if( namespace.equals("http://www.w3.org/XML/1998/namespace") )
+			return "xml"; // built-in
 		String prefix = (String) namespaceMap.get(namespace);
 		if (prefix != null)
 			return prefix;

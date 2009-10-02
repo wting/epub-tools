@@ -60,13 +60,13 @@ public class SVGElement extends Element {
 	}
 
 	SMapImpl getAttributes() {
-		// make sure class and id are filled correctly
-		if (className != null) {
+		// make sure class, id and style are filled correctly
+		if (className != null)
 			attrs.put(null, "class", className);
-		}
-		if (id != null) {
+		if (id != null)
 			attrs.put(null, "id", id);
-		}
+		if (style != null)
+			attrs.put(null, "style", style);
 		return attrs;
 	}
 

@@ -150,4 +150,9 @@ public class Stylesheet {
 		}
 	}
 
+	public void addDirectStyles( Reader reader ) throws IOException {
+		SimpleStylesheetParser parser = new SimpleStylesheetParser();
+		parser.readRules(reader);
+		initWithParser(parser);				
+	}
 }

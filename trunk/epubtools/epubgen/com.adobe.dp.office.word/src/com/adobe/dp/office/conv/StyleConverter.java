@@ -242,6 +242,14 @@ public class StyleConverter {
 			} else if (name.equals("rFonts")) {
 				FontFamily fontFamily = (FontFamily) value;
 				setIfNotPresent(rule, "font-family", getFontFamilyString(fontFamily));
+			} else if (name.equals("vertAlign")) {
+				if (value.equals("superscript")) {
+					setIfNotPresent(rule, "vertical-align", "super");
+					setIfNotPresent(rule, "x-font-size-adjust", new Double(0.8));
+				} else if (value.equals("subscript")) {
+					setIfNotPresent(rule, "vertical-align", "sub");
+					setIfNotPresent(rule, "x-font-size-adjust", new Double(0.8));
+				}
 			} else if (name.equals("sz")) {
 				if (usingPX) {
 					double fontSize = ((Number) value).doubleValue() / 2;
@@ -385,12 +393,23 @@ public class StyleConverter {
 	}
 
 	void resolveREM(BaseRule rule, float emScale) {
+		Object adj = rule.get("x-font-size-adjust");
+		if (adj != null)
+			rule.set("x-font-size-adjust", null);
 		Object fontSize = rule.get("font-size");
 		if (fontSize instanceof CSSLength) {
 			CSSLength len = (CSSLength) fontSize;
+			if (adj != null) {
+				len = new CSSLength(len.getValue() * ((Double) adj).doubleValue(), len.getUnit());
+				rule.set("font-size", len);
+			}
 			if (len.getUnit().equals("em")) {
 				emScale *= len.getValue();
 			}
+		} else if (adj != null) {
+			CSSLength len = new CSSLength(((Double) adj).doubleValue(), "em");
+			rule.set("font-size", len);
+			emScale *= len.getValue();
 		}
 		if (emScale == 0) {
 			// bad, bad, bad
@@ -428,11 +447,12 @@ public class StyleConverter {
 		while (style != null) {
 			addDirectPropertiesWithREM(elementName, rule, style.getRunProperties(), emScale);
 			if (!runOnly)
-				addDirectPropertiesWithREM(elementName,rule, style.getParagraphProperties(), emScale);
+				addDirectPropertiesWithREM(elementName, rule, style.getParagraphProperties(), emScale);
 			style = style.getParent();
 		}
 		if (!runOnly && documentDefaultParagraphStyle != null)
-			addDirectPropertiesWithREM(elementName, rule, documentDefaultParagraphStyle.getParagraphProperties(), emScale);
+			addDirectPropertiesWithREM(elementName, rule, documentDefaultParagraphStyle.getParagraphProperties(),
+					emScale);
 		if (elementName != null && elementName.startsWith("h")) {
 			if (rule.get("font-weight") == null)
 				rule.set("font-weight", "normal");
@@ -491,7 +511,7 @@ public class StyleConverter {
 			}
 		}
 		PrototypeRule pr = stylesheet.createPrototypeRule();
-		convertStylingRule((elementName==null?"p":elementName), pr, prop, emScale);
+		convertStylingRule((elementName == null ? "p" : elementName), pr, prop, emScale);
 		if (elementName != null && elementName.equals("li")) {
 			// leading space indicates implicit value
 			pr.set("margin-top", " 0px");
