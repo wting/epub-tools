@@ -12,6 +12,7 @@ import java.util.Properties;
 
 import javax.imageio.ImageIO;
 
+import com.adobe.dp.epub.conv.CLDriver;
 import com.adobe.dp.epub.conv.ConversionClient;
 import com.adobe.dp.epub.conv.ConversionService;
 import com.adobe.dp.epub.conv.GUIDriver;
@@ -34,7 +35,7 @@ public class DOCXConversionService extends ConversionService {
 	boolean adobeMangling = true;
 
 	boolean translit = true;
-	
+
 	boolean pageBreaks = false;
 
 	boolean getBooleanProperty(Properties prop, String name, boolean def) {
@@ -88,7 +89,7 @@ public class DOCXConversionService extends ConversionService {
 				// conv.setStylesheet(stylesheet);
 			}
 			conv.setFontLocator(fontLocator);
-			if( pageBreaks ) {
+			if (pageBreaks) {
 				conv.useWordPageBreaks();
 				epub.usePageMap();
 			}
@@ -139,7 +140,10 @@ public class DOCXConversionService extends ConversionService {
 	}
 
 	public static void main(String[] args) {
-		GUIDriver.main(args);
+		if (args.length > 0)
+			CLDriver.main(args);
+		else
+			GUIDriver.main(args);
 	}
 
 }

@@ -580,6 +580,12 @@ public class FB2Converter {
 					if (isLargeSection(child)) {
 						convertSection((FB2Section) child, entry, level + 1);
 						i++;
+					} else if (first == i) {
+						if (resource == null)
+							resource = newOPSResource();
+						i++;
+						convertToResource(resource, section, entry, level, first, i - first);
+						resource = null;						
 					}
 					size = 0;
 					first = i;
@@ -753,10 +759,10 @@ public class FB2Converter {
 				}
 			}
 		}
-		
+
 		epub.addMetadata(null, "FB2EPUB.version", Version.VERSION);
 		epub.addMetadata(null, "FB2EPUB.conversionDate", StringUtil.dateToW3CDTF(new Date()));
-		
+
 	}
 
 	public void embedFonts() {

@@ -109,7 +109,7 @@ public class SMapImpl implements SMap {
 	}
 
 	public void put(String namespace, String name, Object value) {
-		Object key = (namespace == null ? (Object)name : new QName(namespace, name));
+		Object key = (namespace == null || namespace.equals("") ? (Object)name : new QName(namespace, name));
 		table.put(key, value);		
 	}
 	

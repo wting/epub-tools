@@ -43,6 +43,10 @@ public class InlineStyleRule extends BaseRule {
 		super(properties);
 	}
 
+	public InlineStyleRule(String text) {
+		SimpleStylesheetParser.readProperties(text, this);
+	}
+
 	public void serialize(PrintWriter out) {
 		serializeProperties(out, false);
 	}

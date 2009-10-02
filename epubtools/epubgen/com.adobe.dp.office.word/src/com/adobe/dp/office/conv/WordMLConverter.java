@@ -32,11 +32,21 @@ package com.adobe.dp.office.conv;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringReader;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Stack;
 import java.util.StringTokenizer;
+
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+
+import org.xml.sax.Attributes;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+import org.xml.sax.XMLReader;
+import org.xml.sax.helpers.DefaultHandler;
 
 import com.adobe.dp.epub.io.BufferedDataSource;
 import com.adobe.dp.epub.io.ContainerSource;
@@ -51,6 +61,7 @@ import com.adobe.dp.epub.ops.HyperlinkElement;
 import com.adobe.dp.epub.ops.ImageElement;
 import com.adobe.dp.epub.ops.OPSDocument;
 import com.adobe.dp.epub.ops.SVGElement;
+import com.adobe.dp.epub.ops.SVGImageElement;
 import com.adobe.dp.epub.ops.XRef;
 import com.adobe.dp.epub.style.CSSLength;
 import com.adobe.dp.epub.style.InlineStyleRule;
@@ -117,13 +128,21 @@ class WordMLConverter {
 	boolean chapterNameWasSet;
 
 	boolean chapterSplitAllowed;
-	
+
 	private String nextPageName;
-	
+
 	boolean useWordPageBreaks;
-	
+
+	StringBuffer styleAcc = new StringBuffer();
+
+	StringBuffer injectAcc = new StringBuffer();
+
 	PrintWriter log;
-	
+
+	String nextResourceName;
+
+	String nextResourceMediaType;
+
 	WordMLConverter(WordDocument doc, Publication epub, StyleConverter styleConverter, PrintWriter log) {
 		this.log = log;
 		this.doc = doc;
@@ -215,10 +234,117 @@ class WordMLConverter {
 		}
 	}
 
+	class XMLInjector extends DefaultHandler {
+
+		Stack nesting = new Stack();
+
+		XMLInjector(Element parent) {
+			nesting.push(parent);
+		}
+
+		Element parent() {
+			return (Element) nesting.lastElement();
+		}
+
+		public void characters(char[] chars, int index, int len) throws SAXException {
+			parent().add(new String(chars, index, len));
+		}
+
+		public void endElement(String uri, String localName, String qName) throws SAXException {
+			nesting.pop();
+		}
+
+		public void startElement(String uri, String localName, String qName, Attributes attrs) throws SAXException {
+			Element e = null;
+			if (uri == null || uri.equals("") || uri.equals(OPSDocument.xhtmlns)) {
+				if (localName.equals("th") || localName.equals("td")) {
+					String align = attrs.getValue("align");
+					String colspanStr = attrs.getValue("colspan");
+					int colspan = 1;
+					if (colspanStr != null) {
+						try {
+							colspan = Integer.parseInt(colspanStr);
+						} catch (Exception ex) {
+							ex.printStackTrace(log);
+						}
+					}
+					String rowspanStr = attrs.getValue("rowspan");
+					int rowspan = 1;
+					if (rowspanStr != null) {
+						try {
+							rowspan = Integer.parseInt(rowspanStr);
+						} catch (Exception ex) {
+							ex.printStackTrace(log);
+						}
+					}
+					e = chapter.createTableCellElement(localName, align, colspan, rowspan);
+				} else if (localName.equals("img")) {
+					ImageElement imageElement = chapter.createImageElement(localName);
+					String src = attrs.getValue("src");
+					if (src != null) {
+						Resource imageResource = epub.getResourceByName("OPS/" + src);
+						imageElement.setImageResource(imageResource);
+					}
+					e = imageElement;
+				} else {
+					e = chapter.createElement(localName);
+				}
+			} else if (uri.equals(OPSDocument.svgns)) {
+				SVGElement svg;
+				if (localName.equals("image")) {
+					SVGImageElement svgImage = chapter.createSVGImageElement("image");
+					String href = attrs.getValue(OPSDocument.xlinkns, "href");
+					if (href != null) {
+						Resource imageResource = epub.getResourceByName("OPS/" + href);
+						svgImage.setImageResource(imageResource);
+					}
+					svg = svgImage;
+				} else
+					svg = chapter.createSVGElement(localName);
+				int count = attrs.getLength();
+				for (int i = 0; i < count; i++) {
+					String attrNS = attrs.getURI(i);
+					String attrName = attrs.getLocalName(i);
+					if (attrNS.equals("")) {
+						if (attrName.equals("id") || attrName.equals("style") || attrName.equals("class"))
+							continue;
+					}
+					if (localName.equals("image") && attrNS.equals(OPSDocument.xlinkns) && attrName.equals("href"))
+						continue;
+					String attrValue = attrs.getValue(i);
+					svg.setAttribute(attrNS, attrName, attrValue);
+				}
+				e = svg;
+			}
+			if (e == null) {
+				// unknown container
+				e = chapter.createElement("span");
+			}
+			String id = attrs.getValue("id");
+			if (id != null)
+				e.setId("id");
+			String className = attrs.getValue("class");
+			if (className != null)
+				e.setClassName(className);
+			String style = attrs.getValue("style");
+			if (style != null) {
+				InlineStyleRule parsedStyle = new InlineStyleRule(style);
+				e.setStyle(parsedStyle);
+			}
+			parent().add(e);
+			nesting.push(e);
+		}
+
+		public InputSource resolveEntity(String publicId, String systemId) throws SAXException {
+			throw new SAXException("External entities not allowed");
+		}
+
+	}
+
 	void useWordPageBreaks() {
 		useWordPageBreaks = true;
 	}
-	
+
 	void setFootnoteMap(Hashtable footnoteMap) {
 		this.footnoteMap = footnoteMap;
 	}
@@ -227,35 +353,44 @@ class WordMLConverter {
 		return epub;
 	}
 
-	private Resource getImageResource(PictureData data) {
+	private Resource getImageResource(PictureData data, String nameOverride, String mediaTypeOverride) {
 		String src = data.getSrc();
 		if (src == null)
 			return null;
 		String epubName = (String) convResources.get(src);
-		if (epubName == null) {
+		if (epubName == null || nameOverride != null) {
 			DataSource dataSource = wordResources.getDataSource(src);
 			int index = src.lastIndexOf('/');
 			String shortName = src.substring(index + 1);
-			String mediaType = doc.getResourceMediaType(src);
-			if (mediaType.equals("image/x-wmf")) {
-				WMFResourceWriter dw = new WMFResourceWriter();
-				GDISVGSurface svg = new GDISVGSurface(dw);
-				try {
-					WMFParser parser = new WMFParser(dataSource.getInputStream(), svg);
-					parser.readAll();
-				} catch (IOException e) {
-					e.printStackTrace(log);
-					return null;
+			String mediaType;
+			if (mediaTypeOverride != null)
+				mediaType = mediaTypeOverride;
+			else {
+				mediaType = doc.getResourceMediaType(src);
+				if (mediaType.equals("image/x-wmf")) {
+					WMFResourceWriter dw = new WMFResourceWriter();
+					GDISVGSurface svg = new GDISVGSurface(dw);
+					try {
+						WMFParser parser = new WMFParser(dataSource.getInputStream(), svg);
+						parser.readAll();
+					} catch (IOException e) {
+						e.printStackTrace(log);
+						return null;
+					}
+					dataSource = new StringDataSource(svg.getSVG());
+					mediaType = "image/svg+xml";
+					shortName = shortName + ".svg";
 				}
-				dataSource = new StringDataSource(svg.getSVG());
-				mediaType = "image/svg+xml";
-				shortName = shortName + ".svg";
 			}
-			epubName = mediaFolder + shortName;
+			if (nameOverride != null)
+				epubName = "OPS/" + nameOverride;
+			else
+				epubName = mediaFolder + shortName;
 			if (dataSource == null)
 				return null;
 			epub.createBitmapImageResource(epubName, mediaType, dataSource);
-			convResources.put(src, epubName);
+			if (nameOverride != null)
+				convResources.put(src, epubName);
 		}
 		return epub.getResourceByName(epubName);
 	}
@@ -316,6 +451,24 @@ class WordMLConverter {
 		rule.set("max-width", "100%");
 	}
 
+	void parseAndInjectXML(Element parent, StringBuffer xml) {
+		try {
+			XMLInjector injector = new XMLInjector(parent);
+			SAXParserFactory factory = SAXParserFactory.newInstance();
+			factory.setNamespaceAware(true);
+			SAXParser parser = factory.newSAXParser();
+			XMLReader reader = parser.getXMLReader();
+			reader.setContentHandler(injector);
+			reader.setEntityResolver(injector);
+			InputSource source = new InputSource(new StringReader(xml.toString()));
+			source.setSystemId("");
+			reader.parse(source);
+		} catch (Exception e) {
+			e.printStackTrace();
+			e.printStackTrace(log);
+		}
+	}
+
 	String toEPUBStyle(ParagraphProperties pp) {
 		if (pp == null)
 			return null;
@@ -348,7 +501,7 @@ class WordMLConverter {
 
 	boolean processEPUBCommand(String command, Element parent, int depth) {
 		if (command.startsWith(".")) {
-			//log.println("Command: " + command);
+			// log.println("Command: " + command);
 			int index = command.indexOf(' ');
 			String cmd;
 			String param;
@@ -389,6 +542,13 @@ class WordMLConverter {
 					epub.useAdobeFontMangling();
 				else
 					epub.useIDPFFontMangling();
+			} else if (cmd.equals("resource")) {
+				StringTokenizer tok = new StringTokenizer(param);
+				nextResourceName = tok.nextToken();
+				if (tok.hasMoreTokens())
+					nextResourceMediaType = tok.nextToken();
+				else
+					nextResourceMediaType = null;
 			} else if (cmd.equals("page")) {
 				if (!parent.content().hasNext()) {
 					// no children yet
@@ -441,6 +601,50 @@ class WordMLConverter {
 		}
 	}
 
+	void flushMagic(Element parent) {
+		if (injectAcc.length() > 0) {
+			parseAndInjectXML(parent, injectAcc);
+			injectAcc.delete(0, injectAcc.length());
+		}
+		if (styleAcc.length() > 0) {
+			try {
+				styleConverter.stylesheet.addDirectStyles(new StringReader(styleAcc.toString()));
+			} catch (Exception e) {
+				e.printStackTrace();
+				e.printStackTrace(log);
+			}
+			styleAcc.delete(0, styleAcc.length());
+		}
+	}
+
+	boolean possiblyAddResource(com.adobe.dp.office.word.Element we) {
+		if (nextResourceName == null)
+			return false;
+		Iterator it = we.content();
+		while (it.hasNext()) {
+			Object child = it.next();
+			if (child instanceof DrawingElement) {
+				DrawingElement wd = (DrawingElement) child;
+				PictureData picture = wd.getPictureData();
+				if (picture != null) {
+					try {
+						getImageResource(picture, nextResourceName, nextResourceMediaType);
+						nextResourceName = null;
+						nextResourceMediaType = null;
+						return true;
+					} catch (Exception e) {
+						e.printStackTrace(log);
+					}
+				}
+			} else if (child instanceof com.adobe.dp.office.word.Element) {
+				com.adobe.dp.office.word.Element ce = (com.adobe.dp.office.word.Element) child;
+				if (possiblyAddResource(ce))
+					return true;
+			}
+		}
+		return false;
+	}
+
 	boolean appendConvertedElement(com.adobe.dp.office.word.Element we, Element parent, float emScale, int depth) {
 		Element conv = null;
 		boolean addToParent = true;
@@ -453,8 +657,19 @@ class WordMLConverter {
 			String epubStyle = toEPUBStyle(pp);
 			if (epubStyle != null) {
 				if (epubStyle.startsWith("*command")) {
+					if (possiblyAddResource(wp))
+						return true;
 					return processEPUBCommand(we.getTextContent(), parent, depth);
-				} else if (epubStyle.equals("*metadata")) {
+				}
+				if (epubStyle.startsWith("*style")) {
+					styleAcc.append(we.getTextContent() + "\n");
+					return true;
+				}
+				if (epubStyle.startsWith("*inject")) {
+					injectAcc.append(we.getTextContent() + "\n");
+					return true;
+				}
+				if (epubStyle.equals("*metadata")) {
 					if (!hasEpubMetadata) {
 						includeWordMetadata = false;
 						hasEpubMetadata = true;
@@ -462,10 +677,22 @@ class WordMLConverter {
 					processEPUBMetadata(we.getTextContent());
 					return true;
 				}
-				elementName = "p";
-				if (epubStyle.startsWith("-"))
+				flushMagic(parent);
+				if (epubStyle.startsWith("-")) {
+					int index = epubStyle.indexOf('.');
+					if (index < 0) {
+						elementName = epubStyle.substring(1);
+						epubStyle = "";
+					} else {
+						elementName = epubStyle.substring(1, index);
+						epubStyle = epubStyle.substring(index);
+					}
+				} else
+					elementName = "p";
+				if (epubStyle.startsWith("."))
 					className = epubStyle.substring(1);
 			} else {
+				flushMagic(parent);
 				SimpleSelector selector = styleConverter
 						.mapPropertiesToSelector(pp, listElements.contains(we), emScale);
 				if (selector != null) {
@@ -500,181 +727,194 @@ class WordMLConverter {
 			} else {
 				treatAsSpace();
 			}
-		} else if (we instanceof RunElement) {
-			RunElement wr = (RunElement) we;
-			RunProperties rp = wr.getRunProperties();
-			String epubStyle = toEPUBStyle(rp);
-			String className = null;
-			String elementName;
-			SimpleSelector selector;
-			if (epubStyle != null) {
-				if (epubStyle.startsWith("*command")) {
-					return processEPUBCommand(we.getTextContent(), parent, depth);
-				}
-				elementName = "span";
-				if (epubStyle.startsWith("-"))
-					className = epubStyle.substring(1);
-				selector = styleConverter.stylesheet.getSimpleSelector(elementName, className);
-			} else {
-				selector = styleConverter.mapPropertiesToSelector(rp, false, emScale);
-			}
-			if (selector != null) {
-				if (selector != null) {
-					elementName = selector.getElementName();
-					if (elementName == null)
-						elementName = "span";
-					className = selector.getClassName();
-				} else {
-					elementName = "span";
-				}
-				conv = chapter.createElement(elementName);
-				if (className != null)
-					conv.setClassName(className);
-			}
-		} else if (we instanceof com.adobe.dp.office.word.HyperlinkElement) {
-			com.adobe.dp.office.word.HyperlinkElement wa = (com.adobe.dp.office.word.HyperlinkElement) we;
-			HyperlinkElement a = chapter.createHyperlinkElement("a");
-			String href = wa.getHRef();
-			if (href != null)
-				a.setExternalHRef(href);
-			conv = a;
-		} else if (we instanceof FootnoteReferenceElement) {
-			FootnoteReferenceElement wf = (FootnoteReferenceElement) we;
-			String fid = wf.getID();
-			if (fid != null) {
-				XRef xref = (XRef) footnoteMap.get(fid);
-				if (xref != null) {
-					HyperlinkElement a = chapter.createHyperlinkElement("a");
-					a.setClassName("footnote-ref");
-					a.setXRef(xref);
-					a.add("[" + fid + "]");
-					conv = a;
-				}
-			}
-			resetSpaceProcessing = true;
-		} else if (we instanceof FootnoteElement) {
-			FootnoteElement wf = (FootnoteElement) we;
-			String fid = wf.getID();
-			if (fid != null) {
-				conv = chapter.createElement("div");
-				footnoteMap.put(fid, conv.getSelfRef());
-				conv.setClassName("footnote");
-				Element ft = chapter.createElement("h6");
-				ft.setClassName("footnote-title");
-				conv.add(ft);
-				ft.add(fid);
-			}
-			resetSpaceProcessing = true;
-		} else if (we instanceof LastRenderedPageBreakElement ) {
-			if( useWordPageBreaks ) {
-				XRef xref;
-				if (!parent.content().hasNext()) {
-					// no children yet, use parent
-					xref = parent.getSelfRef();
-				} else {
-					conv = chapter.createElement("span");
-					xref = conv.getSelfRef();
-				}
-				epub.getTOC().addPage(null, xref);
-			}
-		} else if (we instanceof TableElement) {
-			TableElement wt = (TableElement) we;
-			TableProperties tp = wt.getTableProperties();
-			conv = chapter.createElement("table");
-			PrototypeRule prule = styleConverter.stylesheet.createPrototypeRule();
-			styleConverter.addDirectPropertiesWithREM("table", prule, tp, emScale);
-			styleConverter.addCellBorderProperties(prule, tp);
-			styleConverter.resolveREM(prule, emScale);
-			Rule rule = styleConverter.stylesheet.getClassRuleForPrototype(prule);
-			if (rule == null) {
-				String className = styleConverter.getUniqueClassName("tb", false);
-				rule = styleConverter.stylesheet.createClassRuleForPrototype(className, prule);
-			}
-			String className = ((SimpleSelector) rule.getSelector()).getClassName();
-			conv.setClassName(className);
-			resetSpaceProcessing = true;
-		} else if (we instanceof TableRowElement) {
-			conv = chapter.createElement("tr");
-			conv.setClassName(parent.getClassName());
-			resetSpaceProcessing = true;
-		} else if (we instanceof TableCellElement) {
-			conv = chapter.createElement("td");
-			conv.setClassName(parent.getClassName());
-			resetSpaceProcessing = true;
-		} else if (we instanceof TextElement) {
-			parent.add(processSpaces(((TextElement) we).getText()));
-			return true;
-		} else if (we instanceof TabElement) {
-			parent.add(processSpaces("\t"));
-			return true;
-		} else if (we instanceof BRElement) {
-			conv = chapter.createElement("br");
-			resetSpaceProcessing = true;
-		} else if (we instanceof DrawingElement) {
-			DrawingElement wd = (DrawingElement) we;
-			PictureData picture = wd.getPictureData();
-			if (picture != null) {
-				try {
-					Resource imageResource = getImageResource(picture);
-					if (imageResource != null) {
-						ImageElement img = chapter.createImageElement("img");
-						img.setImageResource(imageResource);
-						conv = img;
-						if (picture.getWidth() > 0 && picture.getHeight() > 0) {
-							double widthPt = picture.getWidth();
-							setImageWidth(img, "img", widthPt, emScale);
-						}
-					}
-				} catch (Exception e) {
-					e.printStackTrace(log);
-				}
-			}
-			resetSpaceProcessing = true;
-		} else if (we instanceof PictElement) {
-			Iterator it = we.content();
-			VMLGroupElement group = null;
-			while (it.hasNext()) {
-				Object child = it.next();
-				if (child instanceof VMLGroupElement) {
-					group = (VMLGroupElement) child;
-					break;
-				}
-			}
-			if (group != null) {
-				Hashtable style = group.getStyle();
-				if (style != null) {
-					String widthStr = (String) style.get("width");
-					if (widthStr != null) {
-						float widthPt = VMLPathConverter.readCSSLength(widthStr, 0);
-						boolean embed = false;
-						VMLConverter vmlConv = new VMLConverter(this, embed);
-						if (embed) {
-							SVGElement svg = chapter.createSVGElement("svg");
-							vmlConv.convertVML(resource, svg, group);
-							parent.add(svg);
-							setImageWidth(svg, "svg", widthPt, emScale);
-						} else {
-							String name = epub.makeUniqueResourceName(mediaFolder + "vml-embed.svg");
-							OPSResource svgResource = epub.createOPSResource(name, "image/svg+xml");
-							OPSDocument svgDoc = svgResource.getDocument();
-							SVGElement svg = (SVGElement) svgDoc.getBody();
-							vmlConv.convertVML(svgResource, svg, group);
-							ImageElement img = chapter.createImageElement("img");
-							parent.add(img);
-							img.setImageResource(svgResource);
-							setImageWidth(img, "img", widthPt, emScale);
-						}
-					}
-				}
-			}
-			return true;
-		} else if (we instanceof TXBXContentElement) {
-			conv = chapter.createElement("body");
-			conv.setClassName("embed");
-			resetSpaceProcessing = true;
 		} else {
-			// unknown element
-			return true;
+			flushMagic(parent);
+			if (we instanceof RunElement) {
+				RunElement wr = (RunElement) we;
+				RunProperties rp = wr.getRunProperties();
+				String epubStyle = toEPUBStyle(rp);
+				String className = null;
+				String elementName;
+				SimpleSelector selector;
+				if (epubStyle != null) {
+					if (epubStyle.startsWith("*command")) {
+						return processEPUBCommand(we.getTextContent(), parent, depth);
+					}
+					if (epubStyle.startsWith("-")) {
+						int index = epubStyle.indexOf('.');
+						if (index < 0) {
+							elementName = epubStyle.substring(1);
+							epubStyle = "";
+						} else {
+							elementName = epubStyle.substring(1, index);
+							epubStyle = epubStyle.substring(index);
+						}
+					} else
+						elementName = "span";
+					if (epubStyle.startsWith("."))
+						className = epubStyle.substring(1);
+					selector = styleConverter.stylesheet.getSimpleSelector(elementName, className);
+				} else {
+					selector = styleConverter.mapPropertiesToSelector(rp, false, emScale);
+				}
+				if (selector != null) {
+					if (selector != null) {
+						elementName = selector.getElementName();
+						if (elementName == null)
+							elementName = "span";
+						className = selector.getClassName();
+					} else {
+						elementName = "span";
+					}
+					conv = chapter.createElement(elementName);
+					if (className != null)
+						conv.setClassName(className);
+				}
+			} else if (we instanceof com.adobe.dp.office.word.HyperlinkElement) {
+				com.adobe.dp.office.word.HyperlinkElement wa = (com.adobe.dp.office.word.HyperlinkElement) we;
+				HyperlinkElement a = chapter.createHyperlinkElement("a");
+				String href = wa.getHRef();
+				if (href != null)
+					a.setExternalHRef(href);
+				conv = a;
+			} else if (we instanceof FootnoteReferenceElement) {
+				FootnoteReferenceElement wf = (FootnoteReferenceElement) we;
+				String fid = wf.getID();
+				if (fid != null) {
+					XRef xref = (XRef) footnoteMap.get(fid);
+					if (xref != null) {
+						HyperlinkElement a = chapter.createHyperlinkElement("a");
+						a.setClassName("footnote-ref");
+						a.setXRef(xref);
+						a.add("[" + fid + "]");
+						conv = a;
+					}
+				}
+				resetSpaceProcessing = true;
+			} else if (we instanceof FootnoteElement) {
+				FootnoteElement wf = (FootnoteElement) we;
+				String fid = wf.getID();
+				if (fid != null) {
+					conv = chapter.createElement("div");
+					footnoteMap.put(fid, conv.getSelfRef());
+					conv.setClassName("footnote");
+					Element ft = chapter.createElement("h6");
+					ft.setClassName("footnote-title");
+					conv.add(ft);
+					ft.add(fid);
+				}
+				resetSpaceProcessing = true;
+			} else if (we instanceof LastRenderedPageBreakElement) {
+				if (useWordPageBreaks) {
+					XRef xref;
+					if (!parent.content().hasNext()) {
+						// no children yet, use parent
+						xref = parent.getSelfRef();
+					} else {
+						conv = chapter.createElement("span");
+						xref = conv.getSelfRef();
+					}
+					epub.getTOC().addPage(null, xref);
+				}
+			} else if (we instanceof TableElement) {
+				TableElement wt = (TableElement) we;
+				TableProperties tp = wt.getTableProperties();
+				conv = chapter.createElement("table");
+				PrototypeRule prule = styleConverter.stylesheet.createPrototypeRule();
+				styleConverter.addDirectPropertiesWithREM("table", prule, tp, emScale);
+				styleConverter.addCellBorderProperties(prule, tp);
+				styleConverter.resolveREM(prule, emScale);
+				Rule rule = styleConverter.stylesheet.getClassRuleForPrototype(prule);
+				if (rule == null) {
+					String className = styleConverter.getUniqueClassName("tb", false);
+					rule = styleConverter.stylesheet.createClassRuleForPrototype(className, prule);
+				}
+				String className = ((SimpleSelector) rule.getSelector()).getClassName();
+				conv.setClassName(className);
+				resetSpaceProcessing = true;
+			} else if (we instanceof TableRowElement) {
+				conv = chapter.createElement("tr");
+				conv.setClassName(parent.getClassName());
+				resetSpaceProcessing = true;
+			} else if (we instanceof TableCellElement) {
+				conv = chapter.createElement("td");
+				conv.setClassName(parent.getClassName());
+				resetSpaceProcessing = true;
+			} else if (we instanceof TextElement) {
+				parent.add(processSpaces(((TextElement) we).getText()));
+				return true;
+			} else if (we instanceof TabElement) {
+				parent.add(processSpaces("\t"));
+				return true;
+			} else if (we instanceof BRElement) {
+				conv = chapter.createElement("br");
+				resetSpaceProcessing = true;
+			} else if (we instanceof DrawingElement) {
+				DrawingElement wd = (DrawingElement) we;
+				PictureData picture = wd.getPictureData();
+				if (picture != null) {
+					try {
+						Resource imageResource = getImageResource(picture, null, null);
+						if (imageResource != null) {
+							ImageElement img = chapter.createImageElement("img");
+							img.setImageResource(imageResource);
+							conv = img;
+							if (picture.getWidth() > 0 && picture.getHeight() > 0) {
+								double widthPt = picture.getWidth();
+								setImageWidth(img, "img", widthPt, emScale);
+							}
+						}
+					} catch (Exception e) {
+						e.printStackTrace(log);
+					}
+				}
+				resetSpaceProcessing = true;
+			} else if (we instanceof PictElement) {
+				Iterator it = we.content();
+				VMLGroupElement group = null;
+				while (it.hasNext()) {
+					Object child = it.next();
+					if (child instanceof VMLGroupElement) {
+						group = (VMLGroupElement) child;
+						break;
+					}
+				}
+				if (group != null) {
+					Hashtable style = group.getStyle();
+					if (style != null) {
+						String widthStr = (String) style.get("width");
+						if (widthStr != null) {
+							float widthPt = VMLPathConverter.readCSSLength(widthStr, 0);
+							boolean embed = false;
+							VMLConverter vmlConv = new VMLConverter(this, embed);
+							if (embed) {
+								SVGElement svg = chapter.createSVGElement("svg");
+								vmlConv.convertVML(resource, svg, group);
+								parent.add(svg);
+								setImageWidth(svg, "svg", widthPt, emScale);
+							} else {
+								String name = epub.makeUniqueResourceName(mediaFolder + "vml-embed.svg");
+								OPSResource svgResource = epub.createOPSResource(name, "image/svg+xml");
+								OPSDocument svgDoc = svgResource.getDocument();
+								SVGElement svg = (SVGElement) svgDoc.getBody();
+								vmlConv.convertVML(svgResource, svg, group);
+								ImageElement img = chapter.createImageElement("img");
+								parent.add(img);
+								img.setImageResource(svgResource);
+								setImageWidth(img, "img", widthPt, emScale);
+							}
+						}
+					}
+				}
+				return true;
+			} else if (we instanceof TXBXContentElement) {
+				conv = chapter.createElement("body");
+				conv.setClassName("embed");
+				resetSpaceProcessing = true;
+			} else {
+				// unknown element
+				return true;
+			}
 		}
 		if (conv != null) {
 			if (nextPageName != null) {
@@ -724,9 +964,12 @@ class WordMLConverter {
 					listControl = null;
 				}
 			}
-			if (!appendConvertedElement(child, parent, emScale, depth))
+			if (!appendConvertedElement(child, parent, emScale, depth)) {
+				flushMagic(parent);
 				return child;
+			}
 		}
+		flushMagic(parent);
 		return null;
 	}
 
