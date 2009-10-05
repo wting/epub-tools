@@ -138,6 +138,7 @@ public class WordDocumentParser {
 		propertyParsers.put("vertAlign", simpleParser);
 		propertyParsers.put("u", simpleParser);
 		propertyParsers.put("jc", simpleParser);
+		propertyParsers.put("lang", simpleParser);
 		NumberPropertyParser numberParser = new NumberPropertyParser();
 		propertyParsers.put("sz", numberParser);
 		propertyParsers.put("spacing-r", numberParser);

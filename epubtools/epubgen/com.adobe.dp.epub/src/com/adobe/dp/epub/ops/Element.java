@@ -379,7 +379,7 @@ abstract public class Element {
 	}
 	
 	public int assignPlayOrder(int playOrder) {
-		if( selfRef != null ) {
+		if( selfRef != null && selfRef.playOrderNeeded() ) {
 			selfRef.setPlayOrder(++playOrder);
 		}
 		Iterator it = content();

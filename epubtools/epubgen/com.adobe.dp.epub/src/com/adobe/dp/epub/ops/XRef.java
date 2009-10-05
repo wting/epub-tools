@@ -71,5 +71,13 @@ public class XRef {
 	public void setPlayOrder(int playOrder) {
 		this.playOrder = playOrder;
 	}
+	
+	public void requestPlayOrder() {
+		this.playOrder = -1;
+	}
+	
+	public boolean playOrderNeeded() {
+		return this.playOrder != 0;
+	}
 		
 }

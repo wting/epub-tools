@@ -108,11 +108,11 @@ public class WordDocument {
 		return docDefaultRunStyle;
 	}
 	
-	public Style getDefaultParagraphStyle1() {
+	public Style getDefaultParagraphStyle() {
 		return defaultParagraphStyle;
 	}
 
-	public Style getDefaultRunStyle1() {
+	public Style getDefaultRunStyle() {
 		return defaultRunStyle;
 	}
 }

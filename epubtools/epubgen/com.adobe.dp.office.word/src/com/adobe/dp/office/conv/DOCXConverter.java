@@ -50,6 +50,7 @@ import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.office.word.BodyElement;
 import com.adobe.dp.office.word.MetadataItem;
 import com.adobe.dp.office.word.RunProperties;
+import com.adobe.dp.office.word.Style;
 import com.adobe.dp.office.word.WordDocument;
 import com.adobe.dp.otf.FontLocator;
 import com.adobe.dp.xml.util.StringUtil;
@@ -83,6 +84,8 @@ public class DOCXConverter {
 
 	boolean useWordPageBreaks;
 
+	String lang;
+
 	public DOCXConverter(WordDocument doc, Publication epub) {
 		this.doc = doc;
 		this.epub = epub;
@@ -95,6 +98,13 @@ public class DOCXConverter {
 		styleConverter = new StyleConverter(stylesheet, false);
 		toc = epub.getTOC();
 
+		Style rs = doc.getDefaultParagraphStyle();
+		if (rs != null) {
+			RunProperties rp = rs.getRunProperties();
+			if (rp != null)
+				lang = (String) rp.get("lang");
+		}
+
 		// default font size - have to happen early
 		RunProperties rp = doc.getDocumentDefaultRunStyle().getRunProperties();
 		if (rp != null) {
@@ -103,6 +113,9 @@ public class DOCXConverter {
 				defaultFontSize = ((Number) sz).doubleValue();
 			Rule bodyRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("body", null));
 			styleConverter.addDirectProperties("body", bodyRule, rp, 1);
+			if (lang == null) {
+				lang = (String) rp.get("lang");
+			}
 		}
 		if (defaultFontSize < 1)
 			defaultFontSize = 20;
@@ -190,6 +203,10 @@ public class DOCXConverter {
 			}
 		}
 
+		if (lang != null && epub.getDCMetadata("language") == null) {
+			epub.addDCMetadata("language", lang);
+		}
+
 		epub.addMetadata(null, "DOCX2EPUB.version", Version.VERSION);
 		epub.addMetadata(null, "DOCX2EPUB.conversionDate", StringUtil.dateToW3CDTF(new Date()));
 
@@ -202,7 +219,7 @@ public class DOCXConverter {
 	public void useWordPageBreaks() {
 		useWordPageBreaks = true;
 	}
-	
+
 	public FontEmbeddingReport embedFonts() {
 		if (fontLocator != null)
 			return epub.addFonts(global, fontLocator);
