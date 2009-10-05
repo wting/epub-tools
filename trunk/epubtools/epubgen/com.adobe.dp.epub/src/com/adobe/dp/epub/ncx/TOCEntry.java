@@ -75,4 +75,14 @@ public class TOCEntry {
 	public void removeAll() {
 		children.removeAllElements();
 	}
+	
+	public void requestPlayOrder() {
+		if( xref != null )
+			xref.requestPlayOrder();
+		Iterator it = children.iterator();
+		while( it.hasNext() ) {
+			TOCEntry item = (TOCEntry)it.next();
+			item.requestPlayOrder();
+		}
+	}
 }

@@ -105,8 +105,7 @@ public class DOCXConversionService extends ConversionService {
 				if (fname.endsWith(".docx"))
 					fname = fname.substring(0, fname.length() - 5);
 			} else {
-				fname = Translit.translit(title).replace(' ', '_').replace('\t', '_').replace('\n', '_').replace('\r',
-						'_').replace('/', '_').replace('\\', '_').replace('\"', '_');
+				fname = Translit.makeFileName(title);
 			}
 
 			File outFile = client.makeFile(fname + ".epub");

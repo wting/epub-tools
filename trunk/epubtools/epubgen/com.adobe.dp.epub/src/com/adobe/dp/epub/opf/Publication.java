@@ -706,6 +706,8 @@ public class Publication {
 	 *             if I/O error occurs while writing
 	 */
 	public void serialize(ContainerWriter container) throws IOException {
+		getPrimaryIdentifier(); // if no unique id, make one
+		toc.prepareTOC();
 		Iterator spine = spine();
 		int playOrder = 0;
 		while (spine.hasNext()) {

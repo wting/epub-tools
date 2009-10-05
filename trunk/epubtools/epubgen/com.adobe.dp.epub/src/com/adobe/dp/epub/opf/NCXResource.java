@@ -375,7 +375,6 @@ public class NCXResource extends Resource {
 	}
 
 	void serializePageMap(PageMapResource pageMap, OutputStream out) throws IOException {
-		fixUpPageMap();
 		final String pagemapns = "http://www.idpf.org/2007/opf";
 		XMLSerializer ser = new XMLSerializer(out);
 		ser.startDocument("1.0", "UTF-8");
@@ -395,12 +394,13 @@ public class NCXResource extends Resource {
 		ser.endDocument();
 	}
 
-	/**
-	 * Adobe renderer has a bug that if a page map is used, each chapter must
-	 * start on page boundary. This code works around for this bug by moving the
-	 * first page break in the chapter to the beginning of the chapter.
-	 */
-	public void fixUpPageMap() {
+	public void prepareTOC() {
+		/*
+		 * Adobe renderer has a bug that if a page map is used, each chapter
+		 * must start on page boundary. This code works around for this bug by
+		 * moving the first page break in the chapter to the beginning of the
+		 * chapter. Also, mark all xrefs in page map as requiring playOrder
+		 */
 		Iterator pages = this.pages.iterator();
 		OPSResource lastResource = null;
 		while (pages.hasNext()) {
@@ -416,6 +416,12 @@ public class NCXResource extends Resource {
 			} else {
 				// System.out.println("chapter break is good as is");
 			}
+			page.xref.requestPlayOrder();
 		}
+		
+		/*
+		 * Mark all xrefs in TOC as requiring playOrder
+		 */
+		rootTOCEntry.requestPlayOrder();
 	}
 }

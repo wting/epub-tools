@@ -65,9 +65,9 @@ public class OPFResource extends Resource {
 		ser.startDocument("1.0", "UTF-8");
 		SMapImpl nsmap = new SMapImpl();
 		nsmap.put(null, "opf", opfns);
-		nsmap.put(null, "dcns", dcns);
-		nsmap.put(null, "dctermsns", dctermsns);
-		nsmap.put(null, "xsins", xsins);
+		nsmap.put(null, "dc", dcns);
+		nsmap.put(null, "dcterms", dctermsns);
+		nsmap.put(null, "xsi", xsins);
 		ser.setPreferredPrefixMap(nsmap);
 		SMapImpl attrs = new SMapImpl();
 		attrs.put(null, "version", "2.0");
