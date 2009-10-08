@@ -137,7 +137,9 @@ public class DOCXConverter {
 		pRule.set("margin-top", "0px");
 		pRule.set("margin-bottom", "0px");
 		Rule ulRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("ul", null));
-		ulRule.set("margin-left", "0px");
+		// Word puts margins on li elements 
+		ulRule.set("padding-left", "0px");
+		ulRule.set("margin-left", "0px"); // needed for older Digital Editions
 	}
 
 	public void setFontLocator(FontLocator fontLocator) {

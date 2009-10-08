@@ -134,7 +134,6 @@ public class WordDocumentParser {
 
 	static {
 		SimplePropertyParser simpleParser = new SimplePropertyParser("");
-		propertyParsers.put("numId", simpleParser);
 		propertyParsers.put("vertAlign", simpleParser);
 		propertyParsers.put("u", simpleParser);
 		propertyParsers.put("jc", simpleParser);
@@ -152,6 +151,7 @@ public class WordDocumentParser {
 		IntegerPropertyParser integerParser = new IntegerPropertyParser();
 		propertyParsers.put("ilvl", integerParser);
 		propertyParsers.put("outlineLvl", integerParser);
+		propertyParsers.put("numId", integerParser);
 		SpacingPropertyParser insetsParser = new SpacingPropertyParser();
 		propertyParsers.put("spacing", insetsParser);
 		PaintPropertyParser paintParser = new PaintPropertyParser();

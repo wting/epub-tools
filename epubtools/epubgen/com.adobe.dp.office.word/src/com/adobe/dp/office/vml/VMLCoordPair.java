@@ -48,13 +48,21 @@ public class VMLCoordPair {
 			if (index > 0) {
 				String xstr = str.substring(0, index);
 				try {
-					x = Integer.parseInt(xstr);
+					if (xstr.endsWith("pt")) {
+						double r = Double.parseDouble(xstr.substring(0, xstr.length() - 2));
+						x = (int) Math.round(r * 20);
+					} else
+						x = Integer.parseInt(xstr);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
 				String ystr = str.substring(index + 1);
 				try {
-					y = Integer.parseInt(ystr);
+					if (ystr.endsWith("pt")) {
+						double r = Double.parseDouble(ystr.substring(0, ystr.length() - 2));
+						y = (int) Math.round(r * 20);
+					} else
+						y = Integer.parseInt(ystr);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}

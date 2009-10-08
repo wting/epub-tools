@@ -69,18 +69,17 @@ public class HTMLElement extends Element {
 		nb.add("dl");
 		nonbreakable = nb;
 		Hashtable pb = new Hashtable();
-		pb.put("h1", new Integer(1000));
-		pb.put("h2", new Integer(1000));
-		pb.put("h3", new Integer(700));
-		pb.put("h4", new Integer(500));
-		pb.put("h5", new Integer(350));
-		pb.put("h6", new Integer(200));
-		pb.put("div", new Integer(200));
-		pb.put("p", new Integer(50));
+		pb.put("h1", new Integer(8000));
+		pb.put("h2", new Integer(8000));
+		pb.put("h3", new Integer(5000));
+		pb.put("h4", new Integer(3000));
+		pb.put("h5", new Integer(2000));
+		pb.put("h6", new Integer(1500));
+		pb.put("div", new Integer(1500));
+		pb.put("p", new Integer(500));
 		pb.put("dl", new Integer(0));
 		pb.put("ul", new Integer(0));
 		pb.put("ol", new Integer(0));
-		pb.put("p", new Integer(50));
 		pb.put("blockquote", new Integer(0));
 		pb.put("pre", new Integer(0));
 		peelingBonus = pb;
@@ -124,7 +123,17 @@ public class HTMLElement extends Element {
 		Integer bonus = (Integer) peelingBonus.get(elementName);
 		if (bonus == null)
 			return -1;
-		return bonus.intValue();
+		int bv = bonus.intValue();
+		if (selfRef != null) {
+			int usage = selfRef.getUsage();
+			if ((usage & XRef.USAGE_PAGE) != 0) {
+				bv += 10000;
+				//System.out.println("-- page --");
+			} else if ((usage & XRef.USAGE_TOC) != 0)
+				if( bv < 5000 )
+					bv = 5000;
+		}
+		return bv;
 	}
 
 	public void generateTOCFromHeadings(Stack headings, int depth) {
@@ -152,7 +161,7 @@ public class HTMLElement extends Element {
 	boolean makeNSDefault() {
 		return elementName.equals("body");
 	}
-	
+
 	boolean canPeelChild() {
 		return !nonbreakable.contains(elementName);
 	}

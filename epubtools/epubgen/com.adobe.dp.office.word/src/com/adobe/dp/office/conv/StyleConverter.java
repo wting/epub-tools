@@ -18,6 +18,7 @@ import com.adobe.dp.office.types.Paint;
 import com.adobe.dp.office.types.RGBColor;
 import com.adobe.dp.office.types.Spacing;
 import com.adobe.dp.office.word.BaseProperties;
+import com.adobe.dp.office.word.NumberingProperties;
 import com.adobe.dp.office.word.ParagraphProperties;
 import com.adobe.dp.office.word.RunProperties;
 import com.adobe.dp.office.word.Style;
@@ -443,6 +444,10 @@ public class StyleConverter {
 			ParagraphProperties pp = (ParagraphProperties) prop;
 			addDirectPropertiesWithREM(elementName, rule, prop, emScale);
 			style = pp.getParagraphStyle();
+			NumberingProperties num = pp.getNumberingProperties();
+			if (num != null) {
+				System.out.println("Num:" + num);
+			}
 		}
 		while (style != null) {
 			addDirectPropertiesWithREM(elementName, rule, style.getRunProperties(), emScale);
