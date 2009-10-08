@@ -278,6 +278,7 @@ abstract public class Element {
 		int bonus = getPeelingBonus();
 		remains.size -= size;
 		if (bonus >= 0 && bonus > remains.size) {
+			// System.out.println("Break for bonus " + bonus);
 			transferToDocument(newDoc);
 			return this;
 		}

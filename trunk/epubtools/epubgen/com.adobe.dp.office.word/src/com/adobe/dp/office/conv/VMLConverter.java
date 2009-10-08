@@ -243,7 +243,7 @@ public class VMLConverter {
 							wordConv = new WordMLConverter(wordConverter, resource);
 						else
 							wordConv = new WordMLConverter(wordConverter, styleConverter);
-						wordConv.appendConvertedElement(textboxContent, foreignObject, 1, 1);
+						wordConv.appendConvertedElement(textboxContent, null, foreignObject, 1, 1);
 					}
 				}
 			}

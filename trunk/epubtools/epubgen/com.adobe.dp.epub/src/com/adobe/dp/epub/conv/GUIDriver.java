@@ -237,7 +237,8 @@ public class GUIDriver extends JFrame {
 			box.add(translit);
 			box.add(embedFonts);
 			box.add(adobeMangling);
-			box.add(pageBreaks);
+			// does not work all that well
+			//box.add(pageBreaks); 
 			translit.setSelected(getBooleanProperty("translit", true));
 			embedFonts.setSelected(getBooleanProperty("embedFonts", true));
 			adobeMangling.setSelected(getBooleanProperty("adobeMangling", true));

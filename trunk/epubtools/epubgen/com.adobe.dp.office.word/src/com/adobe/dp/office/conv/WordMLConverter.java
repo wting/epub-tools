@@ -645,7 +645,8 @@ class WordMLConverter {
 		return false;
 	}
 
-	boolean appendConvertedElement(com.adobe.dp.office.word.Element we, Element parent, float emScale, int depth) {
+	boolean appendConvertedElement(com.adobe.dp.office.word.Element we, Element grandparent, Element parent,
+			float emScale, int depth) {
 		Element conv = null;
 		boolean addToParent = true;
 		boolean resetSpaceProcessing = false;
@@ -808,8 +809,13 @@ class WordMLConverter {
 				if (useWordPageBreaks) {
 					XRef xref;
 					if (!parent.content().hasNext()) {
-						// no children yet, use parent
-						xref = parent.getSelfRef();
+						// no siblings yet, use parent (or grandparent)
+						if (grandparent != null && grandparent.content().next() == parent ) {
+							// grandparent has no children yet, except parent, use grandparent as anchor
+							xref = grandparent.getSelfRef();
+						} else {
+							xref = parent.getSelfRef();
+						}
 					} else {
 						conv = chapter.createElement("span");
 						xref = conv.getSelfRef();
@@ -923,6 +929,7 @@ class WordMLConverter {
 			}
 			if (addToParent)
 				parent.add(conv);
+			grandparent = parent;
 			parent = conv;
 		}
 		if (resetSpaceProcessing)
@@ -936,14 +943,14 @@ class WordMLConverter {
 					emScale *= (float) scale;
 			}
 		}
-		addChildren(parent, we, null, emScale, depth + 1);
+		addChildren(grandparent, parent, we, null, emScale, depth + 1);
 		if (resetSpaceProcessing)
 			resetSpaceProcessing();
 		return true;
 	}
 
-	private com.adobe.dp.office.word.Element addChildren(Element parent, com.adobe.dp.office.word.Element we,
-			com.adobe.dp.office.word.Element skipToChild, float emScale, int depth) {
+	private com.adobe.dp.office.word.Element addChildren(Element grandparent, Element parent,
+			com.adobe.dp.office.word.Element we, com.adobe.dp.office.word.Element skipToChild, float emScale, int depth) {
 		Iterator children = we.content();
 		ListControl listControl = null;
 		if (skipToChild != null) {
@@ -964,7 +971,7 @@ class WordMLConverter {
 					listControl = null;
 				}
 			}
-			if (!appendConvertedElement(child, parent, emScale, depth)) {
+			if (!appendConvertedElement(child, grandparent, parent, emScale, depth)) {
 				flushMagic(parent);
 				return child;
 			}
@@ -1024,7 +1031,7 @@ class WordMLConverter {
 				epub.addToSpine(resource);
 			Element body = chapter.getBody();
 			body.setClassName("primary");
-			child = addChildren(body, wbody, child, 1, 1);
+			child = addChildren(null, body, wbody, child, 1, 1);
 		} while (child != null);
 	}
 

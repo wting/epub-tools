@@ -36,6 +36,7 @@ import java.util.Iterator;
 import java.util.Vector;
 
 import com.adobe.dp.epub.ncx.TOCEntry;
+import com.adobe.dp.epub.ops.Element;
 import com.adobe.dp.epub.ops.XRef;
 import com.adobe.dp.epub.util.Translit;
 import com.adobe.dp.xml.util.SMapImpl;
@@ -224,6 +225,7 @@ public class NCXResource extends Resource {
 		} else if (name.equals("."))
 			name = "";
 
+		location.addUsage(XRef.USAGE_PAGE);
 		pages.add(new Page(name, location));
 	}
 
@@ -403,6 +405,7 @@ public class NCXResource extends Resource {
 		 */
 		Iterator pages = this.pages.iterator();
 		OPSResource lastResource = null;
+		boolean report = false;
 		while (pages.hasNext()) {
 			Page page = (Page) pages.next();
 			OPSResource resource = page.xref.getTargetResource();
@@ -411,14 +414,31 @@ public class NCXResource extends Resource {
 			// chapter change: move back to the chapter boundary
 			lastResource = resource;
 			if (page.xref.getTargetId() != null) {
-				// System.out.println("chapter break is fixed");
+				if (report) {
+					Element p = resource.getDocument().getBody();
+					Element t = page.xref.getTagetElement();
+					while (p != t) {
+						Iterator it = p.content();
+						if (!it.hasNext())
+							break;
+						Object f = it.next();
+						if (f instanceof Element)
+							p = (Element) f;
+						else
+							break;
+					}
+					if (p != t)
+						System.out.println("chapter break is moved");
+					else
+						System.out.println("chapter break is adjusted");
+				}
 				page.xref = resource.getDocument().getRootXRef();
-			} else {
-				// System.out.println("chapter break is good as is");
+			} else if (report) {
+				System.out.println("chapter break is good as is");
 			}
 			page.xref.requestPlayOrder();
 		}
-		
+
 		/*
 		 * Mark all xrefs in TOC as requiring playOrder
 		 */
