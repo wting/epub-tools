@@ -33,8 +33,9 @@ package com.adobe.dp.office.word;
 public class ParagraphElement extends ContainerElement {
 
 	ParagraphProperties paragraphProperties;
-	
+		
 	public ParagraphProperties getParagraphProperties() {
 		return paragraphProperties;
 	}
+	
 }

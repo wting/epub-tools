@@ -79,7 +79,7 @@ import com.adobe.dp.office.word.DrawingElement;
 import com.adobe.dp.office.word.FootnoteElement;
 import com.adobe.dp.office.word.FootnoteReferenceElement;
 import com.adobe.dp.office.word.LastRenderedPageBreakElement;
-import com.adobe.dp.office.word.NumberingProperties;
+import com.adobe.dp.office.word.NumberingLabel;
 import com.adobe.dp.office.word.ParagraphElement;
 import com.adobe.dp.office.word.ParagraphProperties;
 import com.adobe.dp.office.word.PictElement;
@@ -186,21 +186,20 @@ class WordMLConverter {
 	class ListControl {
 		Stack nesting = new Stack();
 
-		Object numId;
+		int numId = -1;
 
 		Element process(Element currentParent, ParagraphElement wordElement) {
 			ParagraphElement wp = (ParagraphElement) wordElement;
 			ParagraphProperties pp = wp.getParagraphProperties();
-			NumberingProperties np = pp.getNumberingProperties();
-			Integer levelVal = (Integer) np.get("ilvl");
-			Object numId = np.get("numId");
-			if (numId == null || (this.numId != null && !this.numId.equals(numId))) {
+			NumberingLabel label = pp.getNumberingLabel();
+			int level = label.getLevel() + 1;
+			int numId = label.getNumId();
+			if (numId < 0 || (this.numId >= 0 && this.numId != numId)) {
 				currentParent = finish();
-				if (numId == null)
+				if (numId < 0)
 					return currentParent;
 			}
 			this.numId = numId;
-			int level = (levelVal == null ? 0 : levelVal.intValue()) + 1;
 			int currLevel = nesting.size();
 			if (level > currLevel) {
 				while (level > nesting.size()) {
@@ -704,18 +703,37 @@ class WordMLConverter {
 				} else {
 					elementName = "p";
 				}
-				Object lastChild = parent.getLastChild();
-				if (lastChild instanceof Element) {
-					Element lastElement = (Element) lastChild;
-					String lastClass = lastElement.getClassName();
-					String lastName = lastElement.getElementName();
-					if (elementName.equals(lastName)
-							&& (lastClass == null ? className == null : className != null
-									&& lastClass.equals(className))) {
-						if (shouldMergeParagraphs(pp)) {
-							addToParent = false;
-							conv = lastElement;
-							lastElement.add(chapter.createElement("br"));
+				NumberingLabel label = pp.getNumberingLabel();
+				if (label != null) {
+					if (!styleConverter.convertLabelToProperty(label, null)) {
+						// add label as a child
+						conv = chapter.createElement(elementName);
+						if (className != null)
+							conv.setClassName(className);
+						resetSpaceProcessing = true;
+						SimpleSelector paragraphClassSelector = styleConverter.stylesheet.getSimpleSelector(null,
+								className);
+						Rule pr = styleConverter.stylesheet.findRuleForSelector(paragraphClassSelector);
+						Rule labelRule = styleConverter.getLabelRule(pr, label, emScale * emScaleMultiplier(conv));
+						Element labelElement = chapter.createElement("span");
+						labelElement.setClassName(((SimpleSelector) labelRule.getSelector()).getClassName());
+						labelElement.add(label.getText() + " ");
+						conv.add(labelElement);
+					}
+				} else {
+					Object lastChild = parent.getLastChild();
+					if (lastChild instanceof Element) {
+						Element lastElement = (Element) lastChild;
+						String lastClass = lastElement.getClassName();
+						String lastName = lastElement.getElementName();
+						if (elementName.equals(lastName)
+								&& (lastClass == null ? className == null : className != null
+										&& lastClass.equals(className))) {
+							if (shouldMergeParagraphs(pp)) {
+								addToParent = false;
+								conv = lastElement;
+								lastElement.add(chapter.createElement("br"));
+							}
 						}
 					}
 				}
@@ -810,8 +828,9 @@ class WordMLConverter {
 					XRef xref;
 					if (!parent.content().hasNext()) {
 						// no siblings yet, use parent (or grandparent)
-						if (grandparent != null && grandparent.content().next() == parent ) {
-							// grandparent has no children yet, except parent, use grandparent as anchor
+						if (grandparent != null && grandparent.content().next() == parent) {
+							// grandparent has no children yet, except parent,
+							// use grandparent as anchor
 							xref = grandparent.getSelfRef();
 						} else {
 							xref = parent.getSelfRef();
@@ -827,7 +846,7 @@ class WordMLConverter {
 				TableProperties tp = wt.getTableProperties();
 				conv = chapter.createElement("table");
 				PrototypeRule prule = styleConverter.stylesheet.createPrototypeRule();
-				styleConverter.addDirectPropertiesWithREM("table", prule, tp, emScale);
+				styleConverter.addDirectPropertiesWithREM("table", prule, tp, emScale, false);
 				styleConverter.addCellBorderProperties(prule, tp);
 				styleConverter.resolveREM(prule, emScale);
 				Rule rule = styleConverter.stylesheet.getClassRuleForPrototype(prule);
@@ -867,7 +886,7 @@ class WordMLConverter {
 							conv = img;
 							if (picture.getWidth() > 0 && picture.getHeight() > 0) {
 								double widthPt = picture.getWidth();
-								setImageWidth(img, "img", widthPt, emScale);
+								setImageWidth(img, "img", widthPt, emScale * emScaleMultiplier(conv));
 							}
 						}
 					} catch (Exception e) {
@@ -931,22 +950,27 @@ class WordMLConverter {
 				parent.add(conv);
 			grandparent = parent;
 			parent = conv;
+			emScale *= emScaleMultiplier(conv);
 		}
 		if (resetSpaceProcessing)
 			resetSpaceProcessing();
-		Object fontSize = parent.getCascadedProperty("font-size");
+		addChildren(grandparent, parent, we, null, emScale, depth + 1);
+		if (resetSpaceProcessing)
+			resetSpaceProcessing();
+		return true;
+	}
+
+	private float emScaleMultiplier(Element e) {
+		Object fontSize = e.getCascadedProperty("font-size");
 		if (fontSize != null && fontSize instanceof CSSLength) {
 			CSSLength fs = (CSSLength) fontSize;
 			if (fs.getUnit().equals("em")) {
 				double scale = fs.getValue();
 				if (scale > 0)
-					emScale *= (float) scale;
+					return (float) scale;
 			}
 		}
-		addChildren(grandparent, parent, we, null, emScale, depth + 1);
-		if (resetSpaceProcessing)
-			resetSpaceProcessing();
-		return true;
+		return 1;
 	}
 
 	private com.adobe.dp.office.word.Element addChildren(Element grandparent, Element parent,
@@ -982,8 +1006,6 @@ class WordMLConverter {
 
 	void findLists(ContainerElement ce) {
 		Iterator it = ce.content();
-		ParagraphElement prevElement = null;
-		Object prevNumId = null;
 		while (it.hasNext()) {
 			Object n = it.next();
 			if (n instanceof ParagraphElement) {
@@ -992,29 +1014,13 @@ class WordMLConverter {
 				if (pp != null) {
 					Style style = pp.getParagraphStyle();
 					if (style != null && !style.getStyleId().startsWith("Heading")) {
-						NumberingProperties np = pp.getNumberingProperties();
-						if (np != null) {
-							Object numId = np.get("numId");
-							if (numId != null) {
-								if (prevNumId != null && numId.equals(prevNumId)) {
-									if (prevElement != null) {
-										listElements.add(prevElement);
-										prevElement = null;
-									}
-									listElements.add(pe);
-								} else {
-									prevElement = pe;
-									prevNumId = numId;
-								}
-								continue;
-							}
-						}
+						if (pp.getNumberingLabel() != null)
+							listElements.add(pe);
 					}
 				}
 			} else if (n instanceof ContainerElement) {
 				findLists((ContainerElement) n);
 			}
-			prevNumId = null;
 		}
 	}
 
