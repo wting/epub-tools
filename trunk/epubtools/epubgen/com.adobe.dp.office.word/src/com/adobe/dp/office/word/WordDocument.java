@@ -54,8 +54,14 @@ public class WordDocument {
 
 	Vector metadata = new Vector();
 	
+	// Integer(abstractNumId) -> AbstractNumberingDefinition
+	Hashtable abstractNumberingDefinitions = new Hashtable();
+	
+	// Integer(ilvl) -> NumberingDefinitionInstance
+	Hashtable numberingDefinitions = new Hashtable();
+	
 	static Hashtable mediaTypeBySuffix;
-
+	
 	static {
 		mediaTypeBySuffix = new Hashtable();
 		mediaTypeBySuffix.put("jpeg", "image/jpeg");
@@ -84,6 +90,10 @@ public class WordDocument {
 		return "application/octet-stream";
 	}
 
+	public NumberingDefinitionInstance getNumberingDefinition( Integer numId ) {
+		return (NumberingDefinitionInstance)numberingDefinitions.get(numId);
+	}
+	
 	public BodyElement getBody() {
 		return body;
 	}

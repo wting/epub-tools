@@ -34,6 +34,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.Stack;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -194,6 +195,12 @@ public class WordDocumentParser {
 		FontFamily font;
 
 		String state;
+
+		AbstractNumberingDefinition abstractNumberingDefinition;
+
+		NumberingDefinitionInstance numberingDefinitionInstance;
+
+		NumberingLevelDefinition numberingLevelDefinition;
 	}
 
 	static class Relationship {
@@ -364,9 +371,11 @@ public class WordDocumentParser {
 			float left = 0;
 			float right = 0;
 			float firstLine = 0;
+			float hanging = 0;
 			String leftStr = attributes.getValue(wNS, "left");
 			String rightStr = attributes.getValue(wNS, "right");
 			String firstLineStr = attributes.getValue(wNS, "firstLine");
+			String hangingStr = attributes.getValue(wNS, "hanging");
 			try {
 				if (leftStr != null)
 					left = Float.parseFloat(leftStr);
@@ -385,7 +394,13 @@ public class WordDocumentParser {
 			} catch (NumberFormatException e) {
 				e.printStackTrace();
 			}
-			propertyValue = new Indent(left, right, firstLine);
+			try {
+				if (hangingStr != null)
+					hanging = Float.parseFloat(hangingStr);
+			} catch (NumberFormatException e) {
+				e.printStackTrace();
+			}
+			propertyValue = new Indent(left, right, firstLine, hanging);
 			return true;
 		}
 
@@ -573,6 +588,45 @@ public class WordDocumentParser {
 										doc.defaultParagraphStyle = newContext.parentStyle;
 								}
 							}
+						} else if (localName.equals("abstractNum")) {
+							newContext.abstractNumberingDefinition = new AbstractNumberingDefinition();
+							String abstractNumIdStr = attributes.getValue(wNS, "abstractNumId");
+							try {
+								Integer abstractNumId = new Integer(abstractNumIdStr);
+								doc.abstractNumberingDefinitions.put(abstractNumId,
+										newContext.abstractNumberingDefinition);
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						} else if (localName.equals("num")) {
+							String numIdStr = attributes.getValue(wNS, "numId");
+							try {
+								Integer numId = new Integer(numIdStr);
+								newContext.numberingDefinitionInstance = new NumberingDefinitionInstance(doc, numId
+										.intValue());
+								doc.numberingDefinitions.put(numId, newContext.numberingDefinitionInstance);
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						} else if (localName.equals("lvl")) {
+							newContext.numberingLevelDefinition = new NumberingLevelDefinition();
+							String ilvlStr = attributes.getValue(wNS, "ilvl");
+							if (ilvlStr != null) {
+								try {
+									Integer ilvl = new Integer(ilvlStr);
+									newContext.numberingLevelDefinition.lvl = ilvl.intValue();
+									newContext.numberingLevelDefinition.lvlRestart = newContext.numberingLevelDefinition.lvl - 1;
+									if (parentContext.abstractNumberingDefinition != null) {
+										parentContext.abstractNumberingDefinition.numberingLevelDefinitions.put(ilvl,
+												newContext.numberingLevelDefinition);
+									} else if (parentContext.numberingDefinitionInstance != null) {
+										parentContext.numberingDefinitionInstance.numberingLevelDefinitions.put(ilvl,
+												newContext.numberingLevelDefinition);
+									}
+								} catch (Exception e) {
+									e.printStackTrace();
+								}
+							}
 						} else if (localName.equals("font")) {
 							String name = attributes.getValue(wNS, "name");
 							if (name != null) {
@@ -589,6 +643,12 @@ public class WordDocumentParser {
 								assignElementProperties(parentContext.parentElement, prop);
 							else if (parentContext.properties != null)
 								assignInnerProperties(parentContext.properties, prop);
+							else if (parentContext.numberingLevelDefinition != null) {
+								if (localName.equals("pPr"))
+									parentContext.numberingLevelDefinition.paragraphProperties = (ParagraphProperties) prop;
+								else if (localName.equals("rPr"))
+									parentContext.numberingLevelDefinition.runProperties = (RunProperties) prop;
+							}
 						} else if (parentContext.parentStyle != null) {
 							if (localName.equals("name")) {
 								parentContext.parentStyle.name = attributes.getValue(wNS, "val");
@@ -605,6 +665,43 @@ public class WordDocumentParser {
 							} else if (localName.equals("pitch")) {
 								parentContext.font.setPitch(attributes.getValue(wNS, "val"));
 							}
+						} else if (parentContext.abstractNumberingDefinition != null) {
+							if (localName.equals("numStyleLink")) {
+								parentContext.abstractNumberingDefinition.numStyleLink = attributes.getValue(wNS,
+										"val");
+							}
+						} else if (parentContext.numberingDefinitionInstance != null) {
+							if (localName.equals("abstractNumId")) {
+								String abstractNumIdStr = attributes.getValue(wNS, "val");
+								try {
+									Integer abstractNumId = new Integer(abstractNumIdStr);
+									parentContext.numberingDefinitionInstance.abstractNumbering = (AbstractNumberingDefinition) doc.abstractNumberingDefinitions
+											.get(abstractNumId);
+								} catch (Exception e) {
+									e.printStackTrace();
+								}
+							}
+						} else if (parentContext.numberingLevelDefinition != null) {
+							if (localName.equals("start")) {
+								try {
+									parentContext.numberingLevelDefinition.start = Integer.parseInt(attributes
+											.getValue(wNS, "val"));
+								} catch (Exception e) {
+									e.printStackTrace();
+								}
+							} else if (localName.equals("lvlRestart")) {
+								try {
+									parentContext.numberingLevelDefinition.lvlRestart = Integer.parseInt(attributes
+											.getValue(wNS, "val"));
+								} catch (Exception e) {
+									e.printStackTrace();
+								}
+							} else if (localName.equals("numFmt"))
+								parentContext.numberingLevelDefinition.numFmt = attributes.getValue(wNS, "val");
+							else if (localName.equals("lvlText"))
+								parentContext.numberingLevelDefinition.lvlText = attributes.getValue(wNS, "val");
+							else if (localName.equals("lvlJc"))
+								parentContext.numberingLevelDefinition.lvlJc = attributes.getValue(wNS, "val");
 						} else if (parentContext.border != null) {
 							if (localName.equals("top") || localName.equals("bottom") || localName.equals("left")
 									|| localName.equals("right") || localName.equals("insideH")
@@ -793,6 +890,42 @@ public class WordDocumentParser {
 		}
 		parseXML("word/document.xml");
 		contextStack.clear();
+		if (doc.body != null)
+			number(doc.body);
+		if (doc.footnotes != null)
+			number(doc.footnotes);
+	}
+
+	private void number(Element e) {
+		if (e instanceof ParagraphElement) {
+			ParagraphProperties pp = ((ParagraphElement) e).paragraphProperties;
+			if (pp != null) {
+				NumberingProperties np = pp.getNumberingProperties();
+				if (np != null) {
+					Integer numId = (Integer) np.get("numId");
+					Integer ilvl = (Integer) np.get("ilvl");
+					if (numId != null) {
+						NumberingDefinitionInstance inst = (NumberingDefinitionInstance) doc.numberingDefinitions
+								.get(numId);
+						if (inst != null) {
+							int lvl = ilvl != null ? ilvl.intValue() : 0;
+							Iterator it = inst.iteratorForLevel(lvl);
+							if (it != null) {
+								NumberingLabel label = (NumberingLabel) it.next();
+								pp.numberingLabel = label;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		Iterator it = e.content();
+		while (it.hasNext()) {
+			Object child = it.next();
+			if (child instanceof ContainerElement)
+				number((ContainerElement) child);
+		}
 	}
 
 	private void parseXML(String entryName) throws IOException {
@@ -924,7 +1057,7 @@ public class WordDocumentParser {
 			fe.id = attributes.getValue(wNS, "id");
 			return fe;
 		}
-		if( localName.equals("lastRenderedPageBreak"))
+		if (localName.equals("lastRenderedPageBreak"))
 			return new LastRenderedPageBreakElement();
 		return null;
 	}

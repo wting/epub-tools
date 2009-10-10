@@ -18,7 +18,7 @@ import com.adobe.dp.office.types.Paint;
 import com.adobe.dp.office.types.RGBColor;
 import com.adobe.dp.office.types.Spacing;
 import com.adobe.dp.office.word.BaseProperties;
-import com.adobe.dp.office.word.NumberingProperties;
+import com.adobe.dp.office.word.NumberingLabel;
 import com.adobe.dp.office.word.ParagraphProperties;
 import com.adobe.dp.office.word.RunProperties;
 import com.adobe.dp.office.word.Style;
@@ -78,7 +78,7 @@ public class StyleConverter {
 	}
 
 	void addDirectProperties(String elementName, BaseRule rule, BaseProperties prop, float emScale) {
-		addDirectPropertiesWithREM(elementName, rule, prop, emScale);
+		addDirectPropertiesWithREM(elementName, rule, prop, emScale, false);
 		resolveREM(rule, emScale);
 	}
 
@@ -226,7 +226,8 @@ public class StyleConverter {
 		}
 	}
 
-	void addDirectPropertiesWithREM(String elementName, BaseRule rule, BaseProperties prop, float emScale) {
+	void addDirectPropertiesWithREM(String elementName, BaseRule rule, BaseProperties prop, float emScale,
+			boolean forcePixelInd) {
 		final float normalWidth = 612; // convert to percentages of this
 		if (prop == null || prop.isEmpty())
 			return;
@@ -337,21 +338,33 @@ public class StyleConverter {
 				}
 			} else if (name.equals("ind")) {
 				Indent ind = (Indent) value;
-				if (ind.getLeft() > 0) {
-					float pts = ind.getLeft() / 20;
-					if (pts > 0) {
-						float percent = 100 * pts / normalWidth;
-						setIfNotPresent(rule, "margin-left", new CSSLength(percent, "%"));
-					}
-				}
 				if (ind.getRight() > 0) {
 					float pts = ind.getRight() / 20;
-					float percent = 100 * pts / normalWidth;
-					setIfNotPresent(rule, "margin-right", new CSSLength(percent, "%"));
+					if (pts > 0) {
+						if (forcePixelInd) {
+							setIfNotPresent(rule, "margin-right", new CSSLength(pts, "px"));
+						} else {
+							float percent = 100 * pts / normalWidth;
+							setIfNotPresent(rule, "margin-right", new CSSLength(percent, "%"));
+						}
+					}
 				}
-				if (ind.getFirstLine() > 0) {
-					double halfPtSize = ind.getFirstLine() / 10.0;
-					if (usingPX) {
+				float left = ind.getLeft() + ind.getHanging();
+				float indent = ind.getFirstLine() - ind.getHanging();
+				if (left > 0) {
+					float pts = left / 20;
+					if (pts > 0) {
+						if (forcePixelInd) {
+							setIfNotPresent(rule, "margin-left", new CSSLength(pts, "px"));
+						} else {
+							float percent = 100 * pts / normalWidth;
+							setIfNotPresent(rule, "margin-left", new CSSLength(percent, "%"));
+						}
+					}
+				}
+				if (indent != 0) {
+					double halfPtSize = indent / 10.0;
+					if (usingPX || indent < 0) {
 						double pxSize = halfPtSize / 2;
 						setIfNotPresent(rule, "text-indent", new CSSLength(pxSize, "px"));
 					} else {
@@ -433,31 +446,86 @@ public class StyleConverter {
 		}
 	}
 
+	public boolean convertLabelToProperty(NumberingLabel label, BaseRule rule) {
+		String text = label.getText();
+		if (text.length() == 1) {
+			int bulletChar = text.charAt(0);
+			if (bulletChar == 0xf0b7) {
+				// solid bullet
+				if (rule != null) {
+					rule.set("list-style-type", "disc");
+					rule.set("text-indent", new CSSLength(0, "px"));
+				}
+				return true;
+			} else if (bulletChar == 'o') {
+				if (rule != null) {
+					rule.set("list-style-type", "circle");
+					rule.set("text-indent", new CSSLength(0, "px"));
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public Rule getLabelRule(BaseRule paragraphRule, NumberingLabel label, float emScale) {
+		PrototypeRule pr = stylesheet.createPrototypeRule();
+		if (label.getRunProperties() != null)
+			convertStylingRule("span", pr, label.getRunProperties(), emScale);
+		if (paragraphRule != null) {
+			Object textIndent = paragraphRule.get("text-indent");
+			if (textIndent instanceof CSSLength) {
+				CSSLength len = (CSSLength) textIndent;
+				if (len.getValue() < 0) {
+					CSSLength labelWidth = new CSSLength(-len.getValue(), len.getUnit());
+					pr.set("display", "inline-block");
+					pr.set("text-indent", new CSSLength(0, "px"));
+					pr.set("min-width", labelWidth);
+				}
+			}
+		}
+		Rule rule = stylesheet.getClassRuleForPrototype(pr);
+		String className;
+		if (rule == null) {
+			className = findUniqueClassName("label", false);
+			rule = stylesheet.createClassRuleForPrototype(className, pr);
+			classNames.add(className);
+		} else {
+			className = ((SimpleSelector) rule.getSelector()).getClassName();
+		}
+		return rule;
+	}
+
 	private void convertStylingRule(String elementName, BaseRule rule, BaseProperties prop, float emScale) {
 		boolean runOnly = prop instanceof RunProperties;
 		Style style;
+		NumberingLabel label = null;
 		if (runOnly) {
 			RunProperties rp = (RunProperties) prop;
-			addDirectPropertiesWithREM(elementName, rule, prop, emScale);
+			addDirectPropertiesWithREM(elementName, rule, prop, emScale, false);
 			style = rp.getRunStyle();
 		} else {
 			ParagraphProperties pp = (ParagraphProperties) prop;
-			addDirectPropertiesWithREM(elementName, rule, prop, emScale);
+			label = pp.getNumberingLabel();
+			addDirectPropertiesWithREM(elementName, rule, prop, emScale, label != null);
 			style = pp.getParagraphStyle();
-			NumberingProperties num = pp.getNumberingProperties();
-			if (num != null) {
-				System.out.println("Num:" + num);
-			}
 		}
 		while (style != null) {
-			addDirectPropertiesWithREM(elementName, rule, style.getRunProperties(), emScale);
+			addDirectPropertiesWithREM(elementName, rule, style.getRunProperties(), emScale, label != null);
 			if (!runOnly)
-				addDirectPropertiesWithREM(elementName, rule, style.getParagraphProperties(), emScale);
+				addDirectPropertiesWithREM(elementName, rule, style.getParagraphProperties(), emScale, label != null);
 			style = style.getParent();
+		}
+		if (label != null) {
+			ParagraphProperties pp = label.getParagraphProperties();
+			addDirectPropertiesWithREM(elementName, rule, pp, emScale, true);
+			if (!convertLabelToProperty(label, rule)) {
+				rule.set("display", "block");
+			}
 		}
 		if (!runOnly && documentDefaultParagraphStyle != null)
 			addDirectPropertiesWithREM(elementName, rule, documentDefaultParagraphStyle.getParagraphProperties(),
-					emScale);
+					emScale, label != null);
 		if (elementName != null && elementName.startsWith("h")) {
 			if (rule.get("font-weight") == null)
 				rule.set("font-weight", "normal");
@@ -473,7 +541,7 @@ public class StyleConverter {
 		if (prop instanceof ParagraphProperties) {
 			ParagraphProperties pp = (ParagraphProperties) prop;
 			Style style = pp.getParagraphStyle();
-			boolean noInlineStyling = pp.isEmpty() && pp.getNumberingProperties() == null
+			boolean noInlineStyling = pp.isEmpty() && pp.getNumberingLabel() == null
 					&& pp.getRunProperties() == null;
 			if (style == null) {
 				if (noInlineStyling)
@@ -484,7 +552,10 @@ public class StyleConverter {
 				elementName = mapToElement(style.getStyleId());
 			}
 			if (elementName == null && style != null) {
-				className = findUniqueClassName(style.getStyleId(), pp.isEmpty());
+				String styleId = style.getStyleId();
+				if( styleId.equals("DefaultParagraphFont"))
+					styleId = "s"; // shorten it
+				className = findUniqueClassName(styleId, pp.isEmpty());
 			} else {
 				if (!noInlineStyling || elementName.equals("h1") || elementName.equals("li"))
 					className = findUniqueClassName("p", false);

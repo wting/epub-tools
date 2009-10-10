@@ -7,11 +7,14 @@ public class Indent {
 	float right;
 	
 	float firstLine;
+	
+	float hanging;
 
-	public Indent(float left, float right, float firstLine) {
+	public Indent(float left, float right, float firstLine, float hanging) {
 		this.left = left;
 		this.right = right;
 		this.firstLine = firstLine;
+		this.hanging = hanging;
 	}
 
 	public float getLeft() {
@@ -26,5 +29,8 @@ public class Indent {
 		return firstLine;
 	}
 	
+	public float getHanging() {
+		return hanging;
+	}
 	
 }

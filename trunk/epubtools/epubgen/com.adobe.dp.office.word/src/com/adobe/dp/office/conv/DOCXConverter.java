@@ -137,9 +137,11 @@ public class DOCXConverter {
 		pRule.set("margin-top", "0px");
 		pRule.set("margin-bottom", "0px");
 		Rule ulRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("ul", null));
-		// Word puts margins on li elements 
-		ulRule.set("padding-left", "0px");
-		ulRule.set("margin-left", "0px"); // needed for older Digital Editions
+		// Word puts margins on li, not ul elements 
+		ulRule.set("padding-left", "0px"); // most CSS engines have default padding on ul element 
+		ulRule.set("margin", "0px"); // left margin override needed for older Digital Editions
+		Rule nestedLiRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("li", "nested"));
+		nestedLiRule.set("display", "block");
 	}
 
 	public void setFontLocator(FontLocator fontLocator) {
