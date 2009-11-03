@@ -5,7 +5,7 @@ import settings
 
 sys.path.append('../..')
 sys.path.append('..')
-import epub
+import epubtools
 
 
 log = logging.getLogger('tei2epub')
@@ -153,9 +153,9 @@ def convert(*args):
     create_html(path, tree)
 
     # Create the epub format
-    epub.find_resources(path)
-    epub.create_mimetype(path)
-    epub_archive = epub.create_archive(path)
+    epubtools.find_resources(path)
+    epubtools.create_mimetype(path)
+    epub_archive = epubtools.create_archive(path)
 
     # Validate
     if settings.VALIDATE:
