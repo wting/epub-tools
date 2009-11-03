@@ -1,3 +1,15 @@
+PREREQUISITES
+
+tei2epub will provide automatic epubcheck validation if installed.
+
+This package should have come with an epubtools library at the top.  First install that:
+
+$ cd epubtools
+
+Modify epubtools/settings.py to point to your epubcheck installation, then:
+
+$ python setup.py install
+
 To test your tei2epub installation, run:
 
   bin/tei2epub.py sample/Wuthering-Heights_Emily-Bronte.xml
@@ -6,7 +18,7 @@ If all goes well it will say:
 
   "No errors or warnings were detected"
 
-(that's validation from epubcheck)
+(that's validation from epubcheck if you have it installed)
 
 and there will be a Wuthering-Heights_Emily-Bronte.epub in the 'dist'
 folder. 

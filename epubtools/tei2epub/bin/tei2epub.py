@@ -7,7 +7,6 @@ sys.path.append('../..')
 sys.path.append('..')
 import epubtools
 
-
 log = logging.getLogger('tei2epub')
 
 def create_html(directory, tree):
