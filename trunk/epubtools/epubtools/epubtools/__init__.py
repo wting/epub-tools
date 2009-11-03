@@ -52,15 +52,23 @@ def create_archive(path):
 
     # Add the mimetype file first and set it to be uncompressed
     epub.write(settings.MIMETYPE, compress_type=zipfile.ZIP_STORED)
-    
+
+    opf = open(os.path.join('OEBPS', 'content.opf')).read()
+
     # For the remaining paths in the EPUB, add all of their files using normal ZIP compression
     for dirpath, dirnames, filenames in os.walk('.', topdown=False):
         for name in filenames:
             if name == epub_name:
                 continue
+            if not name in opf:
+                continue
             f = os.path.join(dirpath, name) 
             log.debug("Writing file %s" % f)
             epub.write(f, compress_type=zipfile.ZIP_DEFLATED)
+
+    epub.write('META-INF/container.xml', compress_type=zipfile.ZIP_DEFLATED)
+    epub.write('OEBPS/content.opf', compress_type=zipfile.ZIP_DEFLATED)
+
     epub.close()
     try:
         shutil.move(epub_name, cwd)
