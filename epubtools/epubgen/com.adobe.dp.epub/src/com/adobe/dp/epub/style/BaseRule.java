@@ -47,6 +47,10 @@ public abstract class BaseRule {
 		this.properties = props;
 	}
 
+	public boolean isEmpty() {
+		return properties.isEmpty();
+	}
+	
 	public Object get(String property) {
 		return properties.get(property);
 	}

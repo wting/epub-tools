@@ -6,7 +6,9 @@ import java.util.Iterator;
 
 public class NumberingDefinitionInstance {
 
-	AbstractNumberingDefinition abstractNumbering;
+	private AbstractNumberingDefinition abstractNumbering;
+
+	Hashtable startOverrides = new Hashtable();
 
 	int numId;
 
@@ -52,7 +54,7 @@ public class NumberingDefinitionInstance {
 			levelDef.iterator = new NumberingLabelIterator(this, levelDef);
 		return levelDef.iterator;
 	}
-
+	
 	void resetLevels(int lvl) {
 		Enumeration keys = numberingLevelDefinitions.keys();
 		while (keys.hasMoreElements()) {
@@ -99,5 +101,12 @@ public class NumberingDefinitionInstance {
 				index = text.length();
 		}
 		return res.toString();
+	}
+
+	void setAbstractNumbering(AbstractNumberingDefinition abstractNumbering) {
+		if (abstractNumbering != null) {
+			this.abstractNumbering = abstractNumbering;
+			abstractNumbering.instances.add(this);
+		}
 	}
 }

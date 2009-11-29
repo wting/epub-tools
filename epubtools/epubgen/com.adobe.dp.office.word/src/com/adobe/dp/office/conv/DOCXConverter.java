@@ -46,6 +46,7 @@ import com.adobe.dp.epub.otf.FontEmbeddingReport;
 import com.adobe.dp.epub.style.CSSLength;
 import com.adobe.dp.epub.style.Rule;
 import com.adobe.dp.epub.style.Selector;
+import com.adobe.dp.epub.style.SimpleSelector;
 import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.office.word.BodyElement;
 import com.adobe.dp.office.word.MetadataItem;
@@ -111,8 +112,9 @@ public class DOCXConverter {
 			Object sz = rp.get("sz");
 			if (sz instanceof Number)
 				defaultFontSize = ((Number) sz).doubleValue();
-			Rule bodyRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("body", null));
-			styleConverter.addDirectProperties("body", bodyRule, rp, 1);
+			StylingResult res = styleConverter.styleElement(rp, false, 1, false, false);
+			SimpleSelector selector = stylesheet.getSimpleSelector("body", null);
+			globalStylesheet.createRuleForPrototype(selector, res.elementRule);
 			if (lang == null) {
 				lang = (String) rp.get("lang");
 			}

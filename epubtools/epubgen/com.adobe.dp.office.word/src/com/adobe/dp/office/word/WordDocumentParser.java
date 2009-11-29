@@ -50,14 +50,10 @@ import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 
 import com.adobe.dp.office.embedded.EmbeddedObject;
-import com.adobe.dp.office.types.Border;
 import com.adobe.dp.office.types.BorderSide;
 import com.adobe.dp.office.types.FontFamily;
-import com.adobe.dp.office.types.Frame;
-import com.adobe.dp.office.types.Indent;
 import com.adobe.dp.office.types.Paint;
 import com.adobe.dp.office.types.RGBColor;
-import com.adobe.dp.office.types.Spacing;
 import com.adobe.dp.office.vml.VMLElement;
 import com.adobe.dp.office.vml.VMLElementFactory;
 import com.adobe.dp.office.vml.VMLFormulasElement;
@@ -149,6 +145,8 @@ public class WordDocumentParser {
 		propertyParsers.put("strike", onOffParser);
 		propertyParsers.put("keepNext", onOffParser);
 		propertyParsers.put("keepLines", onOffParser);
+		propertyParsers.put("pageBreakBefore", onOffParser);
+		propertyParsers.put("contextualSpacing", onOffParser);
 		IntegerPropertyParser integerParser = new IntegerPropertyParser();
 		propertyParsers.put("ilvl", integerParser);
 		propertyParsers.put("outlineLvl", integerParser);
@@ -186,7 +184,7 @@ public class WordDocumentParser {
 
 		BaseProperties properties;
 
-		Border border;
+		BaseProperties borderProp;
 
 		EmbeddedObject embedded;
 
@@ -201,6 +199,8 @@ public class WordDocumentParser {
 		NumberingDefinitionInstance numberingDefinitionInstance;
 
 		NumberingLevelDefinition numberingLevelDefinition;
+
+		Integer ilvlOverride;
 	}
 
 	static class Relationship {
@@ -219,11 +219,8 @@ public class WordDocumentParser {
 
 	abstract static class PropertyParser {
 
-		abstract boolean parse(String localName, Attributes attributes, WordDocumentParser self);
+		abstract boolean parse(BaseProperties target, String localName, Attributes attributes, WordDocumentParser self);
 
-		String propertyName;
-
-		Object propertyValue;
 	}
 
 	static class SimplePropertyParser extends PropertyParser {
@@ -232,11 +229,12 @@ public class WordDocumentParser {
 			this.defaultValue = defaultValue;
 		}
 
-		boolean parse(String localName, Attributes attributes, WordDocumentParser self) {
-			propertyName = localName;
-			propertyValue = attributes.getValue(wNS, "val");
+		boolean parse(BaseProperties target, String localName, Attributes attributes, WordDocumentParser self) {
+			String propertyName = localName;
+			Object propertyValue = attributes.getValue(wNS, "val");
 			if (propertyValue == null)
 				propertyValue = defaultValue;
+			target.put(propertyName, propertyValue);
 			return true;
 		}
 
@@ -245,25 +243,28 @@ public class WordDocumentParser {
 
 	static class OnOffPropertyParser extends PropertyParser {
 
-		boolean parse(String localName, Attributes attributes, WordDocumentParser self) {
-			propertyName = localName;
+		boolean parse(BaseProperties target, String localName, Attributes attributes, WordDocumentParser self) {
+			String propertyName = localName;
+			Object propertyValue;
 			String val = attributes.getValue(wNS, "val");
 			if (val == null || val.equals("on"))
 				propertyValue = Boolean.TRUE;
 			else
 				propertyValue = Boolean.FALSE;
+			target.put(propertyName, propertyValue);
 			return true;
 		}
 	}
 
 	static class NumberPropertyParser extends PropertyParser {
 
-		boolean parse(String localName, Attributes attributes, WordDocumentParser self) {
-			propertyName = localName;
+		boolean parse(BaseProperties target, String localName, Attributes attributes, WordDocumentParser self) {
+			String propertyName = localName;
 			String val = attributes.getValue(wNS, "val");
 			if (val != null) {
 				try {
-					propertyValue = new Double(val);
+					Object propertyValue = new Double(val);
+					target.put(propertyName, propertyValue);
 					return true;
 				} catch (NumberFormatException e) {
 					e.printStackTrace();
@@ -275,12 +276,13 @@ public class WordDocumentParser {
 
 	static class IntegerPropertyParser extends PropertyParser {
 
-		boolean parse(String localName, Attributes attributes, WordDocumentParser self) {
-			propertyName = localName;
+		boolean parse(BaseProperties target, String localName, Attributes attributes, WordDocumentParser self) {
+			String propertyName = localName;
 			String val = attributes.getValue(wNS, "val");
 			if (val != null) {
 				try {
-					propertyValue = new Integer(val);
+					Object propertyValue = new Integer(val);
+					target.put(propertyName, propertyValue);
 					return true;
 				} catch (NumberFormatException e) {
 					e.printStackTrace();
@@ -290,64 +292,65 @@ public class WordDocumentParser {
 		}
 	}
 
-	static class SpacingPropertyParser extends PropertyParser {
-		boolean parse(String localName, Attributes attributes, WordDocumentParser self) {
-			propertyName = localName;
-			String before = attributes.getValue(wNS, "before");
-			String after = attributes.getValue(wNS, "after");
-			String line = attributes.getValue(wNS, "line");
-			float beforeVal = 0;
-			float afterVal = 0;
-			float lineVal = 0;
+	static abstract class CompoundPropertyParser extends PropertyParser {
+		void parseComponent(BaseProperties target, String baseName, String componentName, Attributes attributes,
+				WordDocumentParser self) {
 			try {
-				if (before != null)
-					beforeVal = Float.parseFloat(before);
+				String before = attributes.getValue(wNS, componentName);
+				if (before != null) {
+					Object propertyValue = new Double(before);
+					target.put(baseName + "-" + componentName, propertyValue);
+				}
 			} catch (NumberFormatException e) {
 				e.printStackTrace();
 			}
-			try {
-				if (after != null)
-					afterVal = Float.parseFloat(after);
-			} catch (NumberFormatException e) {
-				e.printStackTrace();
+		}
+	}
+
+	static class SpacingPropertyParser extends CompoundPropertyParser {
+		boolean parse(BaseProperties target, String localName, Attributes attributes, WordDocumentParser self) {
+			parseComponent(target, localName, "before", attributes, self);
+			parseComponent(target, localName, "after", attributes, self);
+			parseComponent(target, localName, "line", attributes, self);
+			String lineRule = attributes.getValue(wNS, "lineRule");
+			if (lineRule != null) {
+				target.put(localName + "-lineRule", lineRule);
 			}
-			try {
-				if (line != null)
-					lineVal = Float.parseFloat(line);
-			} catch (NumberFormatException e) {
-				e.printStackTrace();
-			}
-			propertyValue = new Spacing(beforeVal, afterVal, lineVal);
 			return true;
 		}
 	}
 
 	static class PaintPropertyParser extends PropertyParser {
-
-		boolean parse(String localName, Attributes attributes, WordDocumentParser self) {
-			propertyName = localName;
+		boolean parse(BaseProperties target, String localName, Attributes attributes, WordDocumentParser self) {
+			String propertyName = localName;
 			String val = attributes.getValue(wNS, "val");
-			propertyValue = parsePaint(val);
-			return propertyValue != null;
+			Object propertyValue = parsePaint(val);
+			if (propertyValue != null) {
+				target.put(propertyName, propertyValue);
+				return true;
+			}
+			return false;
 		}
 	}
 
 	static class ShadingPropertyParser extends PropertyParser {
-
-		boolean parse(String localName, Attributes attributes, WordDocumentParser self) {
-			propertyName = localName;
+		boolean parse(BaseProperties target, String localName, Attributes attributes, WordDocumentParser self) {
+			String propertyName = localName;
 			String val = attributes.getValue(wNS, "fill");
 			if (val == null)
 				return false;
-			propertyValue = parsePaint(val);
-			return propertyValue != null;
+			Object propertyValue = parsePaint(val);
+			if (propertyValue != null) {
+				target.put(propertyName, propertyValue);
+				return true;
+			}
+			return false;
 		}
 	}
 
 	static class FontsPropertyParser extends PropertyParser {
-
-		boolean parse(String localName, Attributes attributes, WordDocumentParser self) {
-			propertyName = localName;
+		boolean parse(BaseProperties target, String localName, Attributes attributes, WordDocumentParser self) {
+			String propertyName = localName;
 			String name = attributes.getValue(wNS, "ascii");
 			if (name == null) {
 				String themeName = attributes.getValue(wNS, "asciiTheme");
@@ -358,84 +361,39 @@ public class WordDocumentParser {
 						name = self.minorFontName;
 				}
 			}
-			if (name != null)
-				propertyValue = self.fonts.get(name);
-			return propertyValue != null;
+			if (name != null) {
+				Object propertyValue = self.fonts.get(name);
+				if (propertyValue != null) {
+					target.put(propertyName, propertyValue);
+					return true;
+				}
+			}
+			return false;
 		}
 	}
 
-	static class IndentParser extends PropertyParser {
+	static class IndentParser extends CompoundPropertyParser {
 
-		boolean parse(String localName, Attributes attributes, WordDocumentParser self) {
-			propertyName = localName;
-			float left = 0;
-			float right = 0;
-			float firstLine = 0;
-			float hanging = 0;
-			String leftStr = attributes.getValue(wNS, "left");
-			String rightStr = attributes.getValue(wNS, "right");
-			String firstLineStr = attributes.getValue(wNS, "firstLine");
-			String hangingStr = attributes.getValue(wNS, "hanging");
-			try {
-				if (leftStr != null)
-					left = Float.parseFloat(leftStr);
-			} catch (NumberFormatException e) {
-				e.printStackTrace();
-			}
-			try {
-				if (rightStr != null)
-					right = Float.parseFloat(rightStr);
-			} catch (NumberFormatException e) {
-				e.printStackTrace();
-			}
-			try {
-				if (firstLineStr != null)
-					firstLine = Float.parseFloat(firstLineStr);
-			} catch (NumberFormatException e) {
-				e.printStackTrace();
-			}
-			try {
-				if (hangingStr != null)
-					hanging = Float.parseFloat(hangingStr);
-			} catch (NumberFormatException e) {
-				e.printStackTrace();
-			}
-			propertyValue = new Indent(left, right, firstLine, hanging);
+		boolean parse(BaseProperties target, String localName, Attributes attributes, WordDocumentParser self) {
+			parseComponent(target, localName, "left", attributes, self);
+			parseComponent(target, localName, "right", attributes, self);
+			parseComponent(target, localName, "firstLine", attributes, self);
+			parseComponent(target, localName, "hanging", attributes, self);
 			return true;
 		}
 
 	}
 
-	static class FrameParser extends PropertyParser {
+	static class FrameParser extends CompoundPropertyParser {
 
-		boolean parse(String localName, Attributes attributes, WordDocumentParser self) {
-			propertyName = localName;
-			float width = 0;
-			float hSpace = 0;
-			float vSpace = 0;
-			String widthStr = attributes.getValue(wNS, "w");
-			String hSpaceStr = attributes.getValue(wNS, "hSpace");
-			String vSpaceStr = attributes.getValue(wNS, "vSpace");
+		boolean parse(BaseProperties target, String localName, Attributes attributes, WordDocumentParser self) {
+			parseComponent(target, localName, "w", attributes, self);
+			parseComponent(target, localName, "hSpace", attributes, self);
+			parseComponent(target, localName, "vSpace", attributes, self);
 			String align = attributes.getValue(wNS, "xAlign");
-			try {
-				if (widthStr != null)
-					width = Float.parseFloat(widthStr);
-			} catch (NumberFormatException e) {
-				e.printStackTrace();
+			if (align != null) {
+				target.put(localName + "-align", align);
 			}
-			try {
-				if (hSpaceStr != null)
-					hSpace = Float.parseFloat(hSpaceStr);
-			} catch (NumberFormatException e) {
-				e.printStackTrace();
-			}
-			try {
-				if (vSpaceStr != null)
-					vSpace = Float.parseFloat(vSpaceStr);
-			} catch (NumberFormatException e) {
-				e.printStackTrace();
-			}
-			propertyValue = new Frame(align, width, hSpace, vSpace);
 			return true;
 		}
 
@@ -608,6 +566,31 @@ public class WordDocumentParser {
 							} catch (Exception e) {
 								e.printStackTrace();
 							}
+						} else if (localName.equals("lvlOverride")) {
+							if (parentContext.numberingDefinitionInstance != null) {
+								newContext.numberingDefinitionInstance = parentContext.numberingDefinitionInstance;
+								String ilvlStr = attributes.getValue(wNS, "ilvl");
+								if (ilvlStr != null) {
+									try {
+										newContext.ilvlOverride = new Integer(ilvlStr);
+									} catch (Exception e) {
+										e.printStackTrace();
+									}
+								}
+							}
+						} else if (localName.equals("startOverride")) {
+							if (parentContext.ilvlOverride != null && parentContext.numberingDefinitionInstance != null) {
+								String startStr = attributes.getValue(wNS, "val");
+								if (startStr != null) {
+									try {
+										Integer start = new Integer(startStr);
+										parentContext.numberingDefinitionInstance.startOverrides.put(
+												parentContext.ilvlOverride, start);
+									} catch (Exception e) {
+										e.printStackTrace();
+									}
+								}
+							}
 						} else if (localName.equals("lvl")) {
 							newContext.numberingLevelDefinition = new NumberingLevelDefinition();
 							String ilvlStr = attributes.getValue(wNS, "ilvl");
@@ -667,16 +650,17 @@ public class WordDocumentParser {
 							}
 						} else if (parentContext.abstractNumberingDefinition != null) {
 							if (localName.equals("numStyleLink")) {
-								parentContext.abstractNumberingDefinition.numStyleLink = attributes.getValue(wNS,
-										"val");
+								parentContext.abstractNumberingDefinition.numStyleLink = attributes
+										.getValue(wNS, "val");
 							}
 						} else if (parentContext.numberingDefinitionInstance != null) {
 							if (localName.equals("abstractNumId")) {
 								String abstractNumIdStr = attributes.getValue(wNS, "val");
 								try {
 									Integer abstractNumId = new Integer(abstractNumIdStr);
-									parentContext.numberingDefinitionInstance.abstractNumbering = (AbstractNumberingDefinition) doc.abstractNumberingDefinitions
-											.get(abstractNumId);
+									parentContext.numberingDefinitionInstance
+											.setAbstractNumbering((AbstractNumberingDefinition) doc.abstractNumberingDefinitions
+													.get(abstractNumId));
 								} catch (Exception e) {
 									e.printStackTrace();
 								}
@@ -702,23 +686,23 @@ public class WordDocumentParser {
 								parentContext.numberingLevelDefinition.lvlText = attributes.getValue(wNS, "val");
 							else if (localName.equals("lvlJc"))
 								parentContext.numberingLevelDefinition.lvlJc = attributes.getValue(wNS, "val");
-						} else if (parentContext.border != null) {
+						} else if (parentContext.borderProp != null) {
 							if (localName.equals("top") || localName.equals("bottom") || localName.equals("left")
 									|| localName.equals("right") || localName.equals("insideH")
 									|| localName.equals("insideV")) {
 								BorderSide side = parseBorderSide(attributes);
 								if (localName.equals("top"))
-									parentContext.border.setTop(side);
+									parentContext.borderProp.put("border-top", side);
 								else if (localName.equals("bottom"))
-									parentContext.border.setBottom(side);
+									parentContext.borderProp.put("border-bottom", side);
 								else if (localName.equals("left"))
-									parentContext.border.setLeft(side);
+									parentContext.borderProp.put("border-left", side);
 								else if (localName.equals("right"))
-									parentContext.border.setRight(side);
+									parentContext.borderProp.put("border-right", side);
 								else if (localName.equals("insideH"))
-									parentContext.border.setInsideH(side);
+									parentContext.borderProp.put("border-insideH", side);
 								else if (localName.equals("insideV"))
-									parentContext.border.setInsideV(side);
+									parentContext.borderProp.put("border-insideV", side);
 							}
 						} else if (parentContext.properties != null) {
 							BaseProperties prop = parentContext.properties;
@@ -732,16 +716,14 @@ public class WordDocumentParser {
 										((RunProperties) prop).runStyle = style;
 								}
 							} else if (localName.equals("pBdr") || localName.equals("tblBorders")) {
-								newContext.border = new Border();
-								prop.put(localName, newContext.border);
+								newContext.borderProp = prop;
 							} else {
 								if (localName.equals("spacing") && parentContext.properties instanceof RunProperties)
 									localName = "spacing-r";
 								PropertyParser propertyParser = getPropertyParser(localName);
 								if (propertyParser != null) {
-									if (propertyParser.parse(localName, attributes, WordDocumentParser.this))
-										parentContext.properties.put(propertyParser.propertyName,
-												propertyParser.propertyValue);
+									propertyParser.parse(parentContext.properties, localName, attributes,
+											WordDocumentParser.this);
 								} else {
 									// System.out.println("unknown property: " +
 									// localName);
@@ -894,6 +876,7 @@ public class WordDocumentParser {
 			number(doc.body);
 		if (doc.footnotes != null)
 			number(doc.footnotes);
+		zip.close();
 	}
 
 	private void number(Element e) {
@@ -1037,6 +1020,8 @@ public class WordDocumentParser {
 			return new TableCellElement();
 		if (localName.equals("txbxContent"))
 			return new TXBXContentElement();
+		if (localName.equals("smartTag"))
+			return new SmartTagElement();
 		if (localName.equals("hyperlink")) {
 			HyperlinkElement he = new HyperlinkElement();
 			String rid = attributes.getValue(rNS, "id");
@@ -1050,6 +1035,8 @@ public class WordDocumentParser {
 		if (localName.equals("footnote")) {
 			FootnoteElement fe = new FootnoteElement();
 			fe.id = attributes.getValue(wNS, "id");
+			if (fe.id == null || fe.id.equals("0") || fe.id.startsWith("-"))
+				return null;
 			return fe;
 		}
 		if (localName.equals("footnoteReference")) {

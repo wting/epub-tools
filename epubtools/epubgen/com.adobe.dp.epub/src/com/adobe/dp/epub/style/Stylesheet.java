@@ -118,16 +118,25 @@ public class Stylesheet {
 		return rule;
 	}
 
-	public Rule createClassRuleForPrototype(String className, PrototypeRule props) {
-		SimpleSelector selector = getSimpleSelector(null, className);
+	public Rule createRuleForPrototype(SimpleSelector selector, PrototypeRule props) {
 		if (rulesBySelector.get(selector) != null)
-			throw new RuntimeException("rule already exists for ." + className);
+			throw new RuntimeException("rule already exists for ." + selector.toString());
 		Rule rule = new Rule(selector, props);
 		content.add(rule);
 		rulesBySelector.put(selector, rule);
 		props.properties = null;
 		lockedRulesByProperties.put(rule.properties, rule);
 		return rule;
+	}
+
+	public Rule createClassRuleForPrototype(String className, PrototypeRule props) {
+		SimpleSelector selector = getSimpleSelector(null, className);
+		return createRuleForPrototype(selector, props);
+	}
+
+	public Rule createRuleForPrototype(String elementName, String className, PrototypeRule props) {
+		SimpleSelector selector = getSimpleSelector(elementName, className);
+		return createRuleForPrototype(selector, props);
 	}
 
 	public Iterator content() {

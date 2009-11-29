@@ -28,35 +28,8 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-package com.adobe.dp.office.types;
+package com.adobe.dp.office.word;
 
-public class Frame {
+public class SmartTagElement extends ContainerElement {
 
-	String align;
-	float width;
-	float hSpace;
-	float vSpace;
-	
-	public Frame(String align, float width, float hSpace, float vSpace) {
-		this.align = align;
-		this.width = width;
-		this.hSpace = hSpace;
-		this.vSpace = vSpace;
-	}
-
-	public String getAlign() {
-		return align;
-	}
-
-	public float getWidth() {
-		return width;
-	}
-
-	public float getHSpace() {
-		return hSpace;
-	}
-
-	public float getVSpace() {
-		return vSpace;
-	}
 }
