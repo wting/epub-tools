@@ -375,7 +375,7 @@ public class EMFParser extends MetafileParser {
 			int type = readInt();
 			int size = readInt();
 			setRemainsBytes(size - 8);
-			System.out.println("RECORD " + type + " [" + size + "]");
+			//System.out.println("RECORD " + type + " [" + size + "]");
 			switch (type) {
 			case EMR_HEADER:
 				throw new IOException("unexpected header record");
@@ -639,4 +639,11 @@ public class EMFParser extends MetafileParser {
 		}
 		return true;
 	}
+	
+	public void readAll() throws IOException {
+		while (readNext()) {
+		}
+		close();
+	}
+	
 }

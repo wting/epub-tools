@@ -60,7 +60,8 @@ public class NumberingLabelIterator implements Iterator {
 		else
 			count++;
 		String txt = instance.formatText(level.lvlText, level.lvl);
-		System.out.println("[" + instance.numId + "," + level.lvl + "]: " + level.lvlText + " -> " + txt);
+		// System.out.println("[" + instance.numId + "," + level.lvl + "]: " +
+		// level.lvlText + " -> " + txt);
 		instance.resetLevels(level.lvl);
 		return new NumberingLabel(instance, level, txt);
 	}

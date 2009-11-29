@@ -1,6 +1,7 @@
 package com.adobe.dp.office.word;
 
 import java.util.Hashtable;
+import java.util.Vector;
 
 public class AbstractNumberingDefinition {
 
@@ -11,6 +12,8 @@ public class AbstractNumberingDefinition {
 
 	boolean instantiated;
 
+	Vector instances = new Vector();
+	
 	public Hashtable getNumberingLevelDefinitions(WordDocument doc) {
 		if (numStyleLink != null && !instantiated) {
 			instantiated = true;

@@ -30,6 +30,8 @@
 
 package com.adobe.dp.office.word;
 
+import java.util.Iterator;
+
 public class ParagraphProperties extends BaseProperties {
 
 	RunProperties runProperties;
@@ -91,6 +93,31 @@ public class ParagraphProperties extends BaseProperties {
 		} else {
 			if (!runProperties.equals(pp.runProperties))
 				return false;
+		}
+		return true;
+	}
+
+	public boolean sameStyle(ParagraphProperties other) {
+		if (other.paragraphStyle != paragraphStyle)
+			return false;
+		if (!isEmpty()) {
+			Iterator it = properties();
+			while (it.hasNext()) {
+				String prop = (String) it.next();
+				Object v1 = get(prop);
+				Object v2 = other.get(prop);
+				if (v1 != v2 && (v1 == null || v2 == null || !v1.equals(v2)))
+					return false;
+			}
+		}
+		if (!other.isEmpty()) {
+			Iterator it = other.properties();
+			while (it.hasNext()) {
+				String prop = (String) it.next();
+				Object v1 = get(prop);
+				if (v1 == null)
+					return false;
+			}
 		}
 		return true;
 	}
