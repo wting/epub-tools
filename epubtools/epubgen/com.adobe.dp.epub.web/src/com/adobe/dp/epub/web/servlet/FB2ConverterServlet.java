@@ -183,7 +183,7 @@ public class FB2ConverterServlet extends HttpServlet {
 				fname = "book";
 			else
 				fname = Translit.translit(title).replace(' ', '_').replace('\t', '_').replace('\n', '_').replace('\r',
-						'_');
+						'_').replace('\u00AB', '_').replace('\u00BB', '_');
 			resp.setContentType("application/epub+zip");
 			resp.setHeader("Content-Disposition", "attachment; filename=" + fname + ".epub");
 			OutputStream out = resp.getOutputStream();
