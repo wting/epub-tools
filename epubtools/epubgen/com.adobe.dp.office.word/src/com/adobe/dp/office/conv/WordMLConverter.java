@@ -48,6 +48,9 @@ import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 
+import com.adobe.dp.css.CSSLength;
+import com.adobe.dp.css.CSSParser;
+import com.adobe.dp.css.InlineRule;
 import com.adobe.dp.epub.io.BufferedDataSource;
 import com.adobe.dp.epub.io.ContainerSource;
 import com.adobe.dp.epub.io.DataSource;
@@ -63,11 +66,6 @@ import com.adobe.dp.epub.ops.OPSDocument;
 import com.adobe.dp.epub.ops.SVGElement;
 import com.adobe.dp.epub.ops.SVGImageElement;
 import com.adobe.dp.epub.ops.XRef;
-import com.adobe.dp.epub.style.CSSLength;
-import com.adobe.dp.epub.style.InlineStyleRule;
-import com.adobe.dp.epub.style.PrototypeRule;
-import com.adobe.dp.epub.style.Rule;
-import com.adobe.dp.epub.style.SimpleSelector;
 import com.adobe.dp.office.drawing.PictureData;
 import com.adobe.dp.office.metafile.EMFParser;
 import com.adobe.dp.office.metafile.WMFParser;
@@ -297,7 +295,8 @@ class WordMLConverter {
 				e.setClassName(className);
 			String style = attrs.getValue("style");
 			if (style != null) {
-				InlineStyleRule parsedStyle = new InlineStyleRule(style);
+				CSSParser parser = new CSSParser();
+				InlineRule parsedStyle = parser.readInlineStyle(style);
 				e.setStyle(parsedStyle);
 			}
 			parent().add(e);
@@ -440,7 +439,7 @@ class WordMLConverter {
 							EMFParser parser = new EMFParser(dataSource.getInputStream(), svg);
 							parser.readAll();
 						} catch (IOException e) {
-							//e.printStackTrace();
+							// e.printStackTrace();
 							e.printStackTrace(log);
 							return null;
 						}
@@ -499,10 +498,7 @@ class WordMLConverter {
 	}
 
 	void setImageWidth(Element img, String baseClassName, double widthPt, float emScale) {
-		String className = styleConverter.getUniqueClassName(baseClassName, false);
-		img.setClassName(className);
-		SimpleSelector selector = styleConverter.stylesheet.getSimpleSelector(null, className);
-		Rule rule = styleConverter.stylesheet.getRuleForSelector(selector);
+		InlineRule rule = new InlineRule();
 		if (styleConverter.usingPX()) {
 			rule.set("width", new CSSLength(widthPt, "px"));
 		} else {
@@ -511,6 +507,8 @@ class WordMLConverter {
 			rule.set("width", new CSSLength(widthEM, "em"));
 		}
 		rule.set("max-width", "100%");
+		img.setStyle(rule);
+		img.setClassName(baseClassName);
 	}
 
 	void parseAndInjectXML(StringBuffer xml) {
@@ -526,7 +524,7 @@ class WordMLConverter {
 			source.setSystemId("");
 			reader.parse(source);
 		} catch (Exception e) {
-			//e.printStackTrace();
+			// e.printStackTrace();
 			e.printStackTrace(log);
 		}
 	}
@@ -588,7 +586,7 @@ class WordMLConverter {
 					chapterNameWasSet = true;
 				}
 			} else if (cmd.equals("columns")) {
-				InlineStyleRule rule = new InlineStyleRule();
+				InlineRule rule = new InlineRule();
 				rule.set("oeb-column-number", param);
 				resource.getDocument().getBody().setStyle(rule);
 			} else if (cmd.equals("pageMap")) {
@@ -684,9 +682,10 @@ class WordMLConverter {
 		}
 		if (styleAcc.length() > 0) {
 			try {
-				styleConverter.stylesheet.addDirectStyles(new StringReader(styleAcc.toString()));
+				CSSParser parser = new CSSParser();
+				parser.readStylesheet(new StringReader(styleAcc.toString()), styleConverter.stylesheet.getCSS());
 			} catch (Exception e) {
-				//e.printStackTrace();
+				// e.printStackTrace();
 				e.printStackTrace(log);
 			}
 			styleAcc.delete(0, styleAcc.length());
@@ -794,7 +793,6 @@ class WordMLConverter {
 				boolean nc1 = getNeigborCode(prevpp, pp);
 				boolean nc2 = getNeigborCode(pp, nextpp);
 				StylingResult result = styleConverter.styleElement(pp, listElements.contains(we), emScale, nc1, nc2);
-				styleConverter.finalizeElementRule(result);
 
 				NestingItem containerItem = getOPSContainer(wp, !nc1);
 				if (!nc1 && result.containerRule != null)
@@ -804,10 +802,9 @@ class WordMLConverter {
 				if (!nc2) {
 					if (containerItem.topMargin != null) {
 						if (result.containerRule == null)
-							result.containerRule = new PrototypeRule();
+							result.containerRule = new InlineRule();
 						result.containerRule.set("margin-top", containerItem.topMargin);
 					}
-					styleConverter.finalizeContainerRule(result);
 					if (containerItem.opsElement != null)
 						containerItem.opsElement.setClassName(result.containerClassName);
 				}
@@ -823,10 +820,7 @@ class WordMLConverter {
 						if (className != null)
 							conv.setClassName(className);
 						resetSpaceProcessing = true;
-						SimpleSelector paragraphClassSelector = styleConverter.stylesheet.getSimpleSelector(null,
-								className);
-						Rule pr = styleConverter.stylesheet.findRuleForSelector(paragraphClassSelector);
-						StylingResult labelRes = styleConverter.getLabelRule(pr, label, emScale
+						StylingResult labelRes = styleConverter.getLabelRule(result.elementRule, label, emScale
 								* emScaleMultiplier(conv));
 						Element labelElement = chapter.createElement("span");
 						labelElement.setClassName(labelRes.elementClassName);
@@ -855,7 +849,6 @@ class WordMLConverter {
 					if (epubStyle.startsWith("*command")) {
 						return processEPUBCommand(we.getTextContent(), depth);
 					}
-					SimpleSelector selector;
 					if (epubStyle.startsWith("-")) {
 						int index = epubStyle.indexOf('.');
 						if (index < 0) {
@@ -869,20 +862,10 @@ class WordMLConverter {
 						elementName = "span";
 					if (epubStyle.startsWith("."))
 						className = epubStyle.substring(1);
-					selector = styleConverter.stylesheet.getSimpleSelector(elementName, className);
-					if (selector != null) {
-						if (selector != null) {
-							elementName = selector.getElementName();
-							if (elementName == null)
-								elementName = "span";
-							className = selector.getClassName();
-						} else {
-							elementName = "span";
-						}
-					}
+					if (elementName == null)
+						elementName = "span";
 				} else {
 					StylingResult result = styleConverter.styleElement(rp, false, emScale, false, false);
-					styleConverter.finalizeElementRule(result);
 					elementName = result.elementName;
 					className = result.elementClassName;
 					if (elementName == null && className != null)
@@ -945,10 +928,6 @@ class WordMLConverter {
 					// every table gets unique class
 					String className = styleConverter.getUniqueClassName("tb", false);
 					conv.setClassName(className);
-					if (!result.elementRule.isEmpty())
-						styleConverter.stylesheet.createRuleForPrototype("table", className, result.elementRule);
-					if (result.tableCellRule != null)
-						styleConverter.stylesheet.createRuleForPrototype("td", className, result.tableCellRule);
 				}
 				resetSpaceProcessing = true;
 			} else if (we instanceof TableRowElement) {
@@ -986,7 +965,7 @@ class WordMLConverter {
 							}
 						}
 					} catch (Exception e) {
-						//e.printStackTrace();
+						// e.printStackTrace();
 						e.printStackTrace(log);
 					}
 				}

@@ -30,11 +30,13 @@
 
 package com.adobe.dp.fb2;
 
+import com.adobe.dp.css.InlineRule;
+
 public class FB2TableCell extends FB2Element {
 
 	String name;
 
-	String style;
+	InlineRule style;
 
 	String align;
 
@@ -42,7 +44,7 @@ public class FB2TableCell extends FB2Element {
 
 	int rowSpan;
 
-	public FB2TableCell(String name, String style, String align, int colSpan,
+	public FB2TableCell(String name, InlineRule style, String align, int colSpan,
 			int rowSpan) {
 		this.name = name;
 		this.style = style;
@@ -63,7 +65,7 @@ public class FB2TableCell extends FB2Element {
 		return rowSpan;
 	}
 
-	public String getStyle() {
+	public InlineRule getStyle() {
 		return style;
 	}
 

@@ -1,38 +1,39 @@
 /*******************************************************************************
-* Copyright (c) 2009, Adobe Systems Incorporated
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without 
-* modification, are permitted provided that the following conditions are met:
-*
-* ·        Redistributions of source code must retain the above copyright 
-*          notice, this list of conditions and the following disclaimer. 
-*
-* ·        Redistributions in binary form must reproduce the above copyright 
-*		   notice, this list of conditions and the following disclaimer in the
-*		   documentation and/or other materials provided with the distribution. 
-*
-* ·        Neither the name of Adobe Systems Incorporated nor the names of its 
-*		   contributors may be used to endorse or promote products derived from
-*		   this software without specific prior written permission. 
-* 
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-* OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
-* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*******************************************************************************/
+ * Copyright (c) 2009, Adobe Systems Incorporated
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * ·        Redistributions of source code must retain the above copyright 
+ *          notice, this list of conditions and the following disclaimer. 
+ *
+ * ·        Redistributions in binary form must reproduce the above copyright 
+ *		   notice, this list of conditions and the following disclaimer in the
+ *		   documentation and/or other materials provided with the distribution. 
+ *
+ * ·        Neither the name of Adobe Systems Incorporated nor the names of its 
+ *		   contributors may be used to endorse or promote products derived from
+ *		   this software without specific prior written permission. 
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
 
 package com.adobe.dp.fb2;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringReader;
 import java.util.Stack;
 import java.util.Vector;
 import java.util.zip.ZipInputStream;
@@ -47,7 +48,14 @@ import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 
+import com.adobe.dp.css.CSSParser;
+import com.adobe.dp.css.CSSStylesheet;
+import com.adobe.dp.css.CSSURL;
+import com.adobe.dp.css.CSSURLFactory;
+import com.adobe.dp.css.InlineRule;
 import com.adobe.dp.epub.util.Base64;
+import com.adobe.dp.xml.util.SMapAttributesAdapter;
+import com.adobe.dp.xml.util.SMapImpl;
 
 public class FB2DocumentParser {
 
@@ -58,6 +66,12 @@ public class FB2DocumentParser {
 	Vector stylesheets = new Vector();
 
 	Vector genres = new Vector();
+
+	class FB2CSSURLFactory implements CSSURLFactory {
+		public CSSURL createCSSURL(String url) {
+			return new FB2CSSURL(doc, url);
+		}
+	}
 
 	public FB2DocumentParser(FB2Document doc) {
 		this.doc = doc;
@@ -71,8 +85,7 @@ public class FB2DocumentParser {
 		byte[] sniff = new byte[4];
 		in.read(sniff);
 		in.reset();
-		if (sniff[0] == 'P' && sniff[1] == 'K' && sniff[2] == 3
-				&& sniff[3] == 4) {
+		if (sniff[0] == 'P' && sniff[1] == 'K' && sniff[2] == 3 && sniff[3] == 4) {
 			try {
 				// zipped file
 				ZipInputStream zip = new ZipInputStream(in);
@@ -86,8 +99,7 @@ public class FB2DocumentParser {
 			}
 		}
 
-		if (sniff[0] == (byte) 0xef && sniff[1] == (byte) 0xbb
-				&& sniff[2] == (byte) 0xbf) {
+		if (sniff[0] == (byte) 0xef && sniff[1] == (byte) 0xbb && sniff[2] == (byte) 0xbf) {
 			// UTF-8 marker. Not all XML parsers correctly ignore that
 			in.skip(3);
 		}
@@ -107,7 +119,7 @@ public class FB2DocumentParser {
 				throw new FB2FormatException("No body sections found");
 			doc.bodySections = new FB2Section[count];
 			handler.bodyElements.copyInto(doc.bodySections);
-			doc.stylesheets = new String[stylesheets.size()];
+			doc.stylesheets = new CSSStylesheet[stylesheets.size()];
 			stylesheets.copyInto(doc.stylesheets);
 		} catch (ParserConfigurationException e) {
 			e.printStackTrace();
@@ -117,74 +129,79 @@ public class FB2DocumentParser {
 		}
 	}
 
-	FB2Element createElement(String localName, Attributes attr) {
-		String style = attr.getValue("style");
-		if (localName.equals("section") || localName.equals("epigraph")
-				|| localName.equals("cite") || localName.equals("poem")
-				|| localName.equals("stanza"))
-			return new FB2Section(localName);
-		if (localName.equals("p"))
-			return new FB2Paragraph(style);
-		if (localName.equals("v"))
-			return new FB2Line(style);
-		if (localName.equals("date"))
-			return new FB2Date();
-		if (localName.equals("text-author"))
-			return new FB2TextAuthor(style);
-		if (localName.equals("title"))
-			return new FB2Title();
-		if (localName.equals("annotation"))
-			return new FB2Section("annotation");
-		if (localName.equals("subtitle"))
-			return new FB2Subtitle(style);
-		if (localName.equals("image") || localName.equals("a")) {
-			String link = attr.getValue(xlinkNS, "href");
-			if (link != null && link.startsWith("#"))
-				link = link.substring(1);
-			else
-				link = null;
-			if (localName.equals("a"))
-				return new FB2Hyperlink(link);
-			else {
-				String alt = attr.getValue("alt");
-				String title = attr.getValue("title");
-				return new FB2Image(link, alt, title);
-			}
+	FB2Element createElement(String ns, String localName, Attributes attr) {
+		String styleStr = attr.getValue("style");
+		InlineRule style = null;
+		if (styleStr != null) {
+			CSSParser parser = new CSSParser();
+			parser.setCSSURLFactory(new FB2CSSURLFactory());
+			style = parser.readInlineStyle(styleStr);
 		}
-		if (localName.equals("empty-line"))
-			return new FB2EmptyLine();
-		if (localName.equals("style"))
-			return new FB2StyledText(attr.getValue("name"));
-		if (localName.equals("strong") || localName.equals("emphasis")
-				|| localName.equals("sub") || localName.equals("sup")
-				|| localName.equals("strikethrough")
-				|| localName.equals("code"))
-			return new FB2Text(localName);
-		if (localName.equals("th") || localName.equals("td")) {
-			String val = attr.getValue("colspan");
-			int colSpan = 1;
-			if (val != null) {
-				try {
-					colSpan = Integer.parseInt(val);
-				} catch (Exception e) {
-					e.printStackTrace();
+		if (ns.equals(FB2Document.fb2NS)) {
+			if (localName.equals("section") || localName.equals("epigraph") || localName.equals("cite")
+					|| localName.equals("poem") || localName.equals("stanza"))
+				return new FB2Section(localName);
+			if (localName.equals("p"))
+				return new FB2Paragraph(style);
+			if (localName.equals("v"))
+				return new FB2Line(style);
+			if (localName.equals("date"))
+				return new FB2Date();
+			if (localName.equals("text-author"))
+				return new FB2TextAuthor(style);
+			if (localName.equals("title"))
+				return new FB2Title();
+			if (localName.equals("annotation"))
+				return new FB2Section("annotation");
+			if (localName.equals("subtitle"))
+				return new FB2Subtitle(style);
+			if (localName.equals("image") || localName.equals("a")) {
+				String link = attr.getValue(xlinkNS, "href");
+				if (link != null && link.startsWith("#"))
+					link = link.substring(1);
+				else
+					link = null;
+				if (localName.equals("a"))
+					return new FB2Hyperlink(link);
+				else {
+					String alt = attr.getValue("alt");
+					String title = attr.getValue("title");
+					return new FB2Image(link, alt, title);
 				}
 			}
-			val = attr.getValue("rowspan");
-			int rowSpan = 1;
-			if (val != null) {
-				try {
-					rowSpan = Integer.parseInt(val);
-				} catch (Exception e) {
-					e.printStackTrace();
+			if (localName.equals("empty-line"))
+				return new FB2EmptyLine();
+			if (localName.equals("style"))
+				return new FB2StyledText(attr.getValue("name"));
+			if (localName.equals("strong") || localName.equals("emphasis") || localName.equals("sub")
+					|| localName.equals("sup") || localName.equals("strikethrough") || localName.equals("code"))
+				return new FB2Text(localName);
+			if (localName.equals("th") || localName.equals("td")) {
+				String val = attr.getValue("colspan");
+				int colSpan = 1;
+				if (val != null) {
+					try {
+						colSpan = Integer.parseInt(val);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 				}
+				val = attr.getValue("rowspan");
+				int rowSpan = 1;
+				if (val != null) {
+					try {
+						rowSpan = Integer.parseInt(val);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+				String align = attr.getValue("align");
+				return new FB2TableCell(localName, style, align, colSpan, rowSpan);
 			}
-			String align = attr.getValue("align");
-			return new FB2TableCell(localName, style, align, colSpan, rowSpan);
+			if (localName.equals("table") || localName.equals("tr"))
+				return new FB2OtherElement(localName, style);
 		}
-		if (localName.equals("table") || localName.equals("tr"))
-			return new FB2OtherElement(localName, style);
-		return new FB2UnknownElement(localName);
+		return new FB2UnknownElement(ns, localName);
 	}
 
 	class Context {
@@ -237,8 +254,7 @@ public class FB2DocumentParser {
 			return (Context) contexts.peek();
 		}
 
-		public InputSource resolveEntity(String publicId, String systemId)
-				throws SAXException {
+		public InputSource resolveEntity(String publicId, String systemId) throws SAXException {
 			throw new SAXException("External entities not allowed");
 		}
 
@@ -257,8 +273,7 @@ public class FB2DocumentParser {
 			return !contexts.isEmpty();
 		}
 
-		public void characters(char[] ch, int start, int length)
-				throws SAXException {
+		public void characters(char[] ch, int start, int length) throws SAXException {
 			if (inContent()) {
 				String text = new String(ch, start, length);
 				if (getContext().curr.acceptsText())
@@ -290,15 +305,13 @@ public class FB2DocumentParser {
 			homePages.clear();
 		}
 
-		public void endElement(String uri, String localName, String qName)
-				throws SAXException {
+		public void endElement(String uri, String localName, String qName) throws SAXException {
 			if (inContent()) {
 				Context cx = getContext();
 				cx.curr.children = new Object[cx.children.size()];
 				cx.children.copyInto(cx.curr.children);
 				contexts.pop();
-				if (cx.curr instanceof FB2Title
-						&& getContext().curr instanceof FB2Section) {
+				if (cx.curr instanceof FB2Title && getContext().curr instanceof FB2Section) {
 					((FB2Section) getContext().curr).title = (FB2Title) cx.curr;
 				}
 			} else if (currDateInfo != null) {
@@ -307,8 +320,7 @@ public class FB2DocumentParser {
 					currDateInfo = null;
 				}
 			} else if (currAuthorInfo != null) {
-				if (localName.equals("author")
-						|| localName.equals("translator")) {
+				if (localName.equals("author") || localName.equals("translator")) {
 					if (homePages.size() > 0) {
 						String[] arr = new String[homePages.size()];
 						homePages.copyInto(arr);
@@ -336,8 +348,7 @@ public class FB2DocumentParser {
 					emails.add(flushAcc());
 				}
 			} else if (currTitleInfo != null) {
-				if (localName.equals("title-info")
-						|| localName.equals("src-title-info")) {
+				if (localName.equals("title-info") || localName.equals("src-title-info")) {
 					if (genres.size() > 0) {
 						FB2GenreInfo[] arr = new FB2GenreInfo[genres.size()];
 						genres.copyInto(arr);
@@ -351,15 +362,13 @@ public class FB2DocumentParser {
 						authors.clear();
 					}
 					if (translators.size() > 0) {
-						FB2AuthorInfo[] arr = new FB2AuthorInfo[translators
-								.size()];
+						FB2AuthorInfo[] arr = new FB2AuthorInfo[translators.size()];
 						translators.copyInto(arr);
 						currTitleInfo.setTranslators(arr);
 						translators.clear();
 					}
 					if (sequences.size() > 0) {
-						FB2SequenceInfo[] arr = new FB2SequenceInfo[sequences
-								.size()];
+						FB2SequenceInfo[] arr = new FB2SequenceInfo[sequences.size()];
 						sequences.copyInto(arr);
 						currTitleInfo.setSequences(arr);
 						sequences.clear();
@@ -406,8 +415,7 @@ public class FB2DocumentParser {
 			} else if (currPublishInfo != null) {
 				if (localName.equals("publish-info")) {
 					if (sequences.size() > 0) {
-						FB2SequenceInfo[] arr = new FB2SequenceInfo[sequences
-								.size()];
+						FB2SequenceInfo[] arr = new FB2SequenceInfo[sequences.size()];
 						sequences.copyInto(arr);
 						currPublishInfo.setSequences(arr);
 						sequences.clear();
@@ -428,18 +436,29 @@ public class FB2DocumentParser {
 				currBinary.setData(Base64.decode(flushAcc()));
 				currBinary = null;
 			} else if (localName.equals("stylesheet")) {
-				stylesheets.add(flushAcc());
+				CSSParser parser = new CSSParser();
+				parser.setCSSURLFactory(new FB2CSSURLFactory());
+				try {
+					CSSStylesheet stylesheet = parser.readStylesheet(new StringReader(flushAcc()));
+					if (stylesheet != null)
+						stylesheets.add(stylesheet);
+				} catch (Exception e) {
+					// unexpected
+					e.printStackTrace();
+				}
 			}
 		}
 
-		public void startElement(String uri, String localName, String qName,
-				Attributes attributes) throws SAXException {
+		public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
 			if (inContent()) {
-				FB2Element element = createElement(localName, attributes);
-				String id = attributes.getValue("id");
-				if (id != null) {
-					element.id = id;
-					doc.idMap.put(id, element);
+				FB2Element element = createElement(uri, localName, attributes);
+				if (attributes.getLength() > 0) {
+					element.attrs = new SMapImpl(new SMapAttributesAdapter(attributes));
+					String id = attributes.getValue("id");
+					if (id != null) {
+						element.id = id;
+						doc.idMap.put(id, element);
+					}
 				}
 				getContext().children.add(element);
 				contexts.push(new Context(element));

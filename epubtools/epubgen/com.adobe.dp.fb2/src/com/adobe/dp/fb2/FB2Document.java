@@ -34,6 +34,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Hashtable;
 
+import com.adobe.dp.css.CSSStylesheet;
+import com.adobe.dp.css.CascadeEngine;
+
 public class FB2Document {
 
 	FB2TitleInfo titleInfo;
@@ -44,7 +47,7 @@ public class FB2Document {
 
 	FB2PublishInfo publishInfo;
 
-	String[] stylesheets;
+	CSSStylesheet[] stylesheets;
 
 	FB2Section[] bodySections;
 
@@ -52,11 +55,18 @@ public class FB2Document {
 
 	Hashtable idMap = new Hashtable();
 
+	public static final String fb2NS = "http://www.gribuser.ru/xml/fictionbook/2.0";
+	
 	public FB2Document(InputStream in) throws IOException, FB2FormatException {
 		FB2DocumentParser parser = new FB2DocumentParser(this);
 		parser.parse(in);
 	}
 
+	public void applyStyles(CascadeEngine cascadeEngine) {
+		for( int i = 0 ; i < bodySections.length ; i++ )
+			bodySections[i].applyStyles(cascadeEngine);
+	}
+	
 	public FB2Section[] getBodySections() {
 		return bodySections;
 	}
@@ -65,7 +75,7 @@ public class FB2Document {
 		return (FB2Binary) binaryResources.get(name);
 	}
 
-	public String[] getStylesheets() {
+	public CSSStylesheet[] getStylesheets() {
 		return stylesheets;
 	}
 

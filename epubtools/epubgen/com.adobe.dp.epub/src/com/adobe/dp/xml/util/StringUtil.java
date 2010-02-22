@@ -63,6 +63,11 @@ public class StringUtil {
 		return s.substring(0, index) + ":" + s.substring(index);
 	}
 	
+	public static String toShortW3CDTF(Date d, boolean yearOnly) {
+		SimpleDateFormat format = new SimpleDateFormat(yearOnly ? "yyyy" : "yyyy-MM-dd");
+		return format.format(d);
+	}
+
 	public static int parseRoman(String roman) {
 		int acc = 0;
 		int lastDigit = 0;
@@ -172,7 +177,5 @@ public class StringUtil {
 		if (3000 < n && n < 4000)
 			return "mmm" + printRoman(n - 3000);
 		return null;
-	}
-
-	
+	}	
 }

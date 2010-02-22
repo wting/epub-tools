@@ -1,12 +1,12 @@
 package com.adobe.dp.office.conv;
 
-import com.adobe.dp.epub.style.PrototypeRule;
+import com.adobe.dp.css.InlineRule;
 
 public class StylingResult {
 
-	PrototypeRule containerRule;
+	InlineRule containerRule;
 
-	PrototypeRule elementRule = new PrototypeRule();
+	InlineRule elementRule = new InlineRule();
 
 	String containerClassName;
 
@@ -14,5 +14,5 @@ public class StylingResult {
 
 	String elementName;
 
-	PrototypeRule tableCellRule;
+	InlineRule tableCellRule;
 }

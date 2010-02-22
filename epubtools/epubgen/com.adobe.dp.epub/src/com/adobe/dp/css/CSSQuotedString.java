@@ -28,61 +28,40 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
-package com.adobe.dp.epub.style;
+package com.adobe.dp.css;
 
 import java.io.PrintWriter;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.Iterator;
 
-public abstract class BaseRule {
+public class CSSQuotedString extends CSSValue {
 
-	Hashtable properties;
+	private final String text;
 	
-	BaseRule() {
-		properties = new Hashtable();
+	public CSSQuotedString(String text) {
+		this.text = text;
 	}
 
-	BaseRule(Hashtable props) {
-		this.properties = props;
-	}
-
-	public boolean isEmpty() {
-		return properties.isEmpty();
+	public String getText() {
+		return text;
 	}
 	
-	public Object get(String property) {
-		return properties.get(property);
+	public void serialize(PrintWriter out) {
+		out.print("'");
+		out.print(text.replaceAll("'", "\\'"));
+		out.print("'");
 	}
 
-	public void set(String property, Object value) {
-		if (value == null)
-			properties.remove(property);
-		else
-			properties.put(property, value);
+	public String toString() {
+		return text;
 	}
 	
-	public Iterator properties() {
-		return properties.keySet().iterator();
+	public boolean equals(Object other) {
+		if (other.getClass() != getClass())
+			return false;
+		CSSQuotedString o = (CSSQuotedString) other;
+		return o.text.equals(text);		
 	}
 	
-	public abstract void serialize(PrintWriter out);
-
-	public void serializeProperties(PrintWriter out, boolean newlines) {
-		Enumeration keys = properties.keys();
-		while( keys.hasMoreElements() ) {
-			Object property = keys.nextElement();
-			if( newlines )
-				out.print('\t');
-			out.print(property);
-			out.print(": ");
-			out.print(properties.get(property));
-			out.print(";");
-			if( newlines )
-				out.println();
-			else
-				out.print(' ');
-		}		
+	public int hashCode() {
+		return text.hashCode();
 	}
-	
 }

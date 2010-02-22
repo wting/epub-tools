@@ -2,6 +2,8 @@ package com.adobe.dp.epubtest;
 
 import java.io.FileOutputStream;
 
+import com.adobe.dp.css.Selector;
+import com.adobe.dp.css.SelectorRule;
 import com.adobe.dp.epub.io.OCFContainerWriter;
 import com.adobe.dp.epub.ncx.TOCEntry;
 import com.adobe.dp.epub.opf.NCXResource;
@@ -10,8 +12,6 @@ import com.adobe.dp.epub.opf.Publication;
 import com.adobe.dp.epub.opf.StyleResource;
 import com.adobe.dp.epub.ops.Element;
 import com.adobe.dp.epub.ops.OPSDocument;
-import com.adobe.dp.epub.style.Rule;
-import com.adobe.dp.epub.style.Selector;
 import com.adobe.dp.epub.style.Stylesheet;
 
 /**
@@ -41,7 +41,7 @@ public class HelloEPUB2 {
 
 			// style h1 element
 			Selector h1Selector = stylesheet.getSimpleSelector("h1", null);
-			Rule h1Rule = stylesheet.getRuleForSelector(h1Selector);
+			SelectorRule h1Rule = stylesheet.getRuleForSelector(h1Selector, true);
 			h1Rule.set("color", "gray");
 			h1Rule.set("border-bottom", "2px solid gray");
 			h1Rule.set("text-align", "right");
@@ -49,7 +49,7 @@ public class HelloEPUB2 {
 
 			// style p element
 			Selector pSelector = stylesheet.getSimpleSelector("p", null);
-			Rule pRule = stylesheet.getRuleForSelector(pSelector);
+			SelectorRule pRule = stylesheet.getRuleForSelector(pSelector, true);
 			pRule.set("margin", "0px");
 			pRule.set("text-indent", "1em");
 			pRule.set("text-align", "justify");

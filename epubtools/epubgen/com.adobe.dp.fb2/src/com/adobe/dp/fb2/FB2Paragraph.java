@@ -30,11 +30,13 @@
 
 package com.adobe.dp.fb2;
 
+import com.adobe.dp.css.InlineRule;
+
 public class FB2Paragraph extends FB2Element {
 
-	private String style;
+	private InlineRule style;
 	
-	public FB2Paragraph(String style) {
+	public FB2Paragraph(InlineRule style) {
 		this.style = style;
 	}
 
@@ -46,7 +48,7 @@ public class FB2Paragraph extends FB2Element {
 		return "p";
 	}
 
-	public String getStyle() {
+	public InlineRule getStyle() {
 		return style;
 	}
 }

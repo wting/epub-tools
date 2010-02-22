@@ -39,6 +39,9 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Set;
 
+import com.adobe.dp.css.InlineRule;
+import com.adobe.dp.css.Selector;
+import com.adobe.dp.css.SelectorRule;
 import com.adobe.dp.epub.io.BufferedDataSource;
 import com.adobe.dp.epub.io.DataSource;
 import com.adobe.dp.epub.io.StringDataSource;
@@ -50,9 +53,6 @@ import com.adobe.dp.epub.ops.Element;
 import com.adobe.dp.epub.ops.HTMLElement;
 import com.adobe.dp.epub.ops.ImageElement;
 import com.adobe.dp.epub.ops.OPSDocument;
-import com.adobe.dp.epub.style.InlineStyleRule;
-import com.adobe.dp.epub.style.Rule;
-import com.adobe.dp.epub.style.Selector;
 import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.office.metafile.WMFParser;
 import com.adobe.dp.office.rtf.RTFColor;
@@ -116,7 +116,7 @@ public class RTFConverter {
 		this.epub = epub;
 	}
 
-	private void transferProperties(Rule rule, RTFStyle style, boolean block) {
+	private void transferProperties(SelectorRule rule, RTFStyle style, boolean block) {
 		Iterator props = style.properties();
 		boolean adjFontSize = false;
 		float defaultFontSize = 22;
@@ -228,7 +228,7 @@ public class RTFConverter {
 		if (className == null) {
 			className = prefix + (count++);
 			Selector selector = stylesheet.getSimpleSelector(null, className);
-			Rule rule = stylesheet.getRuleForSelector(selector);
+			SelectorRule rule = stylesheet.getRuleForSelector(selector, true);
 			transferProperties(rule, style, prefix.equals("p"));
 			style.lock();
 			styleMap.put(style, className);
@@ -441,11 +441,11 @@ public class RTFConverter {
 			return;
 		ImageElement imageElement = chapter.createImageElement("img");
 		imageElement.setImageResource(res);
-		Hashtable props = new Hashtable();
+		InlineRule props = new InlineRule();
 		if (width > 0)
-			props.put("width", (width * scalex / 2000.0) + "pt");
-		props.put("max-width", "95%");
-		imageElement.setStyle(new InlineStyleRule(props));
+			props.set("width", (width * scalex / 2000.0) + "pt");
+		props.set("max-width", "95%");
+		imageElement.setStyle(props);
 		section.add(imageElement);
 	}
 
@@ -459,8 +459,8 @@ public class RTFConverter {
 		OPSResource ops = epub.createOPSResource("OPS/content.xhtml");
 		css = epub.createStyleResource("OPS/style.css");
 		stylesheet = css.getStylesheet();
-		Rule bulletRule = stylesheet.getRuleForSelector(stylesheet
-				.getSimpleSelector("span", "bullet"));
+		SelectorRule bulletRule = stylesheet.getRuleForSelector(stylesheet
+				.getSimpleSelector("span", "bullet"), true);
 		bulletRule.set("font-family", "Arial, sans-serif");
 		epub.addToSpine(ops);
 		chapter = ops.getDocument();

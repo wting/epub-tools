@@ -36,9 +36,11 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Vector;
 
+import com.adobe.dp.css.CascadeEngine;
 import com.adobe.dp.epub.opf.OPSResource;
 import com.adobe.dp.epub.opf.StyleResource;
 import com.adobe.dp.epub.otf.FontSubsetter;
+import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.xml.util.SMapImpl;
 import com.adobe.dp.xml.util.XMLSerializer;
 
@@ -183,11 +185,37 @@ public class OPSDocument {
 	 */
 	public boolean peelOffBack(OPSDocument newDoc, int targetSize) {
 		newDoc.styleResources.addAll(styleResources);
-		Element newBody = body.peelElements(newDoc, targetSize);
+		Element newBody = body.peelElements(newDoc, targetSize, true);
 		if (newBody == null)
 			return false;
 		newDoc.body = newBody;
 		return true;
+	}
+
+	public void cascadeStyles() {
+		CascadeEngine engine = new CascadeEngine();
+		Iterator s = styleResources();
+		while (s.hasNext()) {
+			StyleResource sr = (StyleResource) s.next();
+			engine.add(sr.getStylesheet().getCSS(), null);
+		}
+
+		// TODO: SVG style elements
+
+		boolean notSVG = resource.getMediaType().equals("image/svg+xml");
+		if (notSVG) {
+			engine.pushElement(xhtmlns, "html", null);
+			engine.pushElement(xhtmlns, "head", null);
+			engine.popElement();
+		}
+		getBody().cascade(engine);
+		if (notSVG) {
+			engine.popElement();
+		}
+	}
+
+	public void generateStyles(Stylesheet stylesheet) {
+		getBody().generateStyles(stylesheet);
 	}
 
 	public void serialize(XMLSerializer ser) {

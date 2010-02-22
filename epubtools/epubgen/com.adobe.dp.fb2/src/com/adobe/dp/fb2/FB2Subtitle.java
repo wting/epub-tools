@@ -30,9 +30,11 @@
 
 package com.adobe.dp.fb2;
 
+import com.adobe.dp.css.InlineRule;
+
 public class FB2Subtitle extends FB2StyledElement {
 	
-	public FB2Subtitle(String style) {
+	public FB2Subtitle(InlineRule style) {
 		super(style);
 	}
 

@@ -62,8 +62,7 @@ public class XRef {
 		if (targetElement == null)
 			return null;
 		if (targetElement.id == null)
-			;
-		targetElement.document.assignId(targetElement);
+			targetElement.document.assignId(targetElement);
 		return targetElement.id;
 	}
 
@@ -94,7 +93,7 @@ public class XRef {
 	public void addUsage(int usage) {
 		this.usage |= usage;
 	}
-	
+
 	public int getUsage() {
 		return usage;
 	}

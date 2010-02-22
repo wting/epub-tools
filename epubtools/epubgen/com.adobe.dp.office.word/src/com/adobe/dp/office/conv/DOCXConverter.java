@@ -36,6 +36,9 @@ import java.util.Date;
 import java.util.Hashtable;
 import java.util.Iterator;
 
+import com.adobe.dp.css.CSSLength;
+import com.adobe.dp.css.Selector;
+import com.adobe.dp.css.SelectorRule;
 import com.adobe.dp.epub.conv.Version;
 import com.adobe.dp.epub.io.ContainerSource;
 import com.adobe.dp.epub.opf.NCXResource;
@@ -43,10 +46,6 @@ import com.adobe.dp.epub.opf.OPSResource;
 import com.adobe.dp.epub.opf.Publication;
 import com.adobe.dp.epub.opf.StyleResource;
 import com.adobe.dp.epub.otf.FontEmbeddingReport;
-import com.adobe.dp.epub.style.CSSLength;
-import com.adobe.dp.epub.style.Rule;
-import com.adobe.dp.epub.style.Selector;
-import com.adobe.dp.epub.style.SimpleSelector;
 import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.office.word.BodyElement;
 import com.adobe.dp.office.word.MetadataItem;
@@ -113,36 +112,34 @@ public class DOCXConverter {
 			if (sz instanceof Number)
 				defaultFontSize = ((Number) sz).doubleValue();
 			StylingResult res = styleConverter.styleElement(rp, false, 1, false, false);
-			SimpleSelector selector = stylesheet.getSimpleSelector("body", null);
-			globalStylesheet.createRuleForPrototype(selector, res.elementRule);
-			if (lang == null) {
+			// TODO: put it on body element
+			if (lang == null)
 				lang = (String) rp.get("lang");
-			}
 		}
 		if (defaultFontSize < 1)
 			defaultFontSize = 20;
 
-		Rule bodyEmbedRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("body", "embed"));
+		SelectorRule bodyEmbedRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("body", "embed"), true);
 		bodyEmbedRule.set("font-size", new CSSLength(defaultFontSize / 2, "px"));
 
 		styleConverter.setDefaultFontSize(defaultFontSize);
 		styleConverter.setDocumentDefaultParagraphStyle(doc.getDocumentDefaultParagraphStyle());
 
 		// default table styles
-		Rule tableRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("table", null));
+		SelectorRule tableRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("table", null), true);
 		tableRule.set("border-collapse", "collapse");
 		tableRule.set("border-spacing", "0px");
 
 		// default paragraph styles
 		// unlike XHTML, Word's default spacing/margings are zero
-		Rule pRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("p", null));
+		SelectorRule pRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("p", null), true);
 		pRule.set("margin-top", "0px");
 		pRule.set("margin-bottom", "0px");
-		Rule ulRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("ul", null));
+		SelectorRule ulRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("ul", null), true);
 		// Word puts margins on li, not ul elements 
 		ulRule.set("padding-left", "0px"); // most CSS engines have default padding on ul element 
 		ulRule.set("margin", "0px"); // left margin override needed for older Digital Editions
-		Rule nestedLiRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("li", "nested"));
+		SelectorRule nestedLiRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("li", "nested"), true);
 		nestedLiRule.set("display", "block");
 	}
 
@@ -168,12 +165,12 @@ public class DOCXConverter {
 			if (footnoteMap.size() > 0) {
 				Stylesheet ss = styles.getStylesheet();
 				Selector selector = ss.getSimpleSelector(null, "footnote-ref");
-				Rule rule = ss.getRuleForSelector(selector);
+				SelectorRule rule = ss.getRuleForSelector(selector, true);
 				rule.set("font-size", "0.7em");
 				rule.set("vertical-align", "super");
 				rule.set("line-height", "0.2");
 				selector = ss.getSimpleSelector(null, "footnote-title");
-				rule = ss.getRuleForSelector(selector);
+				rule = ss.getRuleForSelector(selector, true);
 				rule.set("margin", "0px");
 				rule.set("padding", "1em 0px 0.5em 2em");
 			} else {

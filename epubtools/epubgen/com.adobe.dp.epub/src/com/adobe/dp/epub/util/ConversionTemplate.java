@@ -35,8 +35,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -45,7 +43,10 @@ import java.util.Vector;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import com.adobe.dp.epub.style.SimpleStylesheetParser;
+import com.adobe.dp.css.CSSParser;
+import com.adobe.dp.css.CSSStylesheet;
+import com.adobe.dp.css.CSSURL;
+import com.adobe.dp.css.FontFaceRule;
 import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.otf.ByteArrayFontInputStream;
 import com.adobe.dp.otf.FileFontInputStream;
@@ -147,31 +148,32 @@ public class ConversionTemplate {
 		Enumeration entries = names.elements();
 		HashSet fonts = new HashSet();
 		Hashtable fontMap = new Hashtable();
-		SimpleStylesheetParser parser = null;
+		CSSStylesheet stylesheet = null;
 		while (entries.hasMoreElements()) {
 			String name = entries.nextElement().toString();
 			String lname = name.toLowerCase();
 			if (lname.endsWith(".css")) {
-				Reader reader = new InputStreamReader(getInputStream(name), "UTF-8");
-				if (parser == null)
-					parser = new SimpleStylesheetParser();
-				parser.readRules(reader);
+				InputStream in = getInputStream(name);
+				if (stylesheet == null)
+					stylesheet = new CSSStylesheet();
+				CSSParser parser = new CSSParser();
+				parser.readStylesheet(in, stylesheet);
+				in.close();
 			} else if (lname.endsWith(".ttf") || lname.endsWith(".otf") || lname.endsWith(".ttc")) {
 				fonts.add(name);
 			}
 		}
 
-		if (parser != null) {
-			stylesheet = new Stylesheet(null, parser);
-			fontMap = parser.getRules();
-		}
-
-		Enumeration srcs = fontMap.elements();
-		while (srcs.hasMoreElements()) {
-			Object srcobj = srcs.nextElement();
-			if (srcobj instanceof String) {
-				String src = (String) srcobj;
-				fonts.remove(src);
+		Iterator stmts = stylesheet.statements();
+		while (stmts.hasNext()) {
+			Object stmt = stmts.next();
+			if (stmt instanceof FontFaceRule) {
+				Object src = ((FontFaceRule) stmt).get("src");
+				if (src instanceof CSSURL) {
+					String uri = ((CSSURL) src).getURI();
+					fonts.remove(uri);
+					// TODO: add to fontMap
+				}
 			}
 		}
 

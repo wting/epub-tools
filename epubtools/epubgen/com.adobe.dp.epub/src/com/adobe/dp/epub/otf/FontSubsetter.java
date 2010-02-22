@@ -38,20 +38,20 @@ import java.util.Stack;
 import java.util.TreeSet;
 import java.util.Vector;
 
+import com.adobe.dp.css.BaseRule;
+import com.adobe.dp.css.CSSName;
+import com.adobe.dp.css.CSSNumber;
+import com.adobe.dp.css.CSSQuotedString;
+import com.adobe.dp.css.CSSValue;
+import com.adobe.dp.css.CSSValueList;
+import com.adobe.dp.css.CascadeResult;
+import com.adobe.dp.css.FontFaceRule;
+import com.adobe.dp.css.InlineRule;
 import com.adobe.dp.epub.io.BufferedDataSource;
 import com.adobe.dp.epub.opf.FontResource;
 import com.adobe.dp.epub.opf.Publication;
 import com.adobe.dp.epub.opf.StyleResource;
 import com.adobe.dp.epub.ops.Element;
-import com.adobe.dp.epub.style.BaseRule;
-import com.adobe.dp.epub.style.FontFace;
-import com.adobe.dp.epub.style.InlineStyleRule;
-import com.adobe.dp.epub.style.QuotedString;
-import com.adobe.dp.epub.style.Rule;
-import com.adobe.dp.epub.style.Selector;
-import com.adobe.dp.epub.style.SimpleStylesheetParser;
-import com.adobe.dp.epub.style.Stylesheet;
-import com.adobe.dp.epub.style.ValueList;
 import com.adobe.dp.otf.FontInputStream;
 import com.adobe.dp.otf.FontLocator;
 import com.adobe.dp.otf.FontProperties;
@@ -100,7 +100,7 @@ public class FontSubsetter implements FontEmbeddingReport {
 
 		SubsetterEntry[] subsetterList;
 
-		ValueList familyName;
+		String[] familyName;
 
 		int weight = FontPropertyConstants.WEIGHT_NORMAL;
 
@@ -164,10 +164,9 @@ public class FontSubsetter implements FontEmbeddingReport {
 	public Iterator usedFonts() {
 		Iterator keys = subsetters.keySet().iterator();
 		Set usedFonts = new TreeSet();
-		while( keys.hasNext() ) {
-			FontEntry entry = (FontEntry)keys.next();
-			if( entry.subsetter.used )
-			{
+		while (keys.hasNext()) {
+			FontEntry entry = (FontEntry) keys.next();
+			if (entry.subsetter.used) {
 				FontProperties prop = new FontProperties(entry.familyName, entry.weight, entry.style);
 				usedFonts.add(prop);
 			}
@@ -179,32 +178,38 @@ public class FontSubsetter implements FontEmbeddingReport {
 		this.styles = styles;
 	}
 
-	private ValueList parseFamily(Object family) {
-		if (family instanceof ValueList)
-			return (ValueList) family;
-		try {
-			return SimpleStylesheetParser.readValueList(family.toString());
-		} catch (Exception e) {
-			e.printStackTrace();
-			return null;
+	private String[] parseFamily(Object family) {
+		if (family instanceof CSSValueList) {
+			CSSValueList list = (CSSValueList)family;
+			int len = list.getSeparator() == ',' ? list.length() : 1;
+			String[] result = new String[len];
+			for( int i = 0 ; i < len ; i++ ) {
+				CSSValue v = list.getSeparator() == ',' ? list.item(i) : list;
+				result[i] = v.toString();
+			}
+			return result;
+		} else if ((family instanceof CSSQuotedString) || (family instanceof CSSName)) {
+			String[] result = { family.toString() };
+			return result;
 		}
+		String[] result = { "serif" };
+		return result;
 	}
 
-	private int parseWeight(String weight) {
-		if (weight.length() == 3 && weight.endsWith("00") && Character.isDigit(weight.charAt(0))) {
+	private int parseWeight(Object weight) {
+		if (weight instanceof CSSNumber) {
 			try {
-				return Integer.parseInt(weight);
+				return ((CSSNumber) weight).getNumber().intValue();
 			} catch (Exception e) {
-
 			}
-		} else if (weight.toLowerCase().equals("bold")) {
+		} else if (weight.toString().toLowerCase().equals("bold")) {
 			return FontProperties.WEIGHT_BOLD;
 		}
 		return FontProperties.WEIGHT_NORMAL;
 	}
 
-	private int parseStyle(String style) {
-		style = style.toLowerCase();
+	private int parseStyle(Object style) {
+		style = style.toString().toLowerCase();
 		if (style.equals("italic")) {
 			return FontProperties.STYLE_ITALIC;
 		}
@@ -214,46 +219,34 @@ public class FontSubsetter implements FontEmbeddingReport {
 		return FontProperties.STYLE_REGULAR;
 	}
 
-	private void processSelector(Stylesheet stylesheet, Selector selector) {
-		Rule rule = stylesheet.findRuleForSelector(selector);
-		if (rule != null) {
-			Object family = rule.get("font-family");
-			if (family != null)
-				currentEntry.familyName = parseFamily(family.toString());
-			Object weight = rule.get("font-weight");
-			if (weight != null)
-				currentEntry.weight = parseWeight(weight.toString());
-			Object style = rule.get("font-style");
-			if (style != null)
-				currentEntry.style = parseStyle(style.toString());
+	private void processCascadeResult(CascadeResult cascade) {
+		// TODO: other media?
+		if (cascade != null) {
+			InlineRule rule = cascade.getProperties().getPropertySet();
+			processRule(rule);
 		}
 	}
 
 	private void processRule(BaseRule rule) {
+		if (rule == null)
+			return;
 		Object family = rule.get("font-family");
 		if (family != null)
-			currentEntry.familyName = parseFamily(family.toString());
+			currentEntry.familyName = parseFamily(family);
 		Object weight = rule.get("font-weight");
 		if (weight != null)
-			currentEntry.weight = parseWeight(weight.toString());
+			currentEntry.weight = parseWeight(weight);
 		Object style = rule.get("font-style");
 		if (style != null)
-			currentEntry.style = parseStyle(style.toString());
+			currentEntry.style = parseStyle(style);
 	}
 
-	private void builtInStyles(String name) {
+	private void processBuiltInStyles(String name) {
 		if (name.equals("h1") || name.equals("h2") || name.equals("h3") || name.equals("h4") || name.equals("h5")
 				|| name.equals("h6") || name.equals("b") || name.equals("strong"))
 			currentEntry.weight = FontProperties.WEIGHT_BOLD;
 		else if (name.equals("i") || name.equals("em"))
 			currentEntry.style = FontProperties.STYLE_ITALIC;
-	}
-
-	private String getStringValue(Object val) {
-		if (val instanceof QuotedString) {
-			return ((QuotedString) val).getText();
-		}
-		return val.toString();
 	}
 
 	public void push(Element e) {
@@ -264,35 +257,17 @@ public class FontSubsetter implements FontEmbeddingReport {
 			currentEntry = currentEntry.cloneEntry();
 		}
 		// built-in stylesheet
-		String name = e.getElementName();
-		builtInStyles(name);
-		// specificity order later stylesheets override the former ones
-		int len = styles.size();
-		for (int i = 0; i < len; i++) {
-			// specificity order (less to more): foo .bar foo.bar
-			StyleResource res = (StyleResource) styles.elementAt(i);
-			Stylesheet stylesheet = res.getStylesheet();
-			String className = e.getClassName();
-			Selector selector = stylesheet.getSimpleSelector(name, null);
-			processSelector(stylesheet, selector);
-			if (className != null) {
-				selector = stylesheet.getSimpleSelector(null, className);
-				processSelector(stylesheet, selector);
-				selector = stylesheet.getSimpleSelector(name, className);
-				processSelector(stylesheet, selector);
-			}
-		}
+		processBuiltInStyles(e.getElementName());
+		// document stylesheets
+		processCascadeResult(e.getCascadeResult());
 		// style attribute: highest specificity
-		InlineStyleRule style = e.getStyle();
-		if (style != null)
-			processRule(style);
+		processRule(e.getStyle());
 		if (currentEntry.familyName != null) {
 			currentEntry.subsetterList = (SubsetterEntry[]) subsetterLists.get(currentEntry);
 			if (currentEntry.subsetterList == null) {
 				Vector subsetterList = new Vector();
-				Iterator families = currentEntry.familyName.values();
-				while (families.hasNext()) {
-					String family = getStringValue(families.next());
+				for (int i = 0; i < currentEntry.familyName.length; i++) {
+					String family = currentEntry.familyName[i];
 					if (family.equals("serif") || family.equals("sans-serif") || family.equals("monospace"))
 						continue; // built-in
 					FontEntry entry = new FontEntry();
@@ -388,7 +363,7 @@ public class FontSubsetter implements FontEmbeddingReport {
 				bds.getOutputStream().write(font.getSubsettedFont());
 				FontResource fontResource = epub.createFontResource(epub.getContentFolder() + "/fonts/" + resName
 						+ ".otf", bds);
-				FontFace face = styleResource.getStylesheet().createFontFace(fontResource);
+				FontFaceRule face = styleResource.getStylesheet().createFontFace(fontResource);
 				face.set("font-family", '\'' + entry.familyName + '\'');
 				switch (entry.weight) {
 				case FontPropertyConstants.WEIGHT_NORMAL:

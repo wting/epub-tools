@@ -2,6 +2,8 @@ package com.adobe.dp.epubtest;
 
 import java.io.FileOutputStream;
 
+import com.adobe.dp.css.Selector;
+import com.adobe.dp.css.SelectorRule;
 import com.adobe.dp.epub.io.DataSource;
 import com.adobe.dp.epub.io.OCFContainerWriter;
 import com.adobe.dp.epub.io.ResourceDataSource;
@@ -16,8 +18,6 @@ import com.adobe.dp.epub.ops.HyperlinkElement;
 import com.adobe.dp.epub.ops.ImageElement;
 import com.adobe.dp.epub.ops.OPSDocument;
 import com.adobe.dp.epub.ops.SVGElement;
-import com.adobe.dp.epub.style.Rule;
-import com.adobe.dp.epub.style.Selector;
 import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.otf.DefaultFontLocator;
 import com.adobe.dp.otf.FontLocator;
@@ -50,7 +50,8 @@ public class HelloEPUB3 {
 
 			// style h1 element
 			Selector h1Selector = stylesheet.getSimpleSelector("h1", null);
-			Rule h1Rule = stylesheet.getRuleForSelector(h1Selector);
+			SelectorRule h1Rule = stylesheet.getRuleForSelector(h1Selector,
+					true);
 			h1Rule.set("color", "gray");
 			h1Rule.set("border-bottom", "2px solid gray");
 			h1Rule.set("text-align", "right");
@@ -59,7 +60,7 @@ public class HelloEPUB3 {
 
 			// style p element
 			Selector pSelector = stylesheet.getSimpleSelector("p", null);
-			Rule pRule = stylesheet.getRuleForSelector(pSelector);
+			SelectorRule pRule = stylesheet.getRuleForSelector(pSelector, true);
 			pRule.set("margin", "0px");
 			pRule.set("text-indent", "1em");
 			pRule.set("text-align", "justify");
@@ -68,15 +69,16 @@ public class HelloEPUB3 {
 			// style bitmap class (JPEG image)
 			Selector bitmapSelector = stylesheet.getSimpleSelector(null,
 					"bitmap");
-			Rule bitmapRule = stylesheet.getRuleForSelector(bitmapSelector);
+			SelectorRule bitmapRule = stylesheet.getRuleForSelector(
+					bitmapSelector, true);
 			bitmapRule.set("width", "80%");
 			bitmapRule.set("max-width", "553px");
 
 			// style container class (container for JPEG image)
 			Selector containerSelector = stylesheet.getSimpleSelector("p",
 					"container");
-			Rule containerRule = stylesheet
-					.getRuleForSelector(containerSelector);
+			SelectorRule containerRule = stylesheet.getRuleForSelector(
+					containerSelector, true);
 			containerRule.set("text-align", "center");
 			containerRule.set("text-indent", "0px");
 			containerRule.set("padding", "0.5em 0px");
@@ -84,21 +86,21 @@ public class HelloEPUB3 {
 			// style svgimage class (embedded SVG)
 			Selector svgimageSelector = stylesheet.getSimpleSelector(null,
 					"svgimage");
-			Rule svgimageRule = stylesheet.getRuleForSelector(svgimageSelector);
+			SelectorRule svgimageRule = stylesheet.getRuleForSelector(svgimageSelector, true);
 			svgimageRule.set("width", "80%");
 			svgimageRule.set("padding", "0.5em 10%");
 
 			// style label1 class (text in embedded SVG)
 			Selector label1Selector = stylesheet.getSimpleSelector(null,
 					"label1");
-			Rule label1Rule = stylesheet.getRuleForSelector(label1Selector);
+			SelectorRule label1Rule = stylesheet.getRuleForSelector(label1Selector, true);
 			label1Rule.set("font-size", "36");
 			label1Rule.set("font-family", "'Chaparral Pro'");
 
 			// style label2 class (text in embedded SVG)
 			Selector label2Selector = stylesheet.getSimpleSelector(null,
 					"label2");
-			Rule label2Rule = stylesheet.getRuleForSelector(label2Selector);
+			SelectorRule label2Rule = stylesheet.getRuleForSelector(label2Selector, true);
 			label2Rule.set("font-size", "48");
 			label2Rule.set("font-family", "'Comic Sans MS'");
 
@@ -257,7 +259,8 @@ public class HelloEPUB3 {
 			// NB: on non-Windows platforms you need to supply your own
 			// FontLocator implementation or place fonts in ~/.epubfonts
 			FontLocator fontLocator = DefaultFontLocator.getInstance();
-			//epub.useAdobeFontMangling();
+			// epub.useAdobeFontMangling();
+			epub.cascadeStyles();
 			epub.addFonts(style, fontLocator);
 
 			// save EPUB to an OCF container

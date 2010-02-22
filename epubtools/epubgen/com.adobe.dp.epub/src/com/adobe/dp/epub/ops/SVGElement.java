@@ -48,6 +48,7 @@ public class SVGElement extends Element {
 		SVGElement e = new SVGElement(newDoc, getElementName());
 		e.className = className;
 		e.attrs = attrs.cloneSMap();
+		e.cascade = cascade;
 		return e;
 	}
 
