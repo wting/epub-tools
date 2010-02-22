@@ -128,7 +128,7 @@ public class FB2ConversionService extends ConversionService {
 				fontLocator = new ChainedFontLocator(customLocator, fontLocator);
 				Stylesheet stylesheet = template.getStylesheet();
 				if( stylesheet != null )
-					conv.setTemplate(stylesheet);
+					conv.setTemplate(stylesheet.getCSS());
 			}
 			conv.setFontLocator(fontLocator);
 			conv.convert(doc, epub);
@@ -138,6 +138,7 @@ public class FB2ConversionService extends ConversionService {
 			return outFile;
 		} catch (Exception e) {
 			e.printStackTrace(log);
+			e.printStackTrace();
 		}
 		return null;
 	}

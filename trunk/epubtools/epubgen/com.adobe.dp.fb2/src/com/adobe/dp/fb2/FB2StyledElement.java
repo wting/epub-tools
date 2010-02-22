@@ -30,15 +30,17 @@
 
 package com.adobe.dp.fb2;
 
+import com.adobe.dp.css.InlineRule;
+
 abstract public class FB2StyledElement extends FB2Element {
 
-	private String style;
+	private InlineRule style;
 
-	public FB2StyledElement(String style) {
+	public FB2StyledElement(InlineRule style) {
 		this.style = style;
 	}
 
-	public String getStyle() {
+	public InlineRule getStyle() {
 		return style;
 	}
 

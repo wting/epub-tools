@@ -28,45 +28,85 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
 
-package com.adobe.dp.epub.style;
+package com.adobe.dp.css;
 
 import java.io.PrintWriter;
 
-public class Rule extends BaseRule {
+public class CSSValueList extends CSSValue {
 
-	boolean readonly;
+	char separator;
 
-	Selector selector;
+	CSSValue[] values;
 
-	Rule(Selector selector) {
-		this.selector = selector;
+	public CSSValueList(char sep, CSSValue[] vals) {
+		this.separator = sep;
+		this.values = vals;
 	}
 
-	Rule(Selector selector, PrototypeRule prule) {
-		super(prule.properties);
-		this.selector = selector;
-		this.readonly = true;
+	public char getSeparator() {
+		return separator;
+	}
+
+	public int length() {
+		return values.length;
+	}
+
+	public CSSValue item(int i) {
+		return values[i];
 	}
 
 	public void serialize(PrintWriter out) {
-		out.print(selector.toString());
-		out.println(" {");
-		serializeProperties(out, true);
-		out.println("}");
+		String sep = "";
+		for (int i = 0; i < values.length; i++) {
+			out.print(sep);
+			serialize(out, values[i]);
+			if (separator == ' ')
+				sep = " ";
+			else
+				sep = separator + " ";
+		}
 	}
 
-	public Selector getSelector() {
-		return selector;
+	public boolean equals(Object other) {
+		if (this == other)
+			return true;
+		if (other.getClass() != getClass())
+			return false;
+		CSSValueList o = (CSSValueList) other;
+		if (o.separator != separator || o.values.length != values.length)
+			return false;
+		for (int i = 0; i < values.length; i++) {
+			if (!values[i].equals(o.values[i]))
+				return false;
+		}
+		return true;
 	}
 
-	void lock() {
-		this.readonly = true;
+	public int hashCode() {
+		int code = separator;
+		for (int i = 0; i < values.length; i++) {
+			code += (i + 1) * values[i].hashCode();
+		}
+		return code;
 	}
 
-	public void set(String property, Object value) {
-		if (readonly)
-			throw new RuntimeException("locked rule");
-		super.set(property, value);
+	public static int valueCount(Object value, char op) {
+		if (value instanceof CSSValueList) {
+			CSSValueList vl = (CSSValueList) value;
+			if (vl.separator == op)
+				return vl.values.length;
+		}
+		return 1;
 	}
 
+	public static Object valueAt(Object value, int index, char op) {
+		if (value instanceof CSSValueList) {
+			CSSValueList vl = (CSSValueList) value;
+			if (vl.separator == op)
+				return vl.values[index];
+		}
+		if (index == 0)
+			return value;
+		throw new ArrayIndexOutOfBoundsException(index);
+	}
 }

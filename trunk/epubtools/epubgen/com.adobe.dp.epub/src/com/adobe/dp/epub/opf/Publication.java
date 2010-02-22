@@ -785,4 +785,26 @@ public class Publication {
 		ser.endDocument();
 		container.close();
 	}
+	
+	public void cascadeStyles() {
+		Enumeration names = resourcesByName.keys();
+		while (names.hasMoreElements()) {
+			String name = (String) names.nextElement();
+			Resource res = (Resource) resourcesByName.get(name);
+			if( res instanceof OPSResource ) {
+				((OPSResource)res).getDocument().cascadeStyles();
+			}
+		}		
+	}
+	
+	public void generateStyles(StyleResource styleResource) {
+		Enumeration names = resourcesByName.keys();
+		while (names.hasMoreElements()) {
+			String name = (String) names.nextElement();
+			Resource res = (Resource) resourcesByName.get(name);
+			if( res instanceof OPSResource ) {
+				((OPSResource)res).getDocument().generateStyles(styleResource.getStylesheet());
+			}
+		}		
+	}
 }

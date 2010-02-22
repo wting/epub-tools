@@ -31,13 +31,18 @@
 package com.adobe.dp.epub.style;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
-import java.io.Reader;
-import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Iterator;
-import java.util.Vector;
 
+import com.adobe.dp.css.CSSParser;
+import com.adobe.dp.css.CSSStylesheet;
+import com.adobe.dp.css.CascadeResult;
+import com.adobe.dp.css.FontFaceRule;
+import com.adobe.dp.css.InlineRule;
+import com.adobe.dp.css.Selector;
+import com.adobe.dp.css.SelectorRule;
 import com.adobe.dp.epub.opf.FontResource;
 import com.adobe.dp.epub.opf.StyleResource;
 
@@ -45,123 +50,86 @@ public class Stylesheet {
 
 	StyleResource owner;
 
-	Hashtable rulesBySelector = new Hashtable();
+	Hashtable classByProps = new Hashtable();
 
-	Hashtable lockedRulesByProperties = new Hashtable();
-
-	Vector content = new Vector();
+	CSSStylesheet css;
 
 	public Stylesheet(StyleResource owner) {
 		this.owner = owner;
+		css = new CSSStylesheet();
 	}
 
-	public Stylesheet(StyleResource owner, Reader reader) throws IOException {
+	public Stylesheet(StyleResource owner, InputStream in) throws IOException {
 		this.owner = owner;
-		SimpleStylesheetParser parser = new SimpleStylesheetParser();
-		parser.readRules(reader);
-		initWithParser(parser);		
+		CSSParser parser = new CSSParser();
+		this.css = parser.readStylesheet(in);
+		initExisting();
 	}
 
-	public Stylesheet(StyleResource owner, SimpleStylesheetParser parser) throws IOException {
+	public Stylesheet(StyleResource owner, CSSStylesheet css) throws IOException {
 		this.owner = owner;
-		initWithParser(parser);
+		this.css = css;
+		initExisting();
 	}
 
-	private void initWithParser(SimpleStylesheetParser parser) {
-		rulesBySelector = parser.getRules();
-		Enumeration rules = rulesBySelector.elements();
-		while (rules.hasMoreElements()) {
-			Object robj = rules.nextElement();
-			if (robj instanceof Rule) {
-				Rule rule = (Rule) robj;
-				content.add(rule);
-			}
-		}
+	private void initExisting() {
+		// TODO: populate classByProps
 	}
 
-	public SimpleSelector getSimpleSelector(String elementName, String className) {
-		return new SimpleSelector(elementName, className);
+	public Selector getSimpleSelector(String elementName, String className) {
+		return css.getSimpleSelector(elementName, className);
 	}
 
-	public Rule findRuleForSelector(Selector selector) {
-		return (Rule) rulesBySelector.get(selector);
+	public SelectorRule getRuleForSelector(Selector selector, boolean create) {
+		return css.getRuleForSelector(selector, create);
 	}
 
-	public Rule getRuleForSelector(Selector selector) {
-		Rule rule = (Rule) rulesBySelector.get(selector);
-		if (rule == null) {
-			rule = new Rule(selector);
-			content.add(rule);
-			rulesBySelector.put(selector, rule);
-		}
-		return rule;
-	}
-
-	public FontFace createFontFace(FontResource fontResource) {
-		FontFace fontFace = new FontFace(this, fontResource);
-		content.add(fontFace);
+	public FontFaceRule createFontFace(FontResource fontResource) {
+		FontFaceRule fontFace = new FontFaceRule();
+		css.add(fontFace);
+		fontFace.set("src", new ResourceURL(this, fontResource));
 		return fontFace;
 	}
 
-	public void lock(Rule rule) {
-		rule.lock();
-		if (rule.selector instanceof SimpleSelector && ((SimpleSelector) rule.selector).getElementName() == null)
-			lockedRulesByProperties.put(rule.properties, rule);
-	}
-
-	public PrototypeRule createPrototypeRule() {
-		return new PrototypeRule();
-	}
-
-	public Rule getClassRuleForPrototype(PrototypeRule props) {
-		Rule rule = (Rule) lockedRulesByProperties.get(props.properties);
-		return rule;
-	}
-
-	public Rule createRuleForPrototype(SimpleSelector selector, PrototypeRule props) {
-		if (rulesBySelector.get(selector) != null)
-			throw new RuntimeException("rule already exists for ." + selector.toString());
-		Rule rule = new Rule(selector, props);
-		content.add(rule);
-		rulesBySelector.put(selector, rule);
-		props.properties = null;
-		lockedRulesByProperties.put(rule.properties, rule);
-		return rule;
-	}
-
-	public Rule createClassRuleForPrototype(String className, PrototypeRule props) {
-		SimpleSelector selector = getSimpleSelector(null, className);
-		return createRuleForPrototype(selector, props);
-	}
-
-	public Rule createRuleForPrototype(String elementName, String className, PrototypeRule props) {
-		SimpleSelector selector = getSimpleSelector(elementName, className);
-		return createRuleForPrototype(selector, props);
-	}
-
-	public Iterator content() {
-		return content.iterator();
-	}
-
-	public Hashtable getRules() {
-		return rulesBySelector;
-	}
-	
-	public void serialize(PrintWriter pout) {
-		Iterator it = content();
-		while (it.hasNext()) {
-			Object cp = it.next();
-			if (cp instanceof Rule) {
-				((Rule) cp).serialize(pout);
-			} else if (cp instanceof FontFace) {
-				((FontFace) cp).serialize(pout);
-			}
+	public String makeClass(String className, CascadeResult props) {
+		String cls = (String) classByProps.get(props);
+		if (cls != null)
+			return cls;
+		if (className == null)
+			className = "z";
+		props = props.cloneObject();
+		int count = 1;
+		cls = className;
+		Selector selector;
+		while (true) {
+			selector = css.getSimpleSelector(null, cls);
+			if (css.getRuleForSelector(selector, false) == null)
+				break;
+			cls = className + (count++);
 		}
+		classByProps.put(props, cls);
+		SelectorRule rule = css.getRuleForSelector(selector, true);
+		InlineRule p = props.getProperties().getPropertySet();
+		Iterator ps = p.properties();
+		while (ps.hasNext()) {
+			String pn = (String) ps.next();
+			Object pv = p.get(pn);
+			rule.set(pn, pv);
+		}
+		return cls;
 	}
 
-	public void addDirectStyles( Reader reader ) throws IOException {
-		SimpleStylesheetParser parser = new SimpleStylesheetParser();
-		parser.readRules(reader);
-		initWithParser(parser);				
+	public CSSStylesheet getCSS() {
+		return css;
+	}
+
+	public void serialize(PrintWriter pout) {
+		css.serialize(pout);
+	}
+
+	public void addDirectStyles(InputStream in) throws IOException {
+		CSSParser parser = new CSSParser();
+		parser.readStylesheet(in, css);
+		initExisting();
 	}
 }

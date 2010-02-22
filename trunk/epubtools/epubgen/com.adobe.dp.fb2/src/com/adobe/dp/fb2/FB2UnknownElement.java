@@ -32,10 +32,16 @@ package com.adobe.dp.fb2;
 
 public class FB2UnknownElement extends FB2Element {
 
+	private String ns;
 	private String name;
 	
-	public FB2UnknownElement(String name) {
+	public FB2UnknownElement(String ns, String name) {
+		this.ns = ns;
 		this.name = name;
+	}
+
+	public String getNamespace() {
+		return ns;
 	}
 	
 	public String getName() {

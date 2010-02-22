@@ -30,9 +30,11 @@
 
 package com.adobe.dp.fb2;
 
+import com.adobe.dp.css.InlineRule;
+
 public class FB2Line extends FB2StyledElement {
 	
-	public FB2Line(String style) {
+	public FB2Line(InlineRule style) {
 		super(style);
 	}
 

@@ -31,15 +31,15 @@
 package com.adobe.dp.epub.ops;
 
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Stack;
 
+import com.adobe.dp.css.CSSParser;
+import com.adobe.dp.css.CSSStylesheet;
+import com.adobe.dp.css.Selector;
+import com.adobe.dp.css.SelectorRule;
 import com.adobe.dp.epub.ncx.TOCEntry;
-import com.adobe.dp.epub.style.Selector;
-import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.epub.util.TOCLevel;
 
 public class HTMLElement extends Element {
@@ -50,7 +50,9 @@ public class HTMLElement extends Element {
 
 	static Hashtable peelingBonus;
 
-	static Stylesheet builtInStylesheet;
+	static CSSStylesheet builtInStylesheet;
+
+	boolean forceChapterBreak;
 
 	static {
 		HashSet be = new HashSet();
@@ -86,8 +88,8 @@ public class HTMLElement extends Element {
 		InputStream in = HTMLElement.class.getResourceAsStream("XHTMLStyles.css");
 		if (in != null) {
 			try {
-				Reader reader = new InputStreamReader(in, "UTF-8");
-				builtInStylesheet = new Stylesheet(null, reader);
+				CSSParser parser = new CSSParser();
+				builtInStylesheet = parser.readStylesheet(in);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -98,6 +100,10 @@ public class HTMLElement extends Element {
 		super(document, name);
 	}
 
+	public void setForceChapterBreak(boolean fcb) {
+		forceChapterBreak = fcb;
+	}
+
 	public String getNamespaceURI() {
 		return OPSDocument.xhtmlns;
 	}
@@ -105,18 +111,26 @@ public class HTMLElement extends Element {
 	Element cloneElementShallow(OPSDocument newDoc) {
 		HTMLElement e = new HTMLElement(newDoc, getElementName());
 		e.className = className;
+		e.cascade = cascade;
 		return e;
 	}
 
 	protected Object getBuiltInProperty(String propName) {
-		if (builtInStylesheet == null)
-			return null;
-		Selector selector = builtInStylesheet.getSimpleSelector(elementName, null);
-		return getValue(builtInStylesheet, selector, propName);
+		if (builtInStylesheet != null) {
+			Selector selector = builtInStylesheet.getSimpleSelector(elementName, null);
+			SelectorRule rule = builtInStylesheet.getRuleForSelector(selector, false);
+			if (rule != null)
+				return rule.get(propName);
+		}
+		return null;
 	}
 
 	boolean isSection() {
 		return sectionElements.contains(elementName);
+	}
+
+	boolean forcePeel() {
+		return forceChapterBreak;
 	}
 
 	int getPeelingBonus() {
@@ -128,9 +142,9 @@ public class HTMLElement extends Element {
 			int usage = selfRef.getUsage();
 			if ((usage & XRef.USAGE_PAGE) != 0) {
 				bv += 10000;
-				//System.out.println("-- page --");
+				// System.out.println("-- page --");
 			} else if ((usage & XRef.USAGE_TOC) != 0)
-				if( bv < 5000 )
+				if (bv < 5000)
 					bv = 5000;
 		}
 		return bv;

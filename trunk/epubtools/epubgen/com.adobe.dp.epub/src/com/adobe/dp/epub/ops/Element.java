@@ -35,11 +35,10 @@ import java.util.Iterator;
 import java.util.Stack;
 import java.util.Vector;
 
-import com.adobe.dp.epub.opf.StyleResource;
+import com.adobe.dp.css.CascadeEngine;
+import com.adobe.dp.css.CascadeResult;
+import com.adobe.dp.css.InlineRule;
 import com.adobe.dp.epub.otf.FontSubsetter;
-import com.adobe.dp.epub.style.InlineStyleRule;
-import com.adobe.dp.epub.style.Rule;
-import com.adobe.dp.epub.style.Selector;
 import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.xml.util.SMapImpl;
 import com.adobe.dp.xml.util.XMLSerializer;
@@ -50,7 +49,11 @@ abstract public class Element {
 
 	String className;
 
-	InlineStyleRule style;
+	InlineRule style;
+
+	CascadeResult cascade;
+
+	boolean assignStyle;
 
 	String elementName;
 
@@ -72,7 +75,7 @@ abstract public class Element {
 	abstract public String getNamespaceURI();
 
 	abstract Element cloneElementShallow(OPSDocument newDoc);
-	
+
 	public Element cloneElementShallow() {
 		return cloneElementShallow(document);
 	}
@@ -81,45 +84,20 @@ abstract public class Element {
 		return null;
 	}
 
-	static Object getValue( Stylesheet stylesheet, Selector selector, String propName ) {
-		Rule rule = stylesheet.findRuleForSelector(selector);
-		if( rule != null )
-			return rule.get(propName);
-		return null;
-	}
-	
 	public Object getCascadedProperty(String propName) {
 
 		// style attribute: highest specificity
-		InlineStyleRule style = getStyle();
+		InlineRule style = getStyle();
 		if (style != null) {
 			Object value = style.get(propName);
 			if (value != null)
 				return value;
 		}
 
-		// specificity order later stylesheets override the former ones
-		Vector styleResources = document.styleResources;
-		int len = styleResources.size();
-		for (int i = len - 1; i >= 0; i--) {
-			// specificity order (more to less): foo.bar .bar foo
-			Stylesheet stylesheet = ((StyleResource) styleResources.get(i)).getStylesheet();
-			Selector selector;
-			Object value;
-			if (className != null) {
-				selector = stylesheet.getSimpleSelector(elementName, className);
-				value = getValue( stylesheet, selector, propName );
-				if( value != null )
-					return value;
-				
-				selector = stylesheet.getSimpleSelector(null, className);
-				value = getValue( stylesheet, selector, propName );
-				if( value != null )
-					return value;
-			}
-			selector = stylesheet.getSimpleSelector(elementName, null);
-			value = getValue( stylesheet, selector, propName );
-			if( value != null )
+		// CSS cascade from stylesheets
+		if (cascade != null) {
+			Object value = cascade.getProperties().getPropertySet().get(propName);
+			if (value != null)
 				return value;
 		}
 
@@ -229,6 +207,10 @@ abstract public class Element {
 		return 0;
 	}
 
+	boolean forcePeel() {
+		return false;
+	}
+
 	boolean canPeelChild() {
 		return false;
 	}
@@ -267,17 +249,17 @@ abstract public class Element {
 		}
 	}
 
-	final Element peelElements(OPSDocument newDoc, int targetSize) {
+	final Element peelElements(OPSDocument newDoc, int targetSize, boolean first) {
 		SizeRemains sr = new SizeRemains();
 		sr.size = targetSize + 1000;
-		return peelElements(newDoc, sr);
+		return peelElements(newDoc, sr, first);
 	}
 
-	final Element peelElements(OPSDocument newDoc, SizeRemains remains) {
+	final Element peelElements(OPSDocument newDoc, SizeRemains remains, boolean first ) {
 		int size = getElementSize();
 		int bonus = getPeelingBonus();
 		remains.size -= size;
-		if (bonus >= 0 && bonus > remains.size) {
+		if (!first && (forcePeel() || (bonus >= 0 && bonus > remains.size))) {
 			// System.out.println("Break for bonus " + bonus);
 			transferToDocument(newDoc);
 			return this;
@@ -291,7 +273,7 @@ abstract public class Element {
 				Element child = (Element) next;
 				if (result == null) {
 					if (canPeelChild) {
-						Element p = child.peelElements(newDoc, remains);
+						Element p = child.peelElements(newDoc, remains, i==0);
 						if (p != null) {
 							result = cloneElementShallow(newDoc);
 							result.add(p);
@@ -340,13 +322,13 @@ abstract public class Element {
 			}
 			if (section)
 				ser.newLine();
-		}		
+		}
 	}
-	
+
 	boolean makeNSDefault() {
 		return false;
 	}
-	
+
 	void serialize(XMLSerializer ser) {
 		boolean section = isSection();
 		String ns = getNamespaceURI();
@@ -371,16 +353,41 @@ abstract public class Element {
 		return sb.toString();
 	}
 
-	public InlineStyleRule getStyle() {
+	public CascadeResult getCascadeResult() {
+		if (cascade == null)
+			cascade = new CascadeResult();
+		return cascade;
+	}
+
+	public void setDesiredCascadeResult(InlineRule s) {
+		CascadeResult cr = new CascadeResult();
+		InlineRule t = cr.getProperties().getPropertySet();
+		Iterator it = s.properties();
+		if (it != null) {
+			while (it.hasNext()) {
+				String p = (String) it.next();
+				Object value = s.get(p);
+				t.set(p, value);
+			}
+		}
+		setDesiredCascadeResult(cr);
+	}
+
+	public void setDesiredCascadeResult(CascadeResult cascade) {
+		this.cascade = cascade;
+		this.assignStyle = true;
+	}
+
+	public InlineRule getStyle() {
 		return style;
 	}
 
-	public void setStyle(InlineStyleRule style) {
+	public void setStyle(InlineRule style) {
 		this.style = style;
 	}
-	
+
 	public int assignPlayOrder(int playOrder) {
-		if( selfRef != null && selfRef.playOrderNeeded() ) {
+		if (selfRef != null && selfRef.playOrderNeeded()) {
 			selfRef.setPlayOrder(++playOrder);
 		}
 		Iterator it = content();
@@ -388,7 +395,36 @@ abstract public class Element {
 			Object next = it.next();
 			if (next instanceof Element)
 				playOrder = ((Element) next).assignPlayOrder(playOrder);
-		}		
+		}
 		return playOrder;
 	}
+
+	public void cascade(CascadeEngine engine) {
+		engine.pushElement(getNamespaceURI(), getElementName(), getAttributes());
+		cascade = engine.getCascadeResult();
+		Iterator it = content();
+		while (it.hasNext()) {
+			Object next = it.next();
+			if (next instanceof Element)
+				((Element) next).cascade(engine);
+		}
+		engine.popElement();
+	}
+
+	public void generateStyles(Stylesheet stylesheet) {
+		if (assignStyle) {
+			if (cascade != null && !cascade.isEmpty())
+				className = stylesheet.makeClass(className, cascade);
+			else
+				className = null;
+			assignStyle = false;
+		}
+		Iterator it = content();
+		while (it.hasNext()) {
+			Object next = it.next();
+			if (next instanceof Element)
+				((Element) next).generateStyles(stylesheet);
+		}
+	}
+
 }

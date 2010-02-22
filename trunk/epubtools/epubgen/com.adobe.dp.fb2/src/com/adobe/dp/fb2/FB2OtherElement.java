@@ -30,12 +30,14 @@
 
 package com.adobe.dp.fb2;
 
+import com.adobe.dp.css.InlineRule;
+
 public class FB2OtherElement extends FB2Element {
 
-	private String style;
+	private InlineRule style;
 	private String name;
 	
-	public FB2OtherElement(String name, String style) {
+	public FB2OtherElement(String name, InlineRule style) {
 		this.style = style;
 		this.name = name;
 	}
@@ -44,7 +46,7 @@ public class FB2OtherElement extends FB2Element {
 		return name;
 	}
 
-	public String getStyle() {
+	public InlineRule getStyle() {
 		return style;
 	}	
 }

@@ -1,8 +1,11 @@
-package com.adobe.dp.epub.style;
+package com.adobe.dp.css;
 
-public class CSSLength {
+import java.io.PrintWriter;
+
+public class CSSLength extends CSSValue {
 
 	double value;
+
 	String unit;
 
 	public CSSLength(double value, String unit) {
@@ -17,18 +20,23 @@ public class CSSLength {
 	public String getUnit() {
 		return unit;
 	}
-	
+
 	public String toString() {
-		return Math.round(value*1000)/1000.0 + unit;
+		return Math.round(value * 1000) / 1000.0 + unit;
 	}
-	
+
+	public void serialize(PrintWriter out) {
+		out.print(Math.round(value * 1000) / 1000.0);
+		out.print(unit);
+	}
+
 	public int hashCode() {
-		return (int)(value*1000) + unit.hashCode();
+		return (int) Math.round(value * 1000) + unit.hashCode();
 	}
-	
+
 	public boolean equals(Object other) {
-		if( other.getClass() == getClass() ) {
-			CSSLength o = (CSSLength)other;
+		if (other.getClass() == getClass()) {
+			CSSLength o = (CSSLength) other;
 			return o.value == value && o.unit.equals(unit);
 		}
 		return false;

@@ -31,11 +31,9 @@
 package com.adobe.dp.fb2.convert;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.Date;
@@ -44,6 +42,19 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Vector;
 
+import com.adobe.dp.css.BaseRule;
+import com.adobe.dp.css.CSSName;
+import com.adobe.dp.css.CSSParser;
+import com.adobe.dp.css.CSSParsingError;
+import com.adobe.dp.css.CSSQuotedString;
+import com.adobe.dp.css.CSSStylesheet;
+import com.adobe.dp.css.CSSValue;
+import com.adobe.dp.css.CSSValueList;
+import com.adobe.dp.css.CascadeEngine;
+import com.adobe.dp.css.CascadeResult;
+import com.adobe.dp.css.InlineRule;
+import com.adobe.dp.css.Selector;
+import com.adobe.dp.css.SelectorRule;
 import com.adobe.dp.epub.conv.Version;
 import com.adobe.dp.epub.io.BufferedDataSource;
 import com.adobe.dp.epub.ncx.TOCEntry;
@@ -61,39 +72,23 @@ import com.adobe.dp.epub.ops.SVGElement;
 import com.adobe.dp.epub.ops.SVGImageElement;
 import com.adobe.dp.epub.ops.TableCellElement;
 import com.adobe.dp.epub.ops.XRef;
-import com.adobe.dp.epub.style.BaseRule;
-import com.adobe.dp.epub.style.InlineStyleRule;
-import com.adobe.dp.epub.style.QuotedString;
-import com.adobe.dp.epub.style.Rule;
-import com.adobe.dp.epub.style.Selector;
-import com.adobe.dp.epub.style.SimpleSelector;
-import com.adobe.dp.epub.style.SimpleStylesheetParser;
 import com.adobe.dp.epub.style.Stylesheet;
-import com.adobe.dp.epub.style.ValueList;
 import com.adobe.dp.epub.util.ImageDimensions;
 import com.adobe.dp.fb2.FB2AuthorInfo;
 import com.adobe.dp.fb2.FB2Binary;
-import com.adobe.dp.fb2.FB2Date;
 import com.adobe.dp.fb2.FB2DateInfo;
 import com.adobe.dp.fb2.FB2Document;
 import com.adobe.dp.fb2.FB2DocumentInfo;
 import com.adobe.dp.fb2.FB2Element;
-import com.adobe.dp.fb2.FB2EmptyLine;
 import com.adobe.dp.fb2.FB2FormatException;
 import com.adobe.dp.fb2.FB2GenreInfo;
 import com.adobe.dp.fb2.FB2Hyperlink;
 import com.adobe.dp.fb2.FB2Image;
-import com.adobe.dp.fb2.FB2Line;
-import com.adobe.dp.fb2.FB2OtherElement;
-import com.adobe.dp.fb2.FB2Paragraph;
 import com.adobe.dp.fb2.FB2PublishInfo;
 import com.adobe.dp.fb2.FB2Section;
 import com.adobe.dp.fb2.FB2SequenceInfo;
 import com.adobe.dp.fb2.FB2StyledText;
-import com.adobe.dp.fb2.FB2Subtitle;
 import com.adobe.dp.fb2.FB2TableCell;
-import com.adobe.dp.fb2.FB2Text;
-import com.adobe.dp.fb2.FB2TextAuthor;
 import com.adobe.dp.fb2.FB2Title;
 import com.adobe.dp.fb2.FB2TitleInfo;
 import com.adobe.dp.otf.DefaultFontLocator;
@@ -107,11 +102,11 @@ public class FB2Converter {
 
 	final static private int RESOURCE_THRESHOLD_MIN = 10000;
 
-	private static QuotedString defaultSansSerifFont = new QuotedString("Arial");
+	private static CSSQuotedString defaultSansSerifFont = new CSSQuotedString("Arial");
 
-	private static QuotedString defaultSerifFont = new QuotedString("Times New Roman");
+	private static CSSQuotedString defaultSerifFont = new CSSQuotedString("Times New Roman");
 
-	private static QuotedString defaultMonospaceFont = new QuotedString("Courier New");
+	private static CSSQuotedString defaultMonospaceFont = new CSSQuotedString("Courier New");
 
 	FB2Document doc;
 
@@ -127,17 +122,15 @@ public class FB2Converter {
 
 	Hashtable idMap = new Hashtable();
 
-	Hashtable docRules = new Hashtable();
-
 	FB2Document templateDoc;
 
-	Hashtable templateRules;
+	CSSStylesheet templateRules;
 
 	FontLocator fontLocator;
 
 	FontLocator defaultFontLocator;
 
-	static Hashtable builtinRules;
+	static CSSStylesheet defaultStylesheet;
 
 	PrintWriter log = new PrintWriter(new OutputStreamWriter(System.out));
 
@@ -147,12 +140,20 @@ public class FB2Converter {
 
 	static {
 		try {
-			BufferedReader reader = new BufferedReader(new InputStreamReader(FB2Converter.class
-					.getResourceAsStream("stylesheet.css"), "UTF-8"));
-			SimpleStylesheetParser parser = new SimpleStylesheetParser();
-			parser.readRules(reader);
-			reader.close();
-			builtinRules = parser.getRules();
+			InputStream in = FB2Converter.class.getResourceAsStream("stylesheet.css");
+			CSSParser parser = new CSSParser();
+			defaultStylesheet = parser.readStylesheet(in);
+			in.close();
+			Iterator errs = parser.errors();
+			if (errs != null) {
+				while (errs.hasNext()) {
+					CSSParsingError err = (CSSParsingError) errs.next();
+					System.err.println(err.getLine() + ": " + err.getError());
+				}
+			}
+			PrintWriter out = new PrintWriter(System.out);
+			defaultStylesheet.serialize(out);
+			out.flush();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -233,16 +234,10 @@ public class FB2Converter {
 	}
 
 	private String getStringValue(Object val) {
-		if (val instanceof QuotedString) {
-			return ((QuotedString) val).getText();
+		if (val instanceof CSSQuotedString) {
+			return ((CSSQuotedString) val).getText();
 		}
 		return val.toString();
-	}
-
-	private InlineStyleRule processInlineStyle(String style) {
-		InlineStyleRule rule = new InlineStyleRule();
-		SimpleStylesheetParser.readProperties(style, rule);
-		return rule;
 	}
 
 	private boolean isBuiltIn(String name) {
@@ -250,23 +245,22 @@ public class FB2Converter {
 	}
 
 	private void adjustFontList(BaseRule rule) {
-		ValueList fonts = (ValueList) rule.get("font-family");
+		Object fonts = rule.get("font-family");
 		if (fonts == null)
 			return;
-		Iterator it = fonts.values();
-		while (it.hasNext()) {
-			String family = getStringValue(it.next());
+		int count = CSSValueList.valueCount(fonts, ',');
+		for (int i = 0; i < count; i++) {
+			String family = getStringValue(CSSValueList.valueAt(fonts, i, ','));
 			if (isBuiltIn(family))
 				continue;
 			FontProperties fp = new FontProperties(family, FontProperties.WEIGHT_NORMAL, FontProperties.STYLE_REGULAR);
 			if (fontLocator.hasFont(fp))
 				return; // found at least one font
 		}
-		ValueList list = new ValueList();
-		it = fonts.values();
+		Vector list = new Vector();
 		boolean inserted = false;
-		while (it.hasNext()) {
-			Object fn = it.next();
+		for (int i = 0; i < count; i++) {
+			Object fn = CSSValueList.valueAt(fonts, i, ',');
 			String family = getStringValue(fn);
 			if (!inserted) {
 				if (family.equals("sans-serif")) {
@@ -284,11 +278,13 @@ public class FB2Converter {
 		}
 		if (!inserted)
 			list.add(defaultSerifFont);
-		rule.set("font-family", list);
+		CSSValue[] vals = new CSSValue[list.size()];
+		list.copyInto(vals);
+		rule.set("font-family", new CSSValueList(',', vals));
 	}
 
-	void mergeRuleStyle(Rule rule, Hashtable src, SimpleSelector ss) {
-		Rule docRule = (Rule) src.get(ss);
+	void mergeRuleStyle(BaseRule rule, CSSStylesheet src, Selector ss) {
+		SelectorRule docRule = src.getRuleForSelector(ss, false);
 		if (docRule != null) {
 			Iterator props = docRule.properties();
 			while (props.hasNext()) {
@@ -298,184 +294,134 @@ public class FB2Converter {
 		}
 	}
 
-	void mergeRuleStyle(Rule rule, Hashtable src, String fbName, String fbClass) {
-		if (src == null)
-			return;
-		SimpleSelector ss;
-		if (fbName != null) {
-			ss = new SimpleSelector(fbName, null);
-			mergeRuleStyle(rule, src, ss);
-		}
-		ss = new SimpleSelector(null, fbClass);
-		mergeRuleStyle(rule, src, ss);
-	}
-
-	private void ensureRule(Selector selector, String fbName, String fbClass) {
-		if (stylesheet.findRuleForSelector(selector) == null) {
-			Rule rule = stylesheet.getRuleForSelector(selector);
-			mergeRuleStyle(rule, builtinRules, fbName, fbClass);
-			mergeRuleStyle(rule, docRules, fbName, fbClass);
-			mergeRuleStyle(rule, templateRules, fbName, fbClass);
-			adjustFontList(rule);
-		}
-	}
-
-	private void convertElement(OPSDocument ops, Element parent, Object fb, TOCEntry entry, int level,
-			boolean insideTitle) {
+	private Element convertElement(OPSDocument ops, Element parent, Object fb, TOCEntry entry, int level,
+			boolean insideTitle, boolean largeResource) {
 		if (fb instanceof FB2Element) {
 			FB2Element fbe = (FB2Element) fb;
 			FB2Title title = null;
 			if (fbe instanceof FB2Section) {
 				title = ((FB2Section) fbe).getTitle();
 			}
-			String name;
-			String className;
-			String fbName = fbe.getName();
-			String fbClass = fbName;
+			String className = fbe.getName();
+			String name = null;
+			CascadeResult cascade = fbe.getCascade();
+			InlineRule estyle = null;
+			if (cascade != null) {
+				estyle = cascade.getProperties().getPropertySet();
+				estyle = estyle.cloneObject();
+				CSSName ename = (CSSName) estyle.get("-epubgen-name");
+				if (ename != null)
+					name = ename.toString();
+				estyle.set("-epubgen-name", null);
+				adjustFontList(estyle);
+			}
+			if (name == null)
+				name = "span";
 			if (fbe instanceof FB2Section) {
-				name = "div";
 				level++;
-				className = fbName;
-			} else if (fbe instanceof FB2Title) {
-				name = "div";
-				className = "title" + (level > 6 ? 6 : level);
-				fbClass = className;
-				insideTitle = true;
-			} else if (fbe instanceof FB2Subtitle) {
-				name = "p";
-				className = "subtitle";
-			} else if (fbe instanceof FB2TextAuthor) {
-				name = "p";
-				className = "text-author";
-			} else if (fbe instanceof FB2Date) {
-				name = "p";
-				className = "date";
-			} else if (fbe instanceof FB2Paragraph) {
-				name = "p";
-				className = (insideTitle ? "title-p" : "p");
-				fbClass = className;
-			} else if (fbe instanceof FB2Line) {
-				name = "p";
-				className = "v";
-			} else if (fbe instanceof FB2EmptyLine) {
-				name = "p";
-				className = "empty-line";
-			} else if (fbe instanceof FB2Hyperlink) {
-				name = "a";
-				className = null;
-			} else if (fbe instanceof FB2Image) {
-				name = "img";
-				className = "img";
 			} else if (fbe instanceof FB2StyledText) {
 				className = ((FB2StyledText) fbe).getStyleName();
-				fbClass = className;
-				name = "span";
-			} else if (fbe instanceof FB2Text) {
-				className = null;
-				if (fbName.equals("emphasis")) {
-					name = "em";
-				} else if (fbName.equals("strong")) {
-					name = "strong";
-				} else if (fbName.equals("sup")) {
-					name = "sup";
-				} else if (fbName.equals("sub")) {
-					name = "sub";
-				} else if (fbName.equals("code")) {
-					name = "code";
-				} else if (fbName.equals("strikethrough")) {
-					name = "del";
-				} else {
-					throw new RuntimeException("unexpected element: " + fbName);
-				}
-			} else if (fbe instanceof FB2OtherElement) {
-				className = null;
-				name = fbe.getName();
-			} else if (fbe instanceof FB2TableCell) {
-				className = null;
-				name = fbe.getName();
-			} else {
-				System.err.println("Unknown fb2 element: " + fbe.getName());
-				name = null;
-				className = null;
 			}
 			Element self;
-			if (name == null) {
-				self = parent;
-			} else {
-				if (name.equals("img")) {
-					ImageElement img = null;
-					FB2Image image = (FB2Image) fbe;
-					String resourceName = image.getResourceName();
-					String alt = image.getAlt();
-					String caption = image.getTitle();
-					if (resourceName != null) {
-						BitmapImageResource resource = getBitmapImageResource(resourceName);
-						if (resource != null) {
-							img = ops.createImageElement(name);
-							img.setImageResource(resource);
-							if (alt != null)
-								img.setAltText(alt);
-							SimpleSelector imageContent = stylesheet.getSimpleSelector("img", null);
-							ensureRule(imageContent, null, "image-content");
+			if (name.equals("image")) {
+				ImageElement img = null;
+				FB2Image image = (FB2Image) fbe;
+				String resourceName = image.getResourceName();
+				String alt = image.getAlt();
+				String caption = image.getTitle();
+				if (resourceName != null) {
+					BitmapImageResource resource = getBitmapImageResource(resourceName);
+					if (resource != null) {
+						img = ops.createImageElement("img");
+						img.setImageResource(resource);
+						if (alt != null)
+							img.setAltText(alt);
+						if (cascade != null) {
+							InlineRule style = cascade.getProperties().getPropertySetForPseudoElement("content");
+							style = style.cloneObject();
+							adjustFontList(style);
+							img.setDesiredCascadeResult(style);
 						}
 					}
-					if (img == null)
-						return;
-					name = "div";
-					self = ops.createElement(name);
-					self.add(img);
-					if (caption != null && caption.length() > 0) {
-						HTMLElement captionElement = ops.createElement("p");
-						captionElement.setClassName("image-title");
-						self.add(captionElement);
-						captionElement.add(caption);
-						SimpleSelector imageTitle = stylesheet.getSimpleSelector(null, "image-title");
-						ensureRule(imageTitle, null, "image-title");
+				}
+				if (img == null)
+					return null;
+				self = ops.createElement("div");
+				self.add(img);
+				if (caption != null && caption.length() > 0) {
+					InlineRule style = null;
+					CSSName tname = null;
+					if (cascade != null) {
+						style = cascade.getProperties().getPropertySetForPseudoElement("title");
+						style = style.cloneObject();
+						tname = (CSSName) style.get("-epubgen-name");
+						style.set("-epubgen-name", null);
+						adjustFontList(style);
 					}
-				} else if (name.equals("a")) {
-					HyperlinkElement a = ops.createHyperlinkElement("a");
-					String link = ((FB2Hyperlink) fbe).getLinkedId();
-					if (link != null) {
-						LinkRecord record = getLinkRecord(link);
-						record.sources.add(a);
-					}
-					self = a;
-				} else if (name.equals("td") || name.equals("th")) {
-					FB2TableCell fbt = (FB2TableCell) fbe;
-					TableCellElement td = ops.createTableCellElement(name, fbt.getAlign(), fbt.getColSpan(), fbt
-							.getRowSpan());
-					self = td;
-				} else {
-					self = ops.createElement(name);
+					HTMLElement captionElement = ops.createElement(tname == null ? "p" : tname.toString());
+					captionElement.setClassName("image-title");
+					self.add(captionElement);
+					captionElement.add(caption);
+					captionElement.setDesiredCascadeResult(style);
 				}
-				String style = fbe.getStyle();
-				if (style != null) {
-					InlineStyleRule inlineRule = processInlineStyle(style);
-					if (inlineRule != null) {
-						adjustFontList(inlineRule);
-						self.setStyle(inlineRule);
-					}
+			} else if (name.equals("a")) {
+				HyperlinkElement a = ops.createHyperlinkElement("a");
+				String link = ((FB2Hyperlink) fbe).getLinkedId();
+				if (link != null) {
+					LinkRecord record = getLinkRecord(link);
+					record.sources.add(a);
 				}
-				if (className != null)
-					self.setClassName(className);
-				parent.add(self);
-				if (fbe.getId() != null) {
-					LinkRecord record = getLinkRecord(fbe.getId());
-					record.target = self;
-				}
-				if (title != null && entry != null) {
-					TOCEntry subentry = toc.createTOCEntry(trim(title.contentAsString()), self.getSelfRef());
-					entry.add(subentry);
-					entry = subentry;
-				}
-				SimpleSelector selector = stylesheet.getSimpleSelector(name, className);
-				ensureRule(selector, fbName, fbClass);
+				self = a;
+			} else if (name.equals("td") || name.equals("th")) {
+				FB2TableCell fbt = (FB2TableCell) fbe;
+				TableCellElement td = ops.createTableCellElement(name, fbt.getAlign(), fbt.getColSpan(), fbt
+						.getRowSpan());
+				self = td;
+			} else {
+				self = ops.createElement(name);
+			}
+			if (largeResource && self instanceof HTMLElement) {
+				((HTMLElement) self).setForceChapterBreak(true);
+			}
+			self.setClassName(className);
+			self.setDesiredCascadeResult(estyle);
+			parent.add(self);
+			if (fbe.getId() != null) {
+				LinkRecord record = getLinkRecord(fbe.getId());
+				record.target = self;
+			}
+			if (title != null && entry != null) {
+				TOCEntry subentry = toc.createTOCEntry(trim(title.contentAsString()), self.getSelfRef());
+				entry.add(subentry);
+				entry = subentry;
 			}
 			Object[] children = fbe.getChildren();
-			for (int i = 0; i < children.length; i++)
-				convertElement(ops, self, children[i], entry, level, insideTitle);
+			int size = 0;
+			for (int i = 0; i < children.length; i++) {
+				Object child = children[i];
+				boolean large = false;
+				boolean over = false;
+				int esize = 0;
+				if (largeResource) {
+					large = isLargeSection(child);
+					if (large)
+						size = 0;
+					else {
+						esize = FB2Element.getUTF16Size(child);
+						size += esize;
+						over = size > esize && size > RESOURCE_THRESHOLD_MAX;
+					}
+				}
+				Element ce = convertElement(ops, self, child, entry, level, insideTitle, large);
+				if (over && ce instanceof HTMLElement) {
+					((HTMLElement) ce).setForceChapterBreak(true);
+					size = esize;
+				}
+			}
+			return self;
 		} else {
 			parent.add(fb);
+			return null;
 		}
 	}
 
@@ -483,8 +429,8 @@ public class FB2Converter {
 		defaultFontLocator = fontLocator;
 	}
 
-	public void setTemplate(Stylesheet stylesheet) throws IOException {
-		templateRules = stylesheet.getRules();
+	public void setTemplate(CSSStylesheet stylesheet) throws IOException {
+		templateRules = stylesheet;
 	}
 
 	public void setTemplate(InputStream templateStream) throws IOException, FB2FormatException {
@@ -493,22 +439,17 @@ public class FB2Converter {
 		in.mark(4);
 		in.read(sniff);
 		in.reset();
-		SimpleStylesheetParser parser = new SimpleStylesheetParser();
+		CSSParser parser = new CSSParser();
 		if ((sniff[0] == 'P' && sniff[1] == 'K' && sniff[2] == 3 && sniff[3] == 4) || sniff[0] == '<'
 				|| ((sniff[0] == (byte) 0xef && sniff[1] == (byte) 0xbb && sniff[2] == (byte) 0xbf && sniff[3] == '<'))) {
 			// template is FB2 file itself
 			templateDoc = new FB2Document(in);
-			String[] stylesheets = templateDoc.getStylesheets();
-			if (stylesheets != null && stylesheets.length > 0) {
-				for (int i = 0; i < stylesheets.length; i++) {
-					parser.readRules(stylesheets[i]);
-				}
-			}
+			templateRules = null;
 		} else {
 			templateDoc = null;
-			parser.readRules(new BufferedReader(new InputStreamReader(in, "UTF-8")));
+			templateRules = new CSSStylesheet();
+			parser.readStylesheet(in, templateRules);
 		}
-		templateRules = parser.getRules();
 	}
 
 	public void setTemplateFile(String file) {
@@ -521,85 +462,38 @@ public class FB2Converter {
 		}
 	}
 
-	private void convertToResource(OPSResource resource, FB2Section section, TOCEntry entry, int level, int index,
-			int length) {
-		OPSDocument ops = resource.getDocument();
-		Element body = ops.getBody();
-		Object[] children = section.getChildren();
-		for (int i = 0; i < length; i++)
-			convertElement(ops, body, children[index + i], entry, level, false);
-	}
-
 	private boolean isLargeSection(Object child) {
 		return child instanceof FB2Section && ((FB2Section) child).getUTF16Size() >= RESOURCE_THRESHOLD_MIN;
 	}
 
-	private void convertSection(FB2Section section, TOCEntry entry, int level) {
+	private void convertSection(OPSDocument ops, Element body, FB2Section section, TOCEntry entry, int level) {
 		int size = section.getUTF16Size();
 		FB2Title title = section.getTitle();
-		if (section.getName().equals("body")) {
-			String sectionName = section.getSectionName();
-			if (sectionName != null) {
-				if (sectionName.equals("footnotes") || sectionName.equals("notes")) {
-					entry = null;
-					level += 2;
-				}
+		String sectionName = section.getSectionName();
+		if (sectionName != null) {
+			if (sectionName.equals("footnotes") || sectionName.equals("notes")) {
+				entry = null;
+				level += 2;
 			}
 		}
-		OPSResource resource = null;
 		if (title != null && level > 1) {
-			resource = newOPSResource();
 			if (entry != null) {
-				TOCEntry subentry = toc.createTOCEntry(trim(title.contentAsString()), resource.getDocument()
-						.getRootXRef());
+				TOCEntry subentry = toc.createTOCEntry(trim(title.contentAsString()), body.getSelfRef());
 				entry.add(subentry);
 				entry = subentry;
 			}
 		}
-		Object[] children = section.getChildren();
-		if (size <= RESOURCE_THRESHOLD_MAX) {
-			if (resource == null)
-				resource = newOPSResource();
-			convertToResource(resource, section, entry, level, 0, children.length);
-			resource = null;
-		} else {
-			size = 0;
-			int first = 0;
-			int i = 0;
-			while (i < children.length) {
-				Object child = children[i];
-				int childSize = FB2Element.getUTF16Size(child);
-				int newSize = size + childSize;
-				if (isLargeSection(child) || newSize > RESOURCE_THRESHOLD_MAX) {
-					if (first < i) {
-						if (resource == null)
-							resource = newOPSResource();
-						convertToResource(resource, section, entry, level, first, i - first);
-						resource = null;
-					}
-					if (isLargeSection(child)) {
-						convertSection((FB2Section) child, entry, level + 1);
-						i++;
-					} else if (first == i) {
-						if (resource == null)
-							resource = newOPSResource();
-						i++;
-						convertToResource(resource, section, entry, level, first, i - first);
-						resource = null;						
-					}
-					size = 0;
-					first = i;
-					continue;
-				}
-				size = newSize;
-				i++;
-			}
-			if (first < i) {
-				if (resource == null)
-					resource = newOPSResource();
-				convertToResource(resource, section, entry, level, first, i - first);
-			}
+		CascadeResult cr = section.getCascade();
+		if (cr != null) {
+			InlineRule style = cr.getProperties().getPropertySet().cloneObject();
+			style.set("-epub-name", null);
+			adjustFontList(style);
+			body.setDesiredCascadeResult(style);
 		}
+		boolean large = size > RESOURCE_THRESHOLD_MAX;
+		Object[] children = section.getChildren();
+		for (int i = 0; i < children.length; i++)
+			convertElement(ops, body, children[i], entry, level, false, large);
 	}
 
 	private boolean isUUID(String id) {
@@ -611,6 +505,7 @@ public class FB2Converter {
 		FB2TitleInfo bookInfo = doc.getTitleInfo();
 		styles = epub.createStyleResource("OPS/style.css");
 		stylesheet = styles.getStylesheet();
+		boolean dateAdded = false;
 		if (bookInfo != null) {
 			String title = bookInfo.getBookTitle();
 			epub.addDCMetadata("title", title);
@@ -634,7 +529,12 @@ public class FB2Converter {
 			FB2DateInfo date = bookInfo.getDate();
 			if (date != null) {
 				String mr = date.getMachineReadable();
-				epub.addDCMetadata("date", (mr == null ? date.getHumanReadable() : mr));
+				epub.addMetadata(null, "FB2.book-info.date", (mr == null ? date.getHumanReadable() : mr));
+				Date d = date.getDate();
+				if (d != null) {
+					epub.addDCMetadata("date", StringUtil.toShortW3CDTF(d, date.isYearOnly()));
+					dateAdded = true;
+				}
 			}
 			FB2GenreInfo[] genres = bookInfo.getGenres();
 			if (genres != null) {
@@ -656,8 +556,8 @@ public class FB2Converter {
 						OPSDocument coverDoc = coverRes.getDocument();
 						Element body = coverDoc.getBody();
 						body.setClassName("cover");
-						Rule coverBodyRule = stylesheet.getRuleForSelector(stylesheet
-								.getSimpleSelector("body", "cover"));
+						SelectorRule coverBodyRule = stylesheet.getRuleForSelector(stylesheet.getSimpleSelector("body",
+								"cover"), true);
 						coverBodyRule.set("oeb-column-number", "1");
 						coverBodyRule.set("margin", "0px");
 						coverBodyRule.set("padding", "0px");
@@ -665,7 +565,8 @@ public class FB2Converter {
 						svg.setAttribute("viewBox", "0 0 " + dim[0] + " " + dim[1]);
 						svg.setClassName("cover-svg");
 						body.add(svg);
-						Rule svgRule = stylesheet.getRuleForSelector(stylesheet.getSimpleSelector("svg", "cover-svg"));
+						SelectorRule svgRule = stylesheet.getRuleForSelector(stylesheet.getSimpleSelector("svg",
+								"cover-svg"), true);
 						svgRule.set("width", "100%");
 						svgRule.set("height", "100%");
 						SVGImageElement image = coverDoc.createSVGImageElement("image");
@@ -678,17 +579,34 @@ public class FB2Converter {
 				}
 			}
 		}
-		String[] stylesheets = doc.getStylesheets();
-		if (stylesheets != null && stylesheets.length > 0) {
-			SimpleStylesheetParser parser = new SimpleStylesheetParser();
-			for (int i = 0; i < stylesheets.length; i++) {
-				parser.readRules(stylesheets[i]);
-			}
-			docRules = parser.getRules();
-		}
 		if (defaultFontLocator == null)
 			defaultFontLocator = DefaultFontLocator.getInstance();
-		fontLocator = new EmbeddedFontLocator(docRules, doc, templateRules, templateDoc, defaultFontLocator);
+		fontLocator = defaultFontLocator;
+		CascadeEngine cascadeEngine = new CascadeEngine();
+		cascadeEngine.add(defaultStylesheet, null);
+		if (templateRules != null) {
+			cascadeEngine.add(templateRules, null);
+			fontLocator = new EmbeddedFontLocator(templateRules, fontLocator);
+		}
+		if (templateDoc != null) {
+			CSSStylesheet[] stylesheets = templateDoc.getStylesheets();
+			if (stylesheets != null) {
+				for (int i = 0; i < stylesheets.length; i++) {
+					CSSStylesheet stylesheet = stylesheets[i];
+					cascadeEngine.add(stylesheet, null);
+					fontLocator = new EmbeddedFontLocator(stylesheet, fontLocator);
+				}
+			}
+		}
+		CSSStylesheet[] stylesheets = doc.getStylesheets();
+		if (stylesheets != null) {
+			for (int i = 0; i < stylesheets.length; i++) {
+				CSSStylesheet stylesheet = stylesheets[i];
+				cascadeEngine.add(stylesheet, null);
+				fontLocator = new EmbeddedFontLocator(stylesheet, fontLocator);
+			}
+		}
+		doc.applyStyles(cascadeEngine);
 		FB2DocumentInfo docInfo = doc.getDocumentInfo();
 		String ident = null;
 		if (docInfo != null) {
@@ -731,20 +649,22 @@ public class FB2Converter {
 			epub.addMetadata(null, "FB2.publish-info.book-name", publishInfo.getBookName());
 			epub.addMetadata(null, "FB2.publish-info.city", publishInfo.getCity());
 			epub.addMetadata(null, "FB2.publish-info.year", publishInfo.getYear());
+			if (!dateAdded) {
+				epub.addDCMetadata("date", publishInfo.getYear());
+				dateAdded = true;
+			}
 			String isbn = publishInfo.getISBN();
 			if (isbn != null)
 				epub.addDCMetadata("identifier", "isbn:" + isbn.toUpperCase());
 		}
-		Rule bodyRule = stylesheet.getRuleForSelector(stylesheet.getSimpleSelector("body", null));
-		mergeRuleStyle(bodyRule, builtinRules, "body", "body");
-		mergeRuleStyle(bodyRule, docRules, "body", "body");
-		mergeRuleStyle(bodyRule, templateRules, "body", "body");
-		adjustFontList(bodyRule);
 		FB2Section[] bodySections = doc.getBodySections();
 		toc = epub.getTOC();
 		TOCEntry entry = toc.getRootTOCEntry();
 		for (int i = 0; i < bodySections.length; i++) {
-			convertSection(bodySections[i], entry, 1);
+			OPSResource resource = newOPSResource();
+			OPSDocument ops = resource.getDocument();
+			Element body = ops.getBody();
+			convertSection(ops, body, bodySections[i], entry, 1);
 		}
 		Enumeration keys = idMap.keys();
 		while (keys.hasMoreElements()) {
@@ -762,7 +682,9 @@ public class FB2Converter {
 
 		epub.addMetadata(null, "FB2EPUB.version", Version.VERSION);
 		epub.addMetadata(null, "FB2EPUB.conversionDate", StringUtil.dateToW3CDTF(new Date()));
-
+		epub.generateStyles(styles);
+		// pass some large number, should split along where marked
+		epub.splitLargeChapters(2000000);
 	}
 
 	public void embedFonts() {

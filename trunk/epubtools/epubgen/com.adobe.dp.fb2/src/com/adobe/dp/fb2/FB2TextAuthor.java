@@ -30,9 +30,11 @@
 
 package com.adobe.dp.fb2;
 
+import com.adobe.dp.css.InlineRule;
+
 public class FB2TextAuthor extends FB2StyledElement {
 	
-	public FB2TextAuthor(String style) {
+	public FB2TextAuthor(InlineRule style) {
 		super(style);
 	}
 	

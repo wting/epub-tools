@@ -4,11 +4,8 @@ import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
 
-import com.adobe.dp.epub.style.BaseRule;
-import com.adobe.dp.epub.style.CSSLength;
-import com.adobe.dp.epub.style.PrototypeRule;
-import com.adobe.dp.epub.style.Rule;
-import com.adobe.dp.epub.style.SimpleSelector;
+import com.adobe.dp.css.CSSLength;
+import com.adobe.dp.css.InlineRule;
 import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.office.types.BorderSide;
 import com.adobe.dp.office.types.FontFamily;
@@ -149,7 +146,7 @@ public class StyleConverter {
 		return result;
 	}
 
-	static void setIfNotPresent(BaseRule rule, String name, Object value) {
+	static void setIfNotPresent(InlineRule rule, String name, Object value) {
 		Object val = rule.get(name);
 		// space in front means it was not an implied, not explicitly set value
 		if (val == null || (val instanceof String && ((String) val).startsWith(" ")))
@@ -196,7 +193,7 @@ public class StyleConverter {
 		return result.toString();
 	}
 
-	public boolean convertLabelToProperty(NumberingLabel label, BaseRule rule) {
+	public boolean convertLabelToProperty(NumberingLabel label, InlineRule rule) {
 		String text = label.getText();
 		if (text.length() == 1) {
 			int bulletChar = text.charAt(0);
@@ -220,7 +217,7 @@ public class StyleConverter {
 		return false;
 	}
 
-	public StylingResult getLabelRule(BaseRule paragraphRule, NumberingLabel label, float emScale) {
+	public StylingResult getLabelRule(InlineRule paragraphRule, NumberingLabel label, float emScale) {
 		StylingResult result = new StylingResult();
 		if (label.getRunProperties() != null) {
 			convertStylingRule(result, label.getRunProperties(), emScale, false, false);
@@ -238,43 +235,12 @@ public class StyleConverter {
 			}
 		}
 		result.elementClassName = "label";
-		finalizeElementRule(result);
 		return result;
-	}
-
-	void finalizeElementRule(StylingResult result) {
-		if (result.elementRule.isEmpty()) {
-			result.elementClassName = null;
-			return;
-		}
-		Rule rule = stylesheet.getClassRuleForPrototype(result.elementRule);
-		if (rule == null) {
-			result.elementClassName = findUniqueClassName(result.elementClassName, false);
-			rule = stylesheet.createClassRuleForPrototype(result.elementClassName, result.elementRule);
-			classNames.add(result.elementClassName);
-		} else {
-			result.elementClassName = ((SimpleSelector) rule.getSelector()).getClassName();
-		}
-	}
-
-	void finalizeContainerRule(StylingResult result) {
-		if (result.containerRule == null)
-			return;
-		Rule rule = stylesheet.getClassRuleForPrototype(result.containerRule);
-		if (rule == null) {
-			if (result.containerClassName == null)
-				result.containerClassName = "d";
-			result.containerClassName = findUniqueClassName(result.containerClassName, false);
-			rule = stylesheet.createClassRuleForPrototype(result.containerClassName, result.containerRule);
-			classNames.add(result.containerClassName);
-		} else {
-			result.containerClassName = ((SimpleSelector) rule.getSelector()).getClassName();
-		}
 	}
 
 	private void setContainerIfNotPresent(StylingResult result, String prop, Object value) {
 		if (result.containerRule == null)
-			result.containerRule = new PrototypeRule();
+			result.containerRule = new InlineRule();
 		setIfNotPresent(result.containerRule, prop, value);
 	}
 
@@ -400,14 +366,14 @@ public class StyleConverter {
 				String borderDef = convertBorderSide(side);
 				if (name.equals("border-insideH")) {
 					if (result.tableCellRule == null)
-						result.tableCellRule = new PrototypeRule();
+						result.tableCellRule = new InlineRule();
 					result.tableCellRule.set("padding-top", paddingDef);
 					result.tableCellRule.set("padding-bottom", paddingDef);
 					result.tableCellRule.set("border-top", borderDef);
 					result.tableCellRule.set("border-bottom", borderDef);
 				} else if (name.equals("border-insideV")) {
 					if (result.tableCellRule == null)
-						result.tableCellRule = new PrototypeRule();
+						result.tableCellRule = new InlineRule();
 					result.tableCellRule.set("padding-left", paddingDef);
 					result.tableCellRule.set("padding-right", paddingDef);
 					result.tableCellRule.set("border-left", borderDef);
