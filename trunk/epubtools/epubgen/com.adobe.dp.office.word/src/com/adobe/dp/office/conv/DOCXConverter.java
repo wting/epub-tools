@@ -37,6 +37,10 @@ import java.util.Hashtable;
 import java.util.Iterator;
 
 import com.adobe.dp.css.CSSLength;
+import com.adobe.dp.css.CSSName;
+import com.adobe.dp.css.CSSNumber;
+import com.adobe.dp.css.CSSValue;
+import com.adobe.dp.css.CSSValueList;
 import com.adobe.dp.css.Selector;
 import com.adobe.dp.css.SelectorRule;
 import com.adobe.dp.epub.conv.Version;
@@ -62,8 +66,6 @@ public class DOCXConverter {
 	Publication epub;
 
 	NCXResource toc;
-
-	StyleResource styles;
 
 	StyleResource global;
 
@@ -93,9 +95,7 @@ public class DOCXConverter {
 		global = epub.createStyleResource("OPS/global.css");
 		Stylesheet globalStylesheet = global.getStylesheet();
 
-		styles = epub.createStyleResource("OPS/style.css");
-		Stylesheet stylesheet = styles.getStylesheet();
-		styleConverter = new StyleConverter(stylesheet, false);
+		styleConverter = new StyleConverter(false);
 		toc = epub.getTOC();
 
 		Style rs = doc.getDefaultParagraphStyle();
@@ -112,35 +112,49 @@ public class DOCXConverter {
 			if (sz instanceof Number)
 				defaultFontSize = ((Number) sz).doubleValue();
 			StylingResult res = styleConverter.styleElement(rp, false, 1, false, false);
-			// TODO: put it on body element
+			if (res.elementRule != null && !res.elementRule.isEmpty()) {
+				SelectorRule bodyRule = globalStylesheet.getRuleForSelector(globalStylesheet.getSimpleSelector("body", null),
+						true);
+				Iterator it = res.elementRule.properties();
+				while (it.hasNext()) {
+					String property = (String) it.next();
+					bodyRule.set(property, res.elementRule.get(property));
+				}
+			}
 			if (lang == null)
 				lang = (String) rp.get("lang");
 		}
 		if (defaultFontSize < 1)
 			defaultFontSize = 20;
 
-		SelectorRule bodyEmbedRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("body", "embed"), true);
+		SelectorRule bodyEmbedRule = globalStylesheet.getRuleForSelector(globalStylesheet.getSimpleSelector("body", "embed"),
+				true);
 		bodyEmbedRule.set("font-size", new CSSLength(defaultFontSize / 2, "px"));
 
 		styleConverter.setDefaultFontSize(defaultFontSize);
 		styleConverter.setDocumentDefaultParagraphStyle(doc.getDocumentDefaultParagraphStyle());
 
 		// default table styles
-		SelectorRule tableRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("table", null), true);
-		tableRule.set("border-collapse", "collapse");
-		tableRule.set("border-spacing", "0px");
+		SelectorRule tableRule = globalStylesheet.getRuleForSelector(globalStylesheet.getSimpleSelector("table", null), true);
+		tableRule.set("border-collapse", new CSSName("collapse"));
+		tableRule.set("border-spacing", new CSSLength(0, "px"));
 
 		// default paragraph styles
 		// unlike XHTML, Word's default spacing/margings are zero
-		SelectorRule pRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("p", null), true);
-		pRule.set("margin-top", "0px");
-		pRule.set("margin-bottom", "0px");
-		SelectorRule ulRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("ul", null), true);
-		// Word puts margins on li, not ul elements 
-		ulRule.set("padding-left", "0px"); // most CSS engines have default padding on ul element 
-		ulRule.set("margin", "0px"); // left margin override needed for older Digital Editions
-		SelectorRule nestedLiRule = globalStylesheet.getRuleForSelector(stylesheet.getSimpleSelector("li", "nested"), true);
-		nestedLiRule.set("display", "block");
+		SelectorRule pRule = globalStylesheet.getRuleForSelector(globalStylesheet.getSimpleSelector("p", null), true);
+		pRule.set("margin-top", new CSSLength(0, "px"));
+		pRule.set("margin-bottom", new CSSLength(0, "px"));
+		SelectorRule ulRule = globalStylesheet.getRuleForSelector(globalStylesheet.getSimpleSelector("ul", null), true);
+		// Word puts margins on li, not ul elements
+		ulRule.set("padding-left", new CSSLength(0, "px")); // most CSS engines
+															// have default
+		// padding on ul element
+		ulRule.set("margin", new CSSLength(0, "px")); // left margin override
+														// needed for older
+		// Digital Editions
+		SelectorRule nestedLiRule = globalStylesheet.getRuleForSelector(globalStylesheet.getSimpleSelector("li", "nested"),
+				true);
+		nestedLiRule.set("display", new CSSName("block"));
 	}
 
 	public void setFontLocator(FontLocator fontLocator) {
@@ -163,16 +177,18 @@ public class DOCXConverter {
 			footnoteConv.setWordResources(wordResources);
 			footnoteConv.convert(fbody, footnotes, false);
 			if (footnoteMap.size() > 0) {
-				Stylesheet ss = styles.getStylesheet();
+				Stylesheet ss = global.getStylesheet();
 				Selector selector = ss.getSimpleSelector(null, "footnote-ref");
 				SelectorRule rule = ss.getRuleForSelector(selector, true);
-				rule.set("font-size", "0.7em");
-				rule.set("vertical-align", "super");
-				rule.set("line-height", "0.2");
+				rule.set("font-size", new CSSLength(0.7, "em"));
+				rule.set("vertical-align", new CSSName("super"));
+				rule.set("line-height", new CSSNumber(0.2));
 				selector = ss.getSimpleSelector(null, "footnote-title");
 				rule = ss.getRuleForSelector(selector, true);
-				rule.set("margin", "0px");
-				rule.set("padding", "1em 0px 0.5em 2em");
+				rule.set("margin", new CSSLength(0, "px"));
+				CSSValue[] padvals = { new CSSLength(1, "em"), new CSSLength(0, "px"), new CSSLength(0.5, "em"),
+						new CSSLength(2, "em") };
+				rule.set("padding", new CSSValueList(' ', padvals));
 			} else {
 				epub.removeResource(footnotes);
 			}
@@ -214,6 +230,7 @@ public class DOCXConverter {
 		epub.addMetadata(null, "DOCX2EPUB.conversionDate", StringUtil.dateToW3CDTF(new Date()));
 
 		epub.generateTOCFromHeadings(5);
+		epub.generateStyles(global);
 		epub.splitLargeChapters();
 
 		log.flush();

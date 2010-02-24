@@ -30,6 +30,9 @@
 
 package com.adobe.dp.office.types;
 
+import com.adobe.dp.css.CSSRGBColor;
+import com.adobe.dp.css.CSSValue;
+
 public class RGBColor extends Paint {
 	int rgb;
 
@@ -41,7 +44,7 @@ public class RGBColor extends Paint {
 		return rgb;
 	}
 	
-	public String toCSSString() {
-		return "#" + Integer.toHexString(rgb | 0xF000000).substring(1);
+	public CSSValue toCSSValue() {
+		return new CSSRGBColor(rgb);
 	}	
 }

@@ -1,12 +1,16 @@
 package com.adobe.dp.office.conv;
 
-import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.Vector;
 
+import com.adobe.dp.css.CSSImpliedValue;
 import com.adobe.dp.css.CSSLength;
+import com.adobe.dp.css.CSSName;
+import com.adobe.dp.css.CSSQuotedString;
+import com.adobe.dp.css.CSSValue;
+import com.adobe.dp.css.CSSValueList;
 import com.adobe.dp.css.InlineRule;
-import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.office.types.BorderSide;
 import com.adobe.dp.office.types.FontFamily;
 import com.adobe.dp.office.types.Paint;
@@ -20,16 +24,9 @@ import com.adobe.dp.office.word.TableProperties;
 
 public class StyleConverter {
 
-	Stylesheet stylesheet;
-
 	Style documentDefaultParagraphStyle;
 
 	double defaultFontSize = 22.0;
-
-	// set of classes
-	HashSet classNames = new HashSet();
-
-	int styleCount = 1;
 
 	boolean usingPX;
 
@@ -45,20 +42,8 @@ public class StyleConverter {
 
 	private static final int RUN_SUB = 0x20;
 
-	StyleConverter(Stylesheet stylesheet, boolean usingPX) {
-		this.stylesheet = stylesheet;
+	StyleConverter(boolean usingPX) {
 		this.usingPX = usingPX;
-		classNames.add("primary");
-		classNames.add("embed");
-		classNames.add("nesting");
-		classNames.add("footnote");
-		classNames.add("footnote-ref");
-		classNames.add("footnote-title");
-	}
-
-	StyleConverter(StyleConverter conv) {
-		this(conv.stylesheet, true);
-		this.classNames = conv.classNames;
 	}
 
 	void setDocumentDefaultParagraphStyle(Style documentDefaultParagraphStyle) {
@@ -71,27 +56,6 @@ public class StyleConverter {
 
 	void setDefaultFontSize(double defaultFontSize) {
 		this.defaultFontSize = defaultFontSize;
-	}
-
-	private String findUniqueClassName(String base, boolean tryBase) {
-		if (tryBase) {
-			if (!classNames.contains(base))
-				return base;
-			base = base + "-";
-		}
-		while (true) {
-			String name = base + styleCount;
-			if (!classNames.contains(name)) {
-				return name;
-			}
-			styleCount++;
-		}
-	}
-
-	String getUniqueClassName(String base, boolean tryBase) {
-		String cname = findUniqueClassName(base, tryBase);
-		classNames.add(cname);
-		return cname;
 	}
 
 	private String mapToElement(String styleId) {
@@ -146,34 +110,34 @@ public class StyleConverter {
 		return result;
 	}
 
-	static void setIfNotPresent(InlineRule rule, String name, Object value) {
+	static void setIfNotPresent(InlineRule rule, String name, CSSValue value) {
 		Object val = rule.get(name);
-		// space in front means it was not an implied, not explicitly set value
-		if (val == null || (val instanceof String && ((String) val).startsWith(" ")))
+		if (val == null || val instanceof CSSImpliedValue )
 			rule.set(name, value);
 	}
 
-	String convertBorderSide(BorderSide side) {
+	CSSValueList convertBorderSide(BorderSide side) {
 		String type = side.getType();
 		if (type.equals("single"))
 			type = "solid";
 		else
 			type = "solid";
 		Paint paint = side.getColor();
-		String color = (paint instanceof RGBColor ? ((RGBColor) paint).toCSSString() : "black");
+		CSSValue color = (paint instanceof RGBColor ? ((RGBColor) paint).toCSSValue() : new CSSName("black"));
 		double width = side.getWidth() / 8.0;
-		return (width > 1 ? width + "px " : "1px ") + type + " " + color;
+		if( width < 1 )
+			width = 1;
+		CSSValue[] list = { new CSSLength(width,"px"), new CSSName(type), color };
+		return new CSSValueList(' ', list);
 	}
 
-	private String getFontFamilyString(FontFamily family) {
+	private CSSValue getFontFamilyString(FontFamily family) {
 		String name = family.getName();
-		StringBuffer result = new StringBuffer();
+		Vector list = new Vector();
 		if (name.indexOf(' ') >= 0) {
-			result.append('\'');
-			result.append(name);
-			result.append('\'');
+			list.add(new CSSQuotedString(name));
 		} else {
-			result.append(name);
+			list.add(new CSSName(name));
 		}
 		String backupName = null;
 		String shape = family.getFamily();
@@ -187,10 +151,13 @@ public class StyleConverter {
 				backupName = "sans-serif";
 		}
 		if (backupName != null) {
-			result.append(',');
-			result.append(backupName);
+			list.add(new CSSName(backupName));
 		}
-		return result.toString();
+		if( list.size() == 1 )
+			return (CSSValue)list.get(0);
+		CSSValue[] arr = new CSSValue[list.size()];
+		list.copyInto(arr);
+		return new CSSValueList(',', arr);
 	}
 
 	public boolean convertLabelToProperty(NumberingLabel label, InlineRule rule) {
@@ -200,20 +167,20 @@ public class StyleConverter {
 			if (bulletChar == 0xf0b7) {
 				// solid bullet
 				if (rule != null) {
-					rule.set("list-style-type", "disc");
+					rule.set("list-style-type", new CSSName("disc"));
 					rule.set("text-indent", new CSSLength(0, "px"));
 				}
 				return true;
 			} else if (bulletChar == 'o') {
 				if (rule != null) {
-					rule.set("list-style-type", "circle");
+					rule.set("list-style-type", new CSSName("circle"));
 					rule.set("text-indent", new CSSLength(0, "px"));
 				}
 				return true;
 			}
 		}
 		if (rule != null)
-			rule.set("list-style-type", "none");
+			rule.set("list-style-type", new CSSName("none"));
 		return false;
 	}
 
@@ -228,7 +195,7 @@ public class StyleConverter {
 				CSSLength len = (CSSLength) textIndent;
 				if (len.getValue() < 0) {
 					CSSLength labelWidth = new CSSLength(-len.getValue(), len.getUnit());
-					result.elementRule.set("display", "inline-block");
+					result.elementRule.set("display", new CSSName("inline-block"));
 					result.elementRule.set("text-indent", new CSSLength(0, "px"));
 					result.elementRule.set("min-width", labelWidth);
 				}
@@ -238,13 +205,13 @@ public class StyleConverter {
 		return result;
 	}
 
-	private void setContainerIfNotPresent(StylingResult result, String prop, Object value) {
+	private void setContainerIfNotPresent(StylingResult result, String prop, CSSValue value) {
 		if (result.containerRule == null)
 			result.containerRule = new InlineRule();
 		setIfNotPresent(result.containerRule, prop, value);
 	}
 
-	private void setElementIfNotPresent(StylingResult result, String prop, Object value) {
+	private void setElementIfNotPresent(StylingResult result, String prop, CSSValue value) {
 		setIfNotPresent(result.elementRule, prop, value);
 	}
 
@@ -267,10 +234,10 @@ public class StyleConverter {
 		value = wprop.get("vertAlign");
 		if (value != null) {
 			if (value.equals("superscript")) {
-				setElementIfNotPresent(result, "vertical-align", "super");
+				setElementIfNotPresent(result, "vertical-align", new CSSName("super"));
 				fontSize *= 0.8;
 			} else if (value.equals("subscript")) {
-				setElementIfNotPresent(result, "vertical-align", "sub");
+				setElementIfNotPresent(result, "vertical-align", new CSSName("sub"));
 				fontSize *= 0.8;
 			}
 		}
@@ -334,36 +301,40 @@ public class StyleConverter {
 			value = wprop.get(name);
 			if (name.equals("b")) {
 				boolean bold = value.equals(Boolean.TRUE);
-				setElementIfNotPresent(result, "font-weight", (bold ? "bold" : "normal"));
+				setElementIfNotPresent(result, "font-weight", new CSSName(bold ? "bold" : "normal"));
 			} else if (name.equals("i")) {
 				boolean italic = value.equals(Boolean.TRUE);
-				setElementIfNotPresent(result, "font-style", (italic ? "italic" : "normal"));
+				setElementIfNotPresent(result, "font-style", new CSSName(italic ? "italic" : "normal"));
 			} else if (name.equals("rFonts")) {
 				FontFamily fontFamily = (FontFamily) value;
 				setElementIfNotPresent(result, "font-family", getFontFamilyString(fontFamily));
 			} else if (name.equals("u")) {
 				Object val = result.elementRule.get("text-decoration");
 				if (val == null || !val.equals("line-through"))
-					result.elementRule.set("text-decoration", "underline");
-				else
-					result.elementRule.set("text-decoration", "underline, line-through");
+					result.elementRule.set("text-decoration", new CSSName("underline"));
+				else {
+					CSSValue[] td = { new CSSName("line-through"), new CSSName("underline") };
+					result.elementRule.set("text-decoration", new CSSValueList(',', td));
+				}
 			} else if (name.equals("strike")) {
 				Object val = result.elementRule.get("text-decoration");
 				if (val == null || !val.equals("underline"))
-					result.elementRule.set("text-decoration", "line-through");
-				else
-					result.elementRule.set("text-decoration", "underline, line-through");
+					result.elementRule.set("text-decoration", new CSSName("line-through"));
+				else {
+					CSSValue[] td = { new CSSName("line-through"), new CSSName("underline") };
+					result.elementRule.set("text-decoration", new CSSValueList(',', td));
+				}
 			} else if (name.equals("color")) {
-				setElementIfNotPresent(result, "color", ((RGBColor) value).toCSSString());
+				setElementIfNotPresent(result, "color", ((RGBColor) value).toCSSValue());
 			} else if (name.equals("highlight")) {
-				setElementIfNotPresent(result, "background-color", ((RGBColor) value).toCSSString());
+				setElementIfNotPresent(result, "background-color", ((RGBColor) value).toCSSValue());
 			} else if (name.equals("shd")) {
 				if (value instanceof RGBColor)
-					setContainerIfNotPresent(result, "background-color", ((RGBColor) value).toCSSString());
+					setContainerIfNotPresent(result, "background-color", ((RGBColor) value).toCSSValue());
 			} else if (name.startsWith("border-")) {
 				BorderSide side = (BorderSide) value;
 				CSSLength paddingDef = new CSSLength(side.getSpace() / 8.0, "px");
-				String borderDef = convertBorderSide(side);
+				CSSValue borderDef = convertBorderSide(side);
 				if (name.equals("border-insideH")) {
 					if (result.tableCellRule == null)
 						result.tableCellRule = new InlineRule();
@@ -397,21 +368,21 @@ public class StyleConverter {
 					css = "justify";
 				else if (value.equals("right") || value.equals("center"))
 					css = value.toString();
-				setElementIfNotPresent(result, "text-align", css);
+				setElementIfNotPresent(result, "text-align", new CSSName(css));
 			} else if (name.equals("webHidden")) {
 				boolean hidden = value.equals(Boolean.TRUE);
 				if (hidden)
-					setElementIfNotPresent(result, "display", "none");
+					setElementIfNotPresent(result, "display", new CSSName("none"));
 			} else if (name.equals("pageBreakBefore")) {
 				boolean pageBreakBefore = value.equals(Boolean.TRUE);
 				if (pageBreakBefore)
-					setContainerIfNotPresent(result, "page-break-before", "always");
+					setContainerIfNotPresent(result, "page-break-before", new CSSName("always"));
 			} else if (name.equals("keepNext")) {
 				if (value.equals(Boolean.TRUE))
-					setContainerIfNotPresent(result, "page-break-after", "avoid");
+					setContainerIfNotPresent(result, "page-break-after", new CSSName("avoid"));
 			} else if (name.equals("keepLines")) {
 				if (value.equals(Boolean.TRUE))
-					setContainerIfNotPresent(result, "page-break-inside", "avoid");
+					setContainerIfNotPresent(result, "page-break-inside", new CSSName("avoid"));
 			} else if (name.equals("spacing-before")) {
 				if (sameStyleBefore && keepTogether(wprop)) {
 					// vertical margin is zeroed out in this case
@@ -480,10 +451,9 @@ public class StyleConverter {
 			} else if (name.equals("framePr-align")) {
 				String align = (String) value;
 				if (align != null) {
-					setContainerIfNotPresent(result, "float", align);
+					setContainerIfNotPresent(result, "float", new CSSName(align));
 				} else {
-					// extra space indicates it was not explicitly set
-					setContainerIfNotPresent(result, "float", " left");
+					setContainerIfNotPresent(result, "float", new CSSImpliedValue(new CSSName("left")));
 				}
 			} else if (name.equals("framePr-w")) {
 				float width = ((Number) value).floatValue();
@@ -492,7 +462,7 @@ public class StyleConverter {
 					float percent = 100 * pts / normalWidth;
 					setContainerIfNotPresent(result, "width", new CSSLength(percent, "%"));
 					// extra space indicates it was not explicitly set
-					setContainerIfNotPresent(result, "float", " left");
+					setContainerIfNotPresent(result, "float", new CSSImpliedValue(new CSSName("left")));
 				}
 			} else if (name.equals("framePr-hSpace")) {
 				float hSpace = ((Number) value).floatValue();
@@ -502,8 +472,7 @@ public class StyleConverter {
 					CSSLength margin = new CSSLength(pts, "px");
 					if (align == null || align.equals("left")) {
 						setContainerIfNotPresent(result, "margin-right", margin);
-						// extra space indicates it was not explicitly set
-						setContainerIfNotPresent(result, "float", " left");
+						setContainerIfNotPresent(result, "float", new CSSImpliedValue(new CSSName("left")));
 					} else
 						setContainerIfNotPresent(result, "margin-left", margin);
 				}
@@ -512,8 +481,7 @@ public class StyleConverter {
 				if (vSpace > 0) {
 					float pts = vSpace / 20;
 					setContainerIfNotPresent(result, "margin-bottom", new CSSLength(pts, "px"));
-					// extra space indicates it was not explicitly set
-					setContainerIfNotPresent(result, "float", " left");
+					setContainerIfNotPresent(result, "float", new CSSImpliedValue(new CSSName("left")));
 				}
 			}
 		}
@@ -577,15 +545,15 @@ public class StyleConverter {
 
 		if (result.elementName != null && result.elementName.startsWith("h")) {
 			if (result.elementRule.get("font-weight") == null)
-				result.elementRule.set("font-weight", "normal");
+				result.elementRule.set("font-weight", new CSSName("normal"));
 			if (result.elementRule.get("margin-top") == null)
-				result.elementRule.set("margin-top", "0px");
+				result.elementRule.set("margin-top", new CSSLength(0, "px"));
 			if (result.elementRule.get("margin-bottom") == null)
-				result.elementRule.set("margin-bottom", "0px");
+				result.elementRule.set("margin-bottom", new CSSLength(0, "px"));
 			if (result.elementRule.get("margin-left") == null)
-				result.elementRule.set("margin-left", "0px");
+				result.elementRule.set("margin-left", new CSSLength(0, "px"));
 			if (result.elementRule.get("margin-right") == null)
-				result.elementRule.set("margin-right", "0px");
+				result.elementRule.set("margin-right", new CSSLength(0, "px"));
 		}
 	}
 

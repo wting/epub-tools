@@ -4,14 +4,14 @@ import java.io.PrintWriter;
 
 public class CSSImportant extends CSSValue {
 
-	private final Object value;
+	private final CSSValue value;
 
-	CSSImportant(Object value) {
+	CSSImportant(CSSValue value) {
 		this.value = value;
 	}
 
 	public void serialize(PrintWriter out) {
-		serialize(out, value);
+		value.serialize(out);
 		out.print(" !important");
 	}
 

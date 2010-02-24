@@ -5,9 +5,9 @@ import java.io.PrintWriter;
 public class CSSFunction extends CSSValue {
 
 	private final String ident;
-	private final Object[] params;
+	private final CSSValue[] params;
 	
-	CSSFunction( String ident, Object[] params ) {
+	CSSFunction( String ident, CSSValue[] params ) {
 		this.ident = ident;
 		this.params = params;
 	}
@@ -18,7 +18,7 @@ public class CSSFunction extends CSSValue {
 		String sep = "";
 		for( int i = 0 ; i < params.length ; i++ ) {
 			out.print(sep);
-			serialize(out, params[i]);
+			params[i].serialize(out);
 			sep = ", ";
 		}
 		out.print(')');

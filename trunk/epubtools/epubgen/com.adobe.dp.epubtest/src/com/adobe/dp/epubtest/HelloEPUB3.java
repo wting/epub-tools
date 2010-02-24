@@ -2,6 +2,11 @@ package com.adobe.dp.epubtest;
 
 import java.io.FileOutputStream;
 
+import com.adobe.dp.css.CSSLength;
+import com.adobe.dp.css.CSSName;
+import com.adobe.dp.css.CSSQuotedString;
+import com.adobe.dp.css.CSSValue;
+import com.adobe.dp.css.CSSValueList;
 import com.adobe.dp.css.Selector;
 import com.adobe.dp.css.SelectorRule;
 import com.adobe.dp.epub.io.DataSource;
@@ -52,57 +57,64 @@ public class HelloEPUB3 {
 			Selector h1Selector = stylesheet.getSimpleSelector("h1", null);
 			SelectorRule h1Rule = stylesheet.getRuleForSelector(h1Selector,
 					true);
-			h1Rule.set("color", "gray");
-			h1Rule.set("border-bottom", "2px solid gray");
-			h1Rule.set("text-align", "right");
-			h1Rule.set("margin", "2em 8px 1em 0px");
-			h1Rule.set("font-family", "'Adobe Garamond Pro'");
+			h1Rule.set("color", new CSSName("gray"));
+			CSSValue[] border = { new CSSLength(2, "px"), new CSSName("solid"),
+					new CSSName("gray") };
+			h1Rule.set("border-bottom", new CSSValueList(' ', border));
+			h1Rule.set("text-align", new CSSName("right"));
+			CSSValue[] margin = { new CSSLength(2, "em"),
+					new CSSLength(8, "px"), new CSSLength(1, "em"),
+					new CSSLength(0, "px") };
+			h1Rule.set("margin", new CSSValueList(' ', margin));
+			h1Rule.set("font-family", new CSSQuotedString("Adobe Garamond Pro"));
 
 			// style p element
 			Selector pSelector = stylesheet.getSimpleSelector("p", null);
 			SelectorRule pRule = stylesheet.getRuleForSelector(pSelector, true);
-			pRule.set("margin", "0px");
-			pRule.set("text-indent", "1em");
-			pRule.set("text-align", "justify");
-			pRule.set("font-family", "'Chaparral Pro'");
+			pRule.set("margin", new CSSLength(0, "px"));
+			pRule.set("text-indent", new CSSLength(1, "em"));
+			pRule.set("text-align", new CSSName("justify"));
+			h1Rule.set("font-family", new CSSQuotedString("Chaparral Pro"));
 
 			// style bitmap class (JPEG image)
 			Selector bitmapSelector = stylesheet.getSimpleSelector(null,
 					"bitmap");
 			SelectorRule bitmapRule = stylesheet.getRuleForSelector(
 					bitmapSelector, true);
-			bitmapRule.set("width", "80%");
-			bitmapRule.set("max-width", "553px");
+			bitmapRule.set("width", new CSSLength(80, "%"));
+			bitmapRule.set("max-width", new CSSLength(553, "px"));
 
 			// style container class (container for JPEG image)
 			Selector containerSelector = stylesheet.getSimpleSelector("p",
 					"container");
 			SelectorRule containerRule = stylesheet.getRuleForSelector(
 					containerSelector, true);
-			containerRule.set("text-align", "center");
-			containerRule.set("text-indent", "0px");
-			containerRule.set("padding", "0.5em 0px");
+			containerRule.set("text-align", new CSSName("center"));
+			containerRule.set("text-indent", new CSSLength(0, "px"));
+			CSSValue[] padval = { new CSSLength(0.5, "em"), new CSSLength(0, "px") };
+			containerRule.set("padding", new CSSValueList(' ', padval));
 
 			// style svgimage class (embedded SVG)
 			Selector svgimageSelector = stylesheet.getSimpleSelector(null,
 					"svgimage");
 			SelectorRule svgimageRule = stylesheet.getRuleForSelector(svgimageSelector, true);
-			svgimageRule.set("width", "80%");
-			svgimageRule.set("padding", "0.5em 10%");
+			svgimageRule.set("width", new CSSLength(80, "%"));
+			CSSValue[] padval1 = { new CSSLength(0.5, "em"), new CSSLength(10, "%") };
+			svgimageRule.set("padding", new CSSValueList(' ', padval1));
 
 			// style label1 class (text in embedded SVG)
 			Selector label1Selector = stylesheet.getSimpleSelector(null,
 					"label1");
 			SelectorRule label1Rule = stylesheet.getRuleForSelector(label1Selector, true);
-			label1Rule.set("font-size", "36");
-			label1Rule.set("font-family", "'Chaparral Pro'");
+			label1Rule.set("font-size", new CSSLength(36, "px"));
+			label1Rule.set("font-family", new CSSQuotedString("Chaparral Pro"));
 
 			// style label2 class (text in embedded SVG)
 			Selector label2Selector = stylesheet.getSimpleSelector(null,
 					"label2");
 			SelectorRule label2Rule = stylesheet.getRuleForSelector(label2Selector, true);
-			label2Rule.set("font-size", "48");
-			label2Rule.set("font-family", "'Comic Sans MS'");
+			label2Rule.set("font-size", new CSSLength(48, "px"));
+			label2Rule.set("font-family", new CSSQuotedString("Comic Sans MS"));
 
 			// create first chapter resource
 			OPSResource chapter1 = epub.createOPSResource("OPS/chapter1.html");

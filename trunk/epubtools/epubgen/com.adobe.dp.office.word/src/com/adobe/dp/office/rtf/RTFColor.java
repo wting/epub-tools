@@ -30,6 +30,9 @@
 
 package com.adobe.dp.office.rtf;
 
+import com.adobe.dp.css.CSSRGBColor;
+import com.adobe.dp.css.CSSValue;
+
 public class RTFColor {
 
 	// color component values are 0 - 255
@@ -40,9 +43,9 @@ public class RTFColor {
 
 	public int blue;
 	
-	public String toCSSString() {
+	public CSSValue toCSSValue() {
 		int rgb = (red<<16)|(green<<8)|blue;
-		return "#" + Integer.toHexString(rgb | 0xF000000).substring(1);
+		return new CSSRGBColor(rgb);
 	}
 	
 }

@@ -1,32 +1,32 @@
 /*******************************************************************************
-* Copyright (c) 2009, Adobe Systems Incorporated
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without 
-* modification, are permitted provided that the following conditions are met:
-*
-* ·        Redistributions of source code must retain the above copyright 
-*          notice, this list of conditions and the following disclaimer. 
-*
-* ·        Redistributions in binary form must reproduce the above copyright 
-*		   notice, this list of conditions and the following disclaimer in the
-*		   documentation and/or other materials provided with the distribution. 
-*
-* ·        Neither the name of Adobe Systems Incorporated nor the names of its 
-*		   contributors may be used to endorse or promote products derived from
-*		   this software without specific prior written permission. 
-* 
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-* OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
-* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*******************************************************************************/
+ * Copyright (c) 2009, Adobe Systems Incorporated
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * ·        Redistributions of source code must retain the above copyright 
+ *          notice, this list of conditions and the following disclaimer. 
+ *
+ * ·        Redistributions in binary form must reproduce the above copyright 
+ *		   notice, this list of conditions and the following disclaimer in the
+ *		   documentation and/or other materials provided with the distribution. 
+ *
+ * ·        Neither the name of Adobe Systems Incorporated nor the names of its 
+ *		   contributors may be used to endorse or promote products derived from
+ *		   this software without specific prior written permission. 
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
 
 package com.adobe.dp.office.conv;
 
@@ -39,6 +39,10 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Set;
 
+import com.adobe.dp.css.CSSLength;
+import com.adobe.dp.css.CSSName;
+import com.adobe.dp.css.CSSValue;
+import com.adobe.dp.css.CSSValueList;
 import com.adobe.dp.css.InlineRule;
 import com.adobe.dp.css.Selector;
 import com.adobe.dp.css.SelectorRule;
@@ -86,27 +90,25 @@ public class RTFConverter {
 	Hashtable styleMap = new Hashtable();
 
 	String bulletText;
-	
+
 	String bulletClass;
-	
+
 	StyleResource css;
 
 	PrintWriter log = new PrintWriter(new OutputStreamWriter(System.out));
-	
+
 	int count = 1;
 
 	static String mediaFolder = "OPS/images/";
 
 	class WMFResourceWriter implements ResourceWriter {
 
-		public StreamAndName createResource(String base, String suffix,
-				boolean doNotCompress) throws IOException {
+		public StreamAndName createResource(String base, String suffix, boolean doNotCompress) throws IOException {
 			String name = mediaFolder + "wmf-" + base + suffix;
 			name = epub.makeUniqueResourceName(name);
 			BufferedDataSource dataSource = new BufferedDataSource();
 			epub.createBitmapImageResource(name, "image/png", dataSource);
-			return new StreamAndName(name.substring(mediaFolder.length()),
-					dataSource.getOutputStream());
+			return new StreamAndName(name.substring(mediaFolder.length()), dataSource.getOutputStream());
 		}
 
 	}
@@ -133,17 +135,17 @@ public class RTFConverter {
 			Object val = style.get(prop);
 			if (prop.equals("q_")) {
 				if (val.equals("l"))
-					rule.set("text-align", "left");
+					rule.set("text-align", new CSSName("left"));
 				else if (val.equals("r"))
-					rule.set("text-align", "right");
+					rule.set("text-align", new CSSName("right"));
 				else if (val.equals("c"))
-					rule.set("text-align", "center");
+					rule.set("text-align", new CSSName("center"));
 				else if (val.equals("j"))
-					rule.set("text-align", "justify");
+					rule.set("text-align", new CSSName("justify"));
 			} else if (prop.equals("f")) {
 				RTFFont font = doc.getFont(((Number) val).intValue());
 				if (font != null)
-					rule.set("font-family", font.toCSSString());
+					rule.set("font-family", font.toCSSValue());
 			} else if (prop.equals("fs")) {
 				fontSize = ((Number) val).intValue();
 			} else if (prop.equals("sb")) {
@@ -157,26 +159,23 @@ public class RTFConverter {
 			} else if (prop.equals("sl")) {
 				lineSpacing = ((Number) val).intValue();
 			} else if (prop.equals("fi")) {
-				rule.set("text-indent", (((Number) val).intValue() / 220.0)
-						+ "em");
+				rule.set("text-indent", new CSSLength(((Number) val).intValue() / 220.0, "em"));
 			} else if (prop.equals("i")) {
-				rule.set("font-style", val.equals(Boolean.TRUE) ? "italic"
-						: "normal");
+				rule.set("font-style", new CSSName(val.equals(Boolean.TRUE) ? "italic" : "normal"));
 			} else if (prop.equals("b")) {
-				rule.set("font-weight", val.equals(Boolean.TRUE) ? "bold"
-						: "normal");
+				rule.set("font-weight", new CSSName(val.equals(Boolean.TRUE) ? "bold" : "normal"));
 			} else if (prop.equals("cf")) {
 				RTFColor color = doc.getColor(((Integer) val).intValue());
 				if (color != null)
-					rule.set("color", color.toCSSString());
+					rule.set("color", color.toCSSValue());
 			} else if (prop.equals("sub")) {
 				if (val.equals(Boolean.TRUE)) {
-					rule.set("vertical-align", "sub");
+					rule.set("vertical-align", new CSSName("sub"));
 					adjFontSize = true;
 				}
 			} else if (prop.equals("super")) {
 				if (val.equals(Boolean.TRUE)) {
-					rule.set("vertical-align", "super");
+					rule.set("vertical-align", new CSSName("super"));
 					adjFontSize = true;
 				}
 			} else if (prop.equals("ul")) {
@@ -190,32 +189,32 @@ public class RTFConverter {
 			} else if (prop.equals("cf")) {
 				RTFColor color = doc.getColor(((Integer) val).intValue());
 				if (color != null)
-					rule.set("color", color.toCSSString());
+					rule.set("color", color.toCSSValue());
 			} else if (prop.equals("webhidden")) {
-				rule.set("visibility", val.equals(Boolean.TRUE) ? "hidden"
-						: "visible");
+				rule.set("visibility", new CSSName(val.equals(Boolean.TRUE) ? "hidden" : "visible"));
 			}
 		}
 		if (adjFontSize)
 			fontSize *= 0.67f;
 		if (fontSize != defaultFontSize)
-			rule.set("font-size", (fontSize / defaultFontSize) + "em");
+			rule.set("font-size", new CSSLength((fontSize / defaultFontSize), "em"));
 		if (underline || strike) {
-			if (underline && strike)
-				rule.set("text-decoration", "line-through, underline");
-			else if (underline)
-				rule.set("text-decoration", "underline");
+			if (underline && strike) {
+				CSSValue[] td = { new CSSName("line-through"), new CSSName("underline") };
+				rule.set("text-decoration", new CSSValueList(',', td));
+			} else if (underline)
+				rule.set("text-decoration", new CSSName("underline"));
 			else
-				rule.set("text-decoration", "line-through");
+				rule.set("text-decoration", new CSSName("line-through"));
 		}
 		if (block) {
-			rule.set("margin", "" + before / 20.0 + "pt " + right / 20.0
-					+ "pt " + after / 20.0 + "pt " + left / 20.0 + " pt");
+			CSSValue[] margin = { new CSSLength(before / 20.0, "pt"), new CSSLength(right / 20.0, "pt"),
+					new CSSLength(after / 20.0, "pt"), new CSSLength(left / 20.0, "pt") };
+			rule.set("margin", new CSSValueList(' ', margin));
 			if (lineSpacing != 0) {
 				if (lineSpacing < 0)
 					lineSpacing = -lineSpacing;
-				rule.set("line-height", (lineSpacing / (defaultFontSize * 10))
-						+ "em");
+				rule.set("line-height", new CSSLength(lineSpacing / (defaultFontSize * 10), "em"));
 			}
 		}
 	}
@@ -236,37 +235,31 @@ public class RTFConverter {
 		return className;
 	}
 
-	private String getParagraphClassName(RTFStyle paragraphStyle,
-			RTFStyle characterStyle) {
+	private String getParagraphClassName(RTFStyle paragraphStyle, RTFStyle characterStyle) {
 		RTFStyle[] styles = { characterStyle, paragraphStyle };
 		return getClassName(styles, "p", RTFControlType.paragraphProps);
 	}
 
-	private String getCharacterClassName(RTFStyle paragraphStyle,
-			RTFStyle characterStyle) {
+	private String getCharacterClassName(RTFStyle paragraphStyle, RTFStyle characterStyle) {
 		RTFStyle[] styles = { characterStyle, paragraphStyle };
 		return getClassName(styles, "c", RTFControlType.characterProps);
 	}
 
-	private void ensureParagraph(RTFStyle paragraphStyle,
-			RTFStyle characterStyle) {
+	private void ensureParagraph(RTFStyle paragraphStyle, RTFStyle characterStyle) {
 		if (paragraph == null) {
 			paragraph = chapter.createElement("p");
-			paragraph.setClassName(getParagraphClassName(paragraphStyle,
-					characterStyle));
+			paragraph.setClassName(getParagraphClassName(paragraphStyle, characterStyle));
 			section.add(paragraph);
 			textAppendPoint = null;
 		}
 	}
 
-	private Element getTextAppendPoint(RTFStyle paragraphStyle,
-			RTFStyle characterStyle) {
+	private Element getTextAppendPoint(RTFStyle paragraphStyle, RTFStyle characterStyle) {
 		ensureParagraph(paragraphStyle, characterStyle);
 		if (textAppendPoint == null) {
 			if (characterStyle != null && !characterStyle.isEmpty()) {
 				textAppendPoint = chapter.createElement("span");
-				textAppendPoint.setClassName(getCharacterClassName(
-						paragraphStyle, characterStyle));
+				textAppendPoint.setClassName(getCharacterClassName(paragraphStyle, characterStyle));
 				paragraph.add(textAppendPoint);
 			} else {
 				textAppendPoint = paragraph;
@@ -275,8 +268,7 @@ public class RTFConverter {
 		return textAppendPoint;
 	}
 
-	private void addChildren(RTFGroup g, RTFStyle paragraphStyle,
-			RTFStyle characterStyle) {
+	private void addChildren(RTFGroup g, RTFStyle paragraphStyle, RTFStyle characterStyle) {
 		RTFControl ctrl;
 		Object[] content = g.getContent();
 		for (int i = 0; i < content.length; i++) {
@@ -338,8 +330,7 @@ public class RTFConverter {
 						continue;
 				}
 				textAppendPoint = null;
-				addChildren(sg, cloneStyle(paragraphStyle),
-						cloneStyle(characterStyle));
+				addChildren(sg, cloneStyle(paragraphStyle), cloneStyle(characterStyle));
 				textAppendPoint = null;
 			}
 		}
@@ -413,29 +404,23 @@ public class RTFConverter {
 			try {
 				dataSource.getOutputStream().write(pictBytes);
 			} catch (IOException e) {
-				throw new Error(
-						"Unexpected IOException for memory buffer stream: "
-								+ e.getMessage());
+				throw new Error("Unexpected IOException for memory buffer stream: " + e.getMessage());
 			}
 			String resName = epub.makeUniqueResourceName(mediaFolder
-					+ (contentType.equals("image/jpeg") ? "pict.jpeg"
-							: "pict.png"));
-			res = epub.createBitmapImageResource(resName, contentType,
-					dataSource);
+					+ (contentType.equals("image/jpeg") ? "pict.jpeg" : "pict.png"));
+			res = epub.createBitmapImageResource(resName, contentType, dataSource);
 		} else if (contentType.equals("image/x-wmf")) {
 			WMFResourceWriter dw = new WMFResourceWriter();
 			GDISVGSurface svg = new GDISVGSurface(dw);
 			try {
-				WMFParser parser = new WMFParser(new ByteArrayInputStream(
-						pictBytes), svg);
+				WMFParser parser = new WMFParser(new ByteArrayInputStream(pictBytes), svg);
 				parser.readAll();
 			} catch (IOException e) {
 				e.printStackTrace(log);
 				return;
 			}
 			DataSource dataSource = new StringDataSource(svg.getSVG());
-			String resName = epub.makeUniqueResourceName(mediaFolder
-					+ "pict.svg");
+			String resName = epub.makeUniqueResourceName(mediaFolder + "pict.svg");
 			res = epub.createResource(resName, "image/svg+xml", dataSource);
 		} else
 			return;
@@ -443,8 +428,8 @@ public class RTFConverter {
 		imageElement.setImageResource(res);
 		InlineRule props = new InlineRule();
 		if (width > 0)
-			props.set("width", (width * scalex / 2000.0) + "pt");
-		props.set("max-width", "95%");
+			props.set("width", new CSSLength(width * scalex / 2000.0, "pt"));
+		props.set("max-width", new CSSLength(95, "%"));
 		imageElement.setStyle(props);
 		section.add(imageElement);
 	}
@@ -459,21 +444,21 @@ public class RTFConverter {
 		OPSResource ops = epub.createOPSResource("OPS/content.xhtml");
 		css = epub.createStyleResource("OPS/style.css");
 		stylesheet = css.getStylesheet();
-		SelectorRule bulletRule = stylesheet.getRuleForSelector(stylesheet
-				.getSimpleSelector("span", "bullet"), true);
-		bulletRule.set("font-family", "Arial, sans-serif");
+		SelectorRule bulletRule = stylesheet.getRuleForSelector(stylesheet.getSimpleSelector("span", "bullet"), true);
+		CSSValue[] names = { new CSSName("Arial"), new CSSName("sans-serif") };
+		bulletRule.set("font-family", new CSSValueList(',', names));
 		epub.addToSpine(ops);
 		chapter = ops.getDocument();
 		chapter.addStyleResource(css);
 		section = chapter.getBody();
 		addChildren(doc.getRoot(), null, null);
 	}
-	
+
 	void embedFonts(FontLocator fontLocator) {
 		epub.addFonts(css, fontLocator);
 	}
-	
+
 	public void setLog(PrintWriter log) {
 		this.log = log;
-	}	
+	}
 }

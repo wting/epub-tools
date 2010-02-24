@@ -6,7 +6,7 @@ public class CSSName extends CSSValue {
 
 	private String name;
 
-	CSSName(String name) {
+	public CSSName(String name) {
 		this.name = name;
 	}
 

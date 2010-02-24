@@ -6,7 +6,9 @@ public class CSSRGBColor extends CSSValue {
 
 	int rgb;
 
-	CSSRGBColor(int rgb) {
+	public CSSRGBColor(int rgb) {
+		if( (rgb & 0xFF000000) != 0 )
+			throw new RuntimeException("invalid parameter");
 		this.rgb = rgb;
 	}
 

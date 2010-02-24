@@ -64,8 +64,6 @@ public class VMLConverter {
 
 	private StyleConverter styleConverter;
 
-	private StyleResource styles;
-
 	private boolean embedded;
 
 	PrintWriter log;
@@ -76,10 +74,7 @@ public class VMLConverter {
 		this.embedded = embedded;
 		if (!embedded) {
 			epub = wordConverter.getPublication();
-			String name = epub.makeUniqueResourceName("OPS/media/vml-style.css");
-			styles = epub.createStyleResource(name);
-			Stylesheet stylesheet = styles.getStylesheet();
-			styleConverter = new StyleConverter(stylesheet, true);
+			styleConverter = new StyleConverter(true);
 		}
 	}
 
@@ -100,7 +95,6 @@ public class VMLConverter {
 		if (!embedded) {
 			StyleResource global = (StyleResource) epub.getResourceByName("OPS/global.css");
 			chapter.addStyleResource(global);
-			chapter.addStyleResource(styles);
 			svg.setAttribute("width", Float.toString(widthPt));
 			svg.setAttribute("height", Float.toString(heightPt));
 		}
@@ -198,10 +192,10 @@ public class VMLConverter {
 				if (transform.length() > 0)
 					childSVG.setAttribute("transform", transform.toString());
 				RGBColor fill = vml.getFill();
-				childSVG.setAttribute("fill", (fill != null ? fill.toCSSString() : "none"));
+				childSVG.setAttribute("fill", (fill != null ? fill.toCSSValue().toCSSString() : "none"));
 				RGBColor stroke = vml.getStroke();
 				if (stroke != null) {
-					childSVG.setAttribute("stroke", stroke.toCSSString());
+					childSVG.setAttribute("stroke", stroke.toCSSValue().toCSSString());
 					String sws = vml.getStrokeWeight();
 					if (sws != null) {
 						float sw = VMLPathConverter.readCSSLength(sws, 0);
@@ -214,9 +208,9 @@ public class VMLConverter {
 					String shadowOffset = "translate(" + scaleX * shadow.getOffsetX() + "," + scaleY
 							* shadow.getOffsetY() + ")";
 					svgShadow.setAttribute("transform", shadowOffset + transform);
-					svgShadow.setAttribute("fill", shadow.getColor().toCSSString());
+					svgShadow.setAttribute("fill", shadow.getColor().toCSSValue());
 					if( stroke != null )
-						svgShadow.setAttribute("stroke", shadow.getColor().toCSSString());						
+						svgShadow.setAttribute("stroke", shadow.getColor().toCSSValue());						
 					if (shadow.getOpacity() != 1)
 						svgShadow.setAttribute("opacity", Float.toString(shadow.getOpacity()));
 					parentSVG.add(svgShadow);

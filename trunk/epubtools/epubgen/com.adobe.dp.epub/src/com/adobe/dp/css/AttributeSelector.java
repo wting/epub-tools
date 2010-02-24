@@ -12,9 +12,9 @@ public class AttributeSelector extends Selector {
 
 	String op;
 
-	Object value;
+	CSSValue value;
 
-	AttributeSelector(String prefix, String ns, String attr, String op, Object value) {
+	AttributeSelector(String prefix, String ns, String attr, String op, CSSValue value) {
 		this.prefix = prefix;
 		this.ns = ns;
 		this.attr = attr;
@@ -45,7 +45,7 @@ public class AttributeSelector extends Selector {
 			}
 			out.print(attr);
 			out.print(op);
-			CSSValue.serialize(out, value);
+			value.serialize(out);
 		}
 		out.print("]");
 	}

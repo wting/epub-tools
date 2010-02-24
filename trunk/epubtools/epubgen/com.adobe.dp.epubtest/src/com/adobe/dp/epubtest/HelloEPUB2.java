@@ -2,6 +2,10 @@ package com.adobe.dp.epubtest;
 
 import java.io.FileOutputStream;
 
+import com.adobe.dp.css.CSSLength;
+import com.adobe.dp.css.CSSName;
+import com.adobe.dp.css.CSSValue;
+import com.adobe.dp.css.CSSValueList;
 import com.adobe.dp.css.Selector;
 import com.adobe.dp.css.SelectorRule;
 import com.adobe.dp.epub.io.OCFContainerWriter;
@@ -41,18 +45,24 @@ public class HelloEPUB2 {
 
 			// style h1 element
 			Selector h1Selector = stylesheet.getSimpleSelector("h1", null);
-			SelectorRule h1Rule = stylesheet.getRuleForSelector(h1Selector, true);
-			h1Rule.set("color", "gray");
-			h1Rule.set("border-bottom", "2px solid gray");
-			h1Rule.set("text-align", "right");
-			h1Rule.set("margin", "2em 8px 1em 0px");
+			SelectorRule h1Rule = stylesheet.getRuleForSelector(h1Selector,
+					true);
+			h1Rule.set("color", new CSSName("gray"));
+			CSSValue[] border = { new CSSLength(2, "px"), new CSSName("solid"),
+					new CSSName("gray") };
+			h1Rule.set("border-bottom", new CSSValueList(' ', border));
+			h1Rule.set("text-align", new CSSName("right"));
+			CSSValue[] margin = { new CSSLength(2, "em"),
+					new CSSLength(8, "px"), new CSSLength(1, "em"),
+					new CSSLength(0, "px") };
+			h1Rule.set("margin", new CSSValueList(' ', margin));
 
 			// style p element
 			Selector pSelector = stylesheet.getSimpleSelector("p", null);
 			SelectorRule pRule = stylesheet.getRuleForSelector(pSelector, true);
-			pRule.set("margin", "0px");
-			pRule.set("text-indent", "1em");
-			pRule.set("text-align", "justify");
+			pRule.set("margin", new CSSLength(0, "px"));
+			pRule.set("text-indent", new CSSLength(1, "em"));
+			pRule.set("text-align", new CSSName("justify"));
 
 			// create first chapter resource
 			OPSResource chapter1 = epub.createOPSResource("OPS/chapter1.html");

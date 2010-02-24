@@ -38,6 +38,7 @@ import java.util.Iterator;
 
 import com.adobe.dp.css.CSSParser;
 import com.adobe.dp.css.CSSStylesheet;
+import com.adobe.dp.css.CSSValue;
 import com.adobe.dp.css.CascadeResult;
 import com.adobe.dp.css.FontFaceRule;
 import com.adobe.dp.css.InlineRule;
@@ -113,7 +114,7 @@ public class Stylesheet {
 		Iterator ps = p.properties();
 		while (ps.hasNext()) {
 			String pn = (String) ps.next();
-			Object pv = p.get(pn);
+			CSSValue pv = p.get(pn);
 			rule.set(pn, pv);
 		}
 		return cls;

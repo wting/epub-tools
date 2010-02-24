@@ -123,6 +123,8 @@ public class OPSDocument {
 	}
 
 	public void addStyleResource(StyleResource style) {
+		if( style == null )
+			throw new IllegalArgumentException("null style");
 		styleResources.add(style);
 	}
 

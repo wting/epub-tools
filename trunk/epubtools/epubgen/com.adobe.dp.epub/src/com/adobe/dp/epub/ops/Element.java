@@ -35,6 +35,7 @@ import java.util.Iterator;
 import java.util.Stack;
 import java.util.Vector;
 
+import com.adobe.dp.css.CSSValue;
 import com.adobe.dp.css.CascadeEngine;
 import com.adobe.dp.css.CascadeResult;
 import com.adobe.dp.css.InlineRule;
@@ -366,7 +367,7 @@ abstract public class Element {
 		if (it != null) {
 			while (it.hasNext()) {
 				String p = (String) it.next();
-				Object value = s.get(p);
+				CSSValue value = s.get(p);
 				t.set(p, value);
 			}
 		}

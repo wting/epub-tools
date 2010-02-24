@@ -30,6 +30,13 @@
 
 package com.adobe.dp.office.rtf;
 
+import java.util.Vector;
+
+import com.adobe.dp.css.CSSName;
+import com.adobe.dp.css.CSSQuotedString;
+import com.adobe.dp.css.CSSValue;
+import com.adobe.dp.css.CSSValueList;
+
 public class RTFFont {
 
 	public static final int ROMAN = 0;
@@ -62,36 +69,37 @@ public class RTFFont {
 		return type;
 	}
 
-	public String toCSSString() {
-		StringBuffer sb = new StringBuffer();
+	public CSSValue toCSSValue() {
+		Vector list = new Vector();
 		if (name != null && name.length() > 0) {
 			if (name.indexOf(" ") >= 0) {
-				sb.append("'");
-				sb.append(name);
-				sb.append("'");
+				list.add(new CSSQuotedString(name));
 			} else {
-				sb.append(name);
+				list.add(new CSSName(name));
 			}
-			sb.append(", ");
 		}
 		switch (type) {
 		case ROMAN:
-			sb.append("serif");
+			list.add(new CSSName("serif"));
 			break;
 		case SWISS:
-			sb.append("sans-serif");
+			list.add(new CSSName("sans-serif"));
 			break;
 		case MODERN:
 		case TECH:
-			sb.append("monospace");
+			list.add(new CSSName("monospace"));
 			break;
 		case SCRIPT:
-			sb.append("cursive, serif");
+			list.add(new CSSName("cursive"));
+			list.add(new CSSName("serif"));
 			break;
 		case DECOR:
-			sb.append("fantasy, serif");
+			list.add(new CSSName("fantasy"));
+			list.add(new CSSName("serif"));
 			break;
 		}
-		return sb.toString();
+		CSSValue[] arr = new CSSValue[list.size()];
+		list.copyInto(arr);
+		return new CSSValueList(' ', arr);
 	}
 }

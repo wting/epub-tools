@@ -86,6 +86,8 @@ public class Resource {
 	 * @return relative URL
 	 */
 	public String makeReference(Resource target, String fragment) {
+		if( target == null )
+			throw new IllegalArgumentException("null target");
 		StringBuffer ref = new StringBuffer();
 		int index = 0;
 		while (true) {
