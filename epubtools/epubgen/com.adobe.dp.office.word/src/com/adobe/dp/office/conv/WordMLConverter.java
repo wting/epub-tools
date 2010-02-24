@@ -49,6 +49,7 @@ import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
 
 import com.adobe.dp.css.CSSLength;
+import com.adobe.dp.css.CSSNumber;
 import com.adobe.dp.css.CSSParser;
 import com.adobe.dp.css.InlineRule;
 import com.adobe.dp.epub.io.BufferedDataSource;
@@ -162,7 +163,7 @@ class WordMLConverter {
 		this.chapter = chapterResource.getDocument();
 		this.doc = parent.doc;
 		this.epub = parent.epub;
-		this.styleConverter = new StyleConverter(parent.styleConverter);
+		this.styleConverter = new StyleConverter(true);
 		this.chapterSplitAllowed = false;
 	}
 
@@ -186,7 +187,7 @@ class WordMLConverter {
 
 		int listLevel;
 
-		Object topMargin;
+		CSSLength topMargin;
 	}
 
 	class WMFResourceWriter implements ResourceWriter {
@@ -506,7 +507,7 @@ class WordMLConverter {
 			double widthEM = widthPt / (emScale * defaultFontSize / 2);
 			rule.set("width", new CSSLength(widthEM, "em"));
 		}
-		rule.set("max-width", "100%");
+		rule.set("max-width", new CSSLength(100, "%"));
 		img.setStyle(rule);
 		img.setClassName(baseClassName);
 	}
@@ -587,7 +588,7 @@ class WordMLConverter {
 				}
 			} else if (cmd.equals("columns")) {
 				InlineRule rule = new InlineRule();
-				rule.set("oeb-column-number", param);
+				rule.set("oeb-column-number", new CSSNumber(Integer.parseInt(param)));
 				resource.getDocument().getBody().setStyle(rule);
 			} else if (cmd.equals("pageMap")) {
 				if (param.length() == 0 || param.toLowerCase().startsWith("t") || param.equals("1"))
@@ -683,7 +684,8 @@ class WordMLConverter {
 		if (styleAcc.length() > 0) {
 			try {
 				CSSParser parser = new CSSParser();
-				parser.readStylesheet(new StringReader(styleAcc.toString()), styleConverter.stylesheet.getCSS());
+				StyleResource global = (StyleResource) epub.getResourceByName("OPS/global.css");
+				parser.readStylesheet(new StringReader(styleAcc.toString()), global.getStylesheet().getCSS());
 			} catch (Exception e) {
 				// e.printStackTrace();
 				e.printStackTrace(log);
@@ -786,6 +788,14 @@ class WordMLConverter {
 					elementName = "p";
 				if (epubStyle.startsWith("."))
 					className = epubStyle.substring(1);
+				if (conv == null && elementName != null) {
+					conv = chapter.createElement(elementName);
+					if (className != null)
+						conv.setClassName(className);
+					resetSpaceProcessing = true;
+				} else {
+					treatAsSpace();
+				}
 			} else {
 				flushMagic();
 				ParagraphProperties prevpp = getNonMagicParagraphProperties(prev);
@@ -796,7 +806,7 @@ class WordMLConverter {
 
 				NestingItem containerItem = getOPSContainer(wp, !nc1);
 				if (!nc1 && result.containerRule != null)
-					containerItem.topMargin = result.containerRule.get("margin-top");
+					containerItem.topMargin = (CSSLength) result.containerRule.get("margin-top");
 
 				// don't finalize container until last element of the same style
 				if (!nc2) {
@@ -805,37 +815,34 @@ class WordMLConverter {
 							result.containerRule = new InlineRule();
 						result.containerRule.set("margin-top", containerItem.topMargin);
 					}
-					if (containerItem.opsElement != null)
+					if (containerItem.opsElement != null) {
 						containerItem.opsElement.setClassName(result.containerClassName);
+						containerItem.opsElement.setDesiredCascadeResult(result.containerRule);
+					}
 				}
 				elementName = result.elementName;
 				if (elementName == null)
 					elementName = "p";
 				className = result.elementClassName;
+				conv = chapter.createElement(elementName);
+				if (className != null) {
+					conv.setClassName(className);
+					conv.setDesiredCascadeResult(result.elementRule);
+				}
+				resetSpaceProcessing = true;
 				NumberingLabel label = pp.getNumberingLabel();
 				if (label != null) {
 					if (!styleConverter.convertLabelToProperty(label, null)) {
-						// add label as a child
-						conv = chapter.createElement(elementName);
-						if (className != null)
-							conv.setClassName(className);
-						resetSpaceProcessing = true;
+						// add label as a first child
 						StylingResult labelRes = styleConverter.getLabelRule(result.elementRule, label, emScale
 								* emScaleMultiplier(conv));
 						Element labelElement = chapter.createElement("span");
 						labelElement.setClassName(labelRes.elementClassName);
+						labelElement.setDesiredCascadeResult(labelRes.elementRule);
 						labelElement.add(label.getText() + " ");
 						conv.add(labelElement);
 					}
 				}
-			}
-			if (conv == null && elementName != null) {
-				conv = chapter.createElement(elementName);
-				if (className != null)
-					conv.setClassName(className);
-				resetSpaceProcessing = true;
-			} else {
-				treatAsSpace();
 			}
 		} else {
 			flushMagic();
@@ -924,19 +931,14 @@ class WordMLConverter {
 				TableProperties tp = wt.getTableProperties();
 				conv = chapter.createElement("table");
 				StylingResult result = styleConverter.convertTableStylingRule(tp, emScale);
-				if (!result.elementRule.isEmpty() || result.tableCellRule != null) {
-					// every table gets unique class
-					String className = styleConverter.getUniqueClassName("tb", false);
-					conv.setClassName(className);
-				}
+				conv.setDesiredCascadeResult(result.elementRule);
+				conv.setClassName("table");
 				resetSpaceProcessing = true;
 			} else if (we instanceof TableRowElement) {
 				conv = chapter.createElement("tr");
-				conv.setClassName(getCurrentOPSContainer().getClassName());
 				resetSpaceProcessing = true;
 			} else if (we instanceof TableCellElement) {
 				conv = chapter.createElement("td");
-				conv.setClassName(getCurrentOPSContainer().getClassName());
 				resetSpaceProcessing = true;
 			} else if (we instanceof TextElement) {
 				Element parent = getCurrentOPSContainer();
@@ -1111,13 +1113,11 @@ class WordMLConverter {
 
 	void convert(BodyElement wbody, OPSResource ops, boolean addToSpine) {
 		StyleResource global = (StyleResource) epub.getResourceByName("OPS/global.css");
-		StyleResource styles = (StyleResource) epub.getResourceByName("OPS/style.css");
 		resource = ops;
 		com.adobe.dp.office.word.Element child = null;
 		do {
 			chapter = resource.getDocument();
 			chapter.addStyleResource(global);
-			chapter.addStyleResource(styles);
 			if (addToSpine)
 				epub.addToSpine(resource);
 			Element body = chapter.getBody();

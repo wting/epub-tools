@@ -43,7 +43,9 @@ import java.util.Iterator;
 import java.util.Vector;
 
 import com.adobe.dp.css.BaseRule;
+import com.adobe.dp.css.CSSLength;
 import com.adobe.dp.css.CSSName;
+import com.adobe.dp.css.CSSNumber;
 import com.adobe.dp.css.CSSParser;
 import com.adobe.dp.css.CSSParsingError;
 import com.adobe.dp.css.CSSQuotedString;
@@ -151,9 +153,6 @@ public class FB2Converter {
 					System.err.println(err.getLine() + ": " + err.getError());
 				}
 			}
-			PrintWriter out = new PrintWriter(System.out);
-			defaultStylesheet.serialize(out);
-			out.flush();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -558,17 +557,17 @@ public class FB2Converter {
 						body.setClassName("cover");
 						SelectorRule coverBodyRule = stylesheet.getRuleForSelector(stylesheet.getSimpleSelector("body",
 								"cover"), true);
-						coverBodyRule.set("oeb-column-number", "1");
-						coverBodyRule.set("margin", "0px");
-						coverBodyRule.set("padding", "0px");
+						coverBodyRule.set("oeb-column-number", new CSSNumber(1));
+						coverBodyRule.set("margin", new CSSLength(0, "px"));
+						coverBodyRule.set("padding", new CSSLength(0, "px"));
 						SVGElement svg = coverDoc.createSVGElement("svg");
 						svg.setAttribute("viewBox", "0 0 " + dim[0] + " " + dim[1]);
 						svg.setClassName("cover-svg");
 						body.add(svg);
 						SelectorRule svgRule = stylesheet.getRuleForSelector(stylesheet.getSimpleSelector("svg",
 								"cover-svg"), true);
-						svgRule.set("width", "100%");
-						svgRule.set("height", "100%");
+						svgRule.set("width", new CSSLength(100, "%"));
+						svgRule.set("height", new CSSLength(100, "%"));
 						SVGImageElement image = coverDoc.createSVGImageElement("image");
 						image.setAttribute("width", Integer.toString(dim[0]));
 						image.setAttribute("height", Integer.toString(dim[1]));

@@ -6,8 +6,16 @@ public class CSSNumber extends CSSValue {
 
 	private Number number;
 
-	CSSNumber(Number number) {
+	public CSSNumber(Number number) {
 		this.number = number;
+	}
+
+	public CSSNumber(int number) {
+		this.number = new Integer(number);
+	}
+
+	public CSSNumber(double number) {
+		this.number = new Double(number);
 	}
 
 	public Number getNumber() {

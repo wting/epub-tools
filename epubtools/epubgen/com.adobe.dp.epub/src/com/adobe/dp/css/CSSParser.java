@@ -464,7 +464,7 @@ public class CSSParser {
 						return cssurlFactory.createCSSURL(url);
 					return new CSSURL(url);
 				} else {
-					Object[] params = readParams();
+					CSSValue[] params = readParams();
 					if (params == null)
 						return null;
 					return new CSSFunction(ident, params);
@@ -502,7 +502,7 @@ public class CSSParser {
 		return arr;
 	}
 
-	private Object readValue() throws IOException {
+	private CSSValue readValue() throws IOException {
 		return readValue(',');
 	}
 
@@ -572,7 +572,7 @@ public class CSSParser {
 					break;
 				}
 				read();
-				Object value = readValue();
+				CSSValue value = readValue();
 				if (value == null)
 					break;
 				ch = skipWhitespace();
@@ -681,7 +681,7 @@ public class CSSParser {
 					} else {
 						return null;
 					}
-					Object value = readSingleValue();
+					CSSValue value = readSingleValue();
 					if (value == null)
 						return null;
 					ch = skipWhitespace();

@@ -364,27 +364,27 @@ public class FontSubsetter implements FontEmbeddingReport {
 				FontResource fontResource = epub.createFontResource(epub.getContentFolder() + "/fonts/" + resName
 						+ ".otf", bds);
 				FontFaceRule face = styleResource.getStylesheet().createFontFace(fontResource);
-				face.set("font-family", '\'' + entry.familyName + '\'');
+				face.set("font-family", new CSSQuotedString(entry.familyName) );
 				switch (entry.weight) {
 				case FontPropertyConstants.WEIGHT_NORMAL:
-					face.set("font-weight", "normal");
+					face.set("font-weight", new CSSName("normal"));
 					break;
 				case FontPropertyConstants.WEIGHT_BOLD:
-					face.set("font-weight", "bold");
+					face.set("font-weight", new CSSName("bold"));
 					break;
 				default:
-					face.set("font-weight", Integer.toString(entry.weight));
+					face.set("font-weight", new CSSNumber(new Integer(entry.weight)));
 					break;
 				}
 				switch (entry.style) {
 				case FontPropertyConstants.STYLE_ITALIC:
-					face.set("font-style", "italic");
+					face.set("font-style", new CSSName("italic"));
 					break;
 				case FontPropertyConstants.STYLE_OBLIQUE:
-					face.set("font-style", "oblique");
+					face.set("font-style", new CSSName("oblique"));
 					break;
 				default:
-					face.set("font-style", "normal");
+					face.set("font-style", new CSSName("normal"));
 					break;
 				}
 

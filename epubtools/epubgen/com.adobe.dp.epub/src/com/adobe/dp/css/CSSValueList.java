@@ -59,7 +59,7 @@ public class CSSValueList extends CSSValue {
 		String sep = "";
 		for (int i = 0; i < values.length; i++) {
 			out.print(sep);
-			serialize(out, values[i]);
+			values[i].serialize(out);
 			if (separator == ' ')
 				sep = " ";
 			else

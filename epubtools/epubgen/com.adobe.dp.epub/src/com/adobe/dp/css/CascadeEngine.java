@@ -2,6 +2,7 @@ package com.adobe.dp.css;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -33,16 +34,16 @@ public class CascadeEngine {
 
 	int order;
 
-	static class CascadeValue {
+	static class CascadeValue extends CSSValue {
 		int specificity;
 
 		int importance;
 
 		int order;
 
-		Object value;
+		CSSValue value;
 
-		public CascadeValue(Object value, int specificity, int importance, int order) {
+		public CascadeValue(CSSValue value, int specificity, int importance, int order) {
 			this.value = value;
 			this.specificity = specificity;
 			this.importance = importance;
@@ -56,6 +57,13 @@ public class CascadeEngine {
 				return importance - other.importance;
 			return order - other.order;
 		}
+
+		public void serialize(PrintWriter out) {
+			// CascadeValue is internal and should never be left in public rules
+			throw new RuntimeException("unexpected call");
+		}
+		
+		
 	}
 
 	static class MatcherList {
@@ -131,7 +139,7 @@ public class CascadeEngine {
 			Map.Entry entry = (Map.Entry) entries.next();
 			String prop = (String) entry.getKey();
 			int importance = 0;
-			Object value = entry.getValue();
+			CSSValue value = (CSSValue)entry.getValue();
 			if (value instanceof CSSImportant)
 				importance = 1;
 			Iterator it = (mediaList == null ? null : mediaList.iterator());
@@ -231,7 +239,7 @@ public class CascadeEngine {
 							CascadeValue mediaSpecific = (CascadeValue) mps.get(property);
 							CascadeValue generic = (CascadeValue) ps.get(property);
 							if (generic == null || mediaSpecific.compareSpecificity(generic) > 0) {
-								Object value = mediaSpecific.value;
+								CSSValue value = mediaSpecific.value;
 								ElementProperties rm = r.getPropertiesForMedia(media);
 								rm.getPropertySetForPseudoElement(pseudoElement).set(property, value);
 							}
@@ -247,7 +255,7 @@ public class CascadeEngine {
 					CascadeValue mediaSpecific = (CascadeValue) mps.get(property);
 					CascadeValue generic = (CascadeValue) ps.get(property);
 					if (generic == null || mediaSpecific.compareSpecificity(generic) > 0) {
-						Object value = mediaSpecific.value;
+						CSSValue value = mediaSpecific.value;
 						ElementProperties rm = r.getPropertiesForMedia(media);
 						rm.getPropertySet().set(property, value);
 					}

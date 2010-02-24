@@ -63,11 +63,11 @@ public abstract class BaseRule {
 		return properties.isEmpty();
 	}
 
-	public Object get(String property) {
-		return properties.get(property);
+	public CSSValue get(String property) {
+		return (CSSValue)properties.get(property);
 	}
 
-	public void set(String property, Object value) {
+	public void set(String property, CSSValue value) {
 		if (value == null)
 			properties.remove(property);
 		else
@@ -88,7 +88,7 @@ public abstract class BaseRule {
 				out.print('\t');
 			out.print(entry.getKey());
 			out.print(": ");
-			CSSValue.serialize(out, entry.getValue());
+			((CSSValue)entry.getValue()).serialize(out);
 			out.print(";");
 			if (newlines)
 				out.println();
