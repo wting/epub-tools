@@ -256,7 +256,7 @@ abstract public class Element {
 		return peelElements(newDoc, sr, first);
 	}
 
-	final Element peelElements(OPSDocument newDoc, SizeRemains remains, boolean first ) {
+	final Element peelElements(OPSDocument newDoc, SizeRemains remains, boolean first) {
 		int size = getElementSize();
 		int bonus = getPeelingBonus();
 		remains.size -= size;
@@ -274,7 +274,7 @@ abstract public class Element {
 				Element child = (Element) next;
 				if (result == null) {
 					if (canPeelChild) {
-						Element p = child.peelElements(newDoc, remains, i==0);
+						Element p = child.peelElements(newDoc, remains, i == 0);
 						if (p != null) {
 							result = cloneElementShallow(newDoc);
 							result.add(p);
@@ -363,12 +363,14 @@ abstract public class Element {
 	public void setDesiredCascadeResult(InlineRule s) {
 		CascadeResult cr = new CascadeResult();
 		InlineRule t = cr.getProperties().getPropertySet();
-		Iterator it = s.properties();
-		if (it != null) {
-			while (it.hasNext()) {
-				String p = (String) it.next();
-				CSSValue value = s.get(p);
-				t.set(p, value);
+		if (s != null) {
+			Iterator it = s.properties();
+			if (it != null) {
+				while (it.hasNext()) {
+					String p = (String) it.next();
+					CSSValue value = s.get(p);
+					t.set(p, value);
+				}
 			}
 		}
 		setDesiredCascadeResult(cr);

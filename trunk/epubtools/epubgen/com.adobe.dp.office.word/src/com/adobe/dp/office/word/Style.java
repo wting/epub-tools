@@ -41,6 +41,8 @@ public class Style {
 	ParagraphProperties paragraphProperties;
 
 	RunProperties runProperties;
+	
+	TableProperties tableProperties;
 
 	Style parent;
 
@@ -65,6 +67,10 @@ public class Style {
 
 	public RunProperties getRunProperties() {
 		return runProperties;
+	}
+
+	public TableProperties getTableProperties() {
+		return tableProperties;
 	}
 
 	public String getStyleId() {

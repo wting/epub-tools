@@ -20,6 +20,7 @@ import com.adobe.dp.office.word.NumberingLabel;
 import com.adobe.dp.office.word.ParagraphProperties;
 import com.adobe.dp.office.word.RunProperties;
 import com.adobe.dp.office.word.Style;
+import com.adobe.dp.office.word.TableCellProperties;
 import com.adobe.dp.office.word.TableProperties;
 
 public class StyleConverter {
@@ -112,7 +113,7 @@ public class StyleConverter {
 
 	static void setIfNotPresent(InlineRule rule, String name, CSSValue value) {
 		Object val = rule.get(name);
-		if (val == null || val instanceof CSSImpliedValue )
+		if (val == null || val instanceof CSSImpliedValue)
 			rule.set(name, value);
 	}
 
@@ -125,9 +126,9 @@ public class StyleConverter {
 		Paint paint = side.getColor();
 		CSSValue color = (paint instanceof RGBColor ? ((RGBColor) paint).toCSSValue() : new CSSName("black"));
 		double width = side.getWidth() / 8.0;
-		if( width < 1 )
+		if (width < 1)
 			width = 1;
-		CSSValue[] list = { new CSSLength(width,"px"), new CSSName(type), color };
+		CSSValue[] list = { new CSSLength(width, "px"), new CSSName(type), color };
 		return new CSSValueList(' ', list);
 	}
 
@@ -153,8 +154,8 @@ public class StyleConverter {
 		if (backupName != null) {
 			list.add(new CSSName(backupName));
 		}
-		if( list.size() == 1 )
-			return (CSSValue)list.get(0);
+		if (list.size() == 1)
+			return (CSSValue) list.get(0);
 		CSSValue[] arr = new CSSValue[list.size()];
 		list.copyInto(arr);
 		return new CSSValueList(',', arr);
@@ -331,6 +332,16 @@ public class StyleConverter {
 			} else if (name.equals("shd")) {
 				if (value instanceof RGBColor)
 					setContainerIfNotPresent(result, "background-color", ((RGBColor) value).toCSSValue());
+			} else if (name.startsWith("gridSpan")) {
+				result.cols = (Integer) value;
+			} else if (name.startsWith("vAlign")) {
+				String val = value.toString();
+				if (val.equals("center"))
+					result.elementRule.set("vertical-align", new CSSName("middle"));
+				else if (val.equals("top"))
+					result.elementRule.set("vertical-align", new CSSName("top"));
+				else if (val.equals("bottom"))
+					result.elementRule.set("vertical-align", new CSSName("bottom"));
 			} else if (name.startsWith("border-")) {
 				BorderSide side = (BorderSide) value;
 				CSSLength paddingDef = new CSSLength(side.getSpace() / 8.0, "px");
@@ -502,6 +513,7 @@ public class StyleConverter {
 
 	Hashtable cascadeWordProperties(BaseProperties prop) {
 		boolean runOnly = prop instanceof RunProperties;
+		boolean tableOnly = prop instanceof TableProperties;
 		Style style;
 		NumberingLabel label = null;
 		Hashtable wprop = new Hashtable();
@@ -514,15 +526,26 @@ public class StyleConverter {
 			label = pp.getNumberingLabel();
 			cascade(wprop, pp, false);
 			style = pp.getParagraphStyle();
-		} else {
+		} else if (prop instanceof TableCellProperties) {
+			TableCellProperties tcp = (TableCellProperties) prop;
+			cascade(wprop, tcp, false);
+			style = null;
+		} else if (prop instanceof TableProperties) {
 			TableProperties tp = (TableProperties) prop;
 			cascade(wprop, tp, false);
+			style = ((TableProperties) prop).getTableStyle();
+		} else {
+			System.err.println("Unimplemented cascade: " + prop.getClass());
 			style = null;
 		}
 		while (style != null) {
-			cascade(wprop, style.getRunProperties(), false);
-			if (!runOnly)
-				cascade(wprop, style.getParagraphProperties(), false);
+			if (tableOnly)
+				cascade(wprop, style.getTableProperties(), false);
+			else {
+				cascade(wprop, style.getRunProperties(), false);
+				if (!runOnly)
+					cascade(wprop, style.getParagraphProperties(), false);
+			}
 			style = style.getParent();
 		}
 		if (label != null) {
@@ -563,6 +586,26 @@ public class StyleConverter {
 		result.containerRule = result.elementRule;
 
 		convertWordToCSS(result, wprop, null, emScale, false, false);
+
+		return result;
+	}
+
+	public StylingResult convertTableCellStylingRule(TableCellProperties prop, float emScale,
+			InlineRule tableGlobalProps) {
+		Hashtable wprop = cascadeWordProperties(prop);
+		StylingResult result = new StylingResult();
+		result.containerRule = result.elementRule;
+
+		convertWordToCSS(result, wprop, null, emScale, false, false);
+
+		if (tableGlobalProps != null && !tableGlobalProps.isEmpty()) {
+			Iterator tgpi = tableGlobalProps.properties();
+			while (tgpi.hasNext()) {
+				String tgpn = (String) tgpi.next();
+				CSSValue tgpv = tableGlobalProps.get(tgpn);
+				setIfNotPresent(result.elementRule, tgpn, tgpv);
+			}
+		}
 
 		return result;
 	}

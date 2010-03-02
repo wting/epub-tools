@@ -15,4 +15,6 @@ public class StylingResult {
 	String elementName;
 
 	InlineRule tableCellRule;
+	
+	Integer cols;
 }

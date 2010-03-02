@@ -284,8 +284,11 @@ public class CSSParser {
 		while (true) {
 			mark(1);
 			int ch = read();
-			if (ch < 0)
+			if (ch < 0) {
+				if( sb.length() > 0 )
+					return sb.toString();					
 				return null;
+			}
 			if (ch == '\\') {
 				ch = readEscape();
 				if (ch == 0)

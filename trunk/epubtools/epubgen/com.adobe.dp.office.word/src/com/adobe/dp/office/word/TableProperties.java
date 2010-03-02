@@ -32,4 +32,10 @@ package com.adobe.dp.office.word;
 
 public class TableProperties extends BaseProperties {
 
+	Style tableStyle;
+
+	public Style getTableStyle() {
+		return tableStyle;
+	}
+	
 }

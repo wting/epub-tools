@@ -114,6 +114,7 @@ public class DOCXConversionService extends ConversionService {
 			epub.serialize(container);
 			return outFile;
 		} catch (Exception e) {
+			e.printStackTrace();
 			e.printStackTrace(log);
 		} finally {
 			if (resources != null) {

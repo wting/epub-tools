@@ -90,6 +90,7 @@ import com.adobe.dp.office.word.Style;
 import com.adobe.dp.office.word.TXBXContentElement;
 import com.adobe.dp.office.word.TabElement;
 import com.adobe.dp.office.word.TableCellElement;
+import com.adobe.dp.office.word.TableCellProperties;
 import com.adobe.dp.office.word.TableElement;
 import com.adobe.dp.office.word.TableProperties;
 import com.adobe.dp.office.word.TableRowElement;
@@ -740,7 +741,7 @@ class WordMLConverter {
 	}
 
 	boolean appendConvertedElement(com.adobe.dp.office.word.Element we, com.adobe.dp.office.word.Element prev,
-			com.adobe.dp.office.word.Element next, float emScale, int depth) {
+			com.adobe.dp.office.word.Element next, float emScale, int depth, InlineRule tableCellProps) {
 		Element conv = null;
 		boolean addToParent = true;
 		boolean resetSpaceProcessing = false;
@@ -871,17 +872,23 @@ class WordMLConverter {
 						className = epubStyle.substring(1);
 					if (elementName == null)
 						elementName = "span";
+					if (elementName != null) {
+						conv = chapter.createElement(elementName);
+						if (className != null)
+							conv.setClassName(className);
+					}
 				} else {
 					StylingResult result = styleConverter.styleElement(rp, false, emScale, false, false);
 					elementName = result.elementName;
 					className = result.elementClassName;
 					if (elementName == null && className != null)
 						elementName = "span";
-				}
-				if (elementName != null) {
-					conv = chapter.createElement(elementName);
-					if (className != null)
-						conv.setClassName(className);
+					if (elementName != null) {
+						conv = chapter.createElement(elementName);
+						if (className != null)
+							conv.setClassName(className);
+					}
+					conv.setDesiredCascadeResult(result.elementRule);
 				}
 			} else if (we instanceof com.adobe.dp.office.word.HyperlinkElement) {
 				com.adobe.dp.office.word.HyperlinkElement wa = (com.adobe.dp.office.word.HyperlinkElement) we;
@@ -933,12 +940,19 @@ class WordMLConverter {
 				StylingResult result = styleConverter.convertTableStylingRule(tp, emScale);
 				conv.setDesiredCascadeResult(result.elementRule);
 				conv.setClassName("table");
+				tableCellProps = result.tableCellRule;
 				resetSpaceProcessing = true;
 			} else if (we instanceof TableRowElement) {
 				conv = chapter.createElement("tr");
 				resetSpaceProcessing = true;
 			} else if (we instanceof TableCellElement) {
-				conv = chapter.createElement("td");
+				TableCellElement wtc = (TableCellElement) we;
+				TableCellProperties tcp = wtc.getTableCellProperties();
+				StylingResult result = styleConverter.convertTableCellStylingRule(tcp, emScale, tableCellProps);
+				com.adobe.dp.epub.ops.TableCellElement tce = chapter.createTableCellElement("td", null, result.cols != null ? result.cols.intValue() : 1, 1);
+				conv = tce;
+				conv.setDesiredCascadeResult(result.elementRule);
+				conv.setClassName("tc");
 				resetSpaceProcessing = true;
 			} else if (we instanceof TextElement) {
 				Element parent = getCurrentOPSContainer();
@@ -1038,7 +1052,7 @@ class WordMLConverter {
 		int cdepth = 0;
 		if (conv != null)
 			cdepth = pushOPSContainer(conv);
-		addChildren(we, null, emScale, depth + 1);
+		addChildren(we, null, emScale, depth + 1, tableCellProps);
 		if (conv != null)
 			restoreOPSContainer(cdepth);
 		if (ensureContent && conv != null && !conv.content().hasNext())
@@ -1062,7 +1076,7 @@ class WordMLConverter {
 	}
 
 	private com.adobe.dp.office.word.Element addChildren(com.adobe.dp.office.word.Element we,
-			com.adobe.dp.office.word.Element skipToChild, float emScale, int depth) {
+			com.adobe.dp.office.word.Element skipToChild, float emScale, int depth, InlineRule tableCellProps) {
 		Iterator children = we.content();
 		if (skipToChild != null) {
 			while (children.hasNext()) {
@@ -1079,7 +1093,7 @@ class WordMLConverter {
 				next = (com.adobe.dp.office.word.Element) children.next();
 			else
 				next = null;
-			if (!appendConvertedElement(curr, prev, next, emScale, depth)) {
+			if (!appendConvertedElement(curr, prev, next, emScale, depth, tableCellProps)) {
 				flushMagic();
 				return curr;
 			}
@@ -1123,7 +1137,7 @@ class WordMLConverter {
 			Element body = chapter.getBody();
 			body.setClassName("primary");
 			int depth = pushOPSContainer(body);
-			child = addChildren(wbody, child, 1, 1);
+			child = addChildren(wbody, child, 1, 1, null);
 			restoreOPSContainer(depth);
 		} while (child != null);
 	}
