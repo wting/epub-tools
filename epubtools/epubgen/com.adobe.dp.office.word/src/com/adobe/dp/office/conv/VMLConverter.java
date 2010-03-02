@@ -238,7 +238,7 @@ public class VMLConverter {
 						else
 							wordConv = new WordMLConverter(wordConverter, styleConverter);
 						int depth = wordConv.pushOPSContainer(foreignObject);
-						wordConv.appendConvertedElement(textboxContent, null, null, 1, 1);
+						wordConv.appendConvertedElement(textboxContent, null, null, 1, 1, null);
 						wordConv.restoreOPSContainer(depth);
 					}
 				}

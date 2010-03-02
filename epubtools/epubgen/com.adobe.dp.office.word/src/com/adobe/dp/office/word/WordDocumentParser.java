@@ -135,6 +135,7 @@ public class WordDocumentParser {
 		propertyParsers.put("u", simpleParser);
 		propertyParsers.put("jc", simpleParser);
 		propertyParsers.put("lang", simpleParser);
+		propertyParsers.put("vAlign", simpleParser);
 		NumberPropertyParser numberParser = new NumberPropertyParser();
 		propertyParsers.put("sz", numberParser);
 		propertyParsers.put("spacing-r", numberParser);
@@ -151,6 +152,7 @@ public class WordDocumentParser {
 		propertyParsers.put("ilvl", integerParser);
 		propertyParsers.put("outlineLvl", integerParser);
 		propertyParsers.put("numId", integerParser);
+		propertyParsers.put("gridSpan", integerParser);
 		SpacingPropertyParser insetsParser = new SpacingPropertyParser();
 		propertyParsers.put("spacing", insetsParser);
 		PaintPropertyParser paintParser = new PaintPropertyParser();
@@ -706,7 +708,8 @@ public class WordDocumentParser {
 							}
 						} else if (parentContext.properties != null) {
 							BaseProperties prop = parentContext.properties;
-							if (localName.equals("rStyle") || localName.equals("pStyle")) {
+							if (localName.equals("rStyle") || localName.equals("pStyle")
+									|| localName.equals("tblStyle")) {
 								String val = attributes.getValue(wNS, "val");
 								if (val != null) {
 									Style style = doc.getStyleById(val);
@@ -714,8 +717,11 @@ public class WordDocumentParser {
 										((ParagraphProperties) prop).paragraphStyle = style;
 									else if (prop instanceof RunProperties && localName.equals("rStyle"))
 										((RunProperties) prop).runStyle = style;
+									else if (prop instanceof TableProperties && localName.equals("tblStyle"))
+										((TableProperties) prop).tableStyle = style;
 								}
-							} else if (localName.equals("pBdr") || localName.equals("tblBorders")) {
+							} else if (localName.equals("pBdr") || localName.equals("tblBorders")
+									|| localName.equals("tcBorders")) {
 								newContext.borderProp = prop;
 							} else {
 								if (localName.equals("spacing") && parentContext.properties instanceof RunProperties)
@@ -938,6 +944,8 @@ public class WordDocumentParser {
 			style.paragraphProperties = (ParagraphProperties) prop;
 		} else if (prop instanceof RunProperties) {
 			style.runProperties = (RunProperties) prop;
+		} else if (prop instanceof TableProperties) {
+			style.tableProperties = (TableProperties) prop;
 		}
 	}
 

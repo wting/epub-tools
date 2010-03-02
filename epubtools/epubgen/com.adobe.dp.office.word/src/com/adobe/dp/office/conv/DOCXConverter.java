@@ -232,6 +232,7 @@ public class DOCXConverter {
 		epub.generateTOCFromHeadings(5);
 		epub.generateStyles(global);
 		epub.splitLargeChapters();
+		epub.cascadeStyles();
 
 		log.flush();
 	}

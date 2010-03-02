@@ -34,11 +34,11 @@ import com.adobe.dp.xml.util.SMapImpl;
 
 public class TableCellElement extends HTMLElement {
 
-	int rowSpan;
+	private int rowSpan;
 
-	int colSpan;
+	private int colSpan;
 
-	String align;
+	private String align;
 
 	public TableCellElement(OPSDocument document, String name, String align, int colSpan, int rowSpan) {
 		super(document, name);
@@ -56,6 +56,30 @@ public class TableCellElement extends HTMLElement {
 		if (align != null)
 			attrs.put(null, "align", align);
 		return attrs;
+	}
+
+	public int getRowSpan() {
+		return rowSpan;
+	}
+
+	public void setRowSpan(int rowSpan) {
+		this.rowSpan = rowSpan;
+	}
+
+	public int getColSpan() {
+		return colSpan;
+	}
+
+	public void setColSpan(int colSpan) {
+		this.colSpan = colSpan;
+	}
+
+	public String getAlign() {
+		return align;
+	}
+
+	public void setAlign(String align) {
+		this.align = align;
 	}
 
 }
