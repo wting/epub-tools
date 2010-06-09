@@ -1,0 +1,15 @@
+This package installs using setuptools.  If you don't have setuptools installed, run:
+
+$ python ez_setup.py 
+
+...first.
+
+To install the package, first install epubtools, which should be bundled in the distribtuion zip file:
+
+$ cd epubtools
+$ python setup.py install
+
+Then set run the same thing in docbook2epub:
+
+$ cd docbook2epub
+$ python setup.py install
