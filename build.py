@@ -31,7 +31,7 @@ def create_package(project, version):
     if os.path.exists(dist):
         logging.info('Removing previous build at %s' % dist)
         os.system('rm -rf %s' % dist)
-    project_folder = project.replace('2epub', '')
+    project_folder = project
     os.system('svn export epubtools/%s %s' % (project_folder, dist))
     os.system('svn export epubtools/epubtools %s/epubtools' % (dist))
     os.chdir('dist')

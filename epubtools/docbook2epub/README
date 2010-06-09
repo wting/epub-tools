@@ -4,7 +4,7 @@ $ python ez_setup.py
 
 ...first.
 
-To install the package, first install epubtools, which should be bundled in the distribtuion zip file:
+To install the package, first install epubtools, which should be bundled in the distribution zip file:
 
 $ cd epubtools
 $ python setup.py install
