@@ -14,6 +14,8 @@ xslt_ac = etree.XSLTAccessControl(read_file=True,write_file=True, create_dir=Tru
 
 def convert_docbook(docbook_file, xsl, css=None):
     '''Use DocBook XSL to transform our DocBook book into EPUB'''
+
+    xml = etree.parse(os.path.abspath(docbook_file))
     cwd = os.getcwd()
     
     xsl = os.path.abspath(xsl)
@@ -35,10 +37,11 @@ def convert_docbook(docbook_file, xsl, css=None):
     if css:
         kw['html.stylesheet'] = "'%s'" % css
     
-    xml_parser = etree.XMLParser()
+    # Do XInclude parsing
+    xml.xinclude()    
 
     transform = etree.XSLT(etree.parse(xsl), access_control=xslt_ac)
-    transform(etree.parse(docbook_file, parser=xml_parser), **kw)
+    transform(xml, **kw)
 
     os.chdir(cwd)
 
