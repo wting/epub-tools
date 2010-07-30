@@ -1,6 +1,6 @@
 Metadata-Version: 1.0
 Name: docbook2epub
-Version: 1.0.1dev-r58
+Version: 1.0.1dev-r131
 Summary: Converts DocBook 4/5 documents into ePub. Requires the DocBook XSL
 Home-page: http://code.google.com/p/epub-tools/
 Author: Liza Daly
