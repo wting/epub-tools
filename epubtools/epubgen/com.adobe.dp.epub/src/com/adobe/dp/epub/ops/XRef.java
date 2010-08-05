@@ -32,12 +32,15 @@ package com.adobe.dp.epub.ops;
 
 import com.adobe.dp.epub.opf.OPSResource;
 import com.adobe.dp.epub.opf.Resource;
+import com.adobe.dp.epub.opf.ResourceRef;
 
 public class XRef {
 
-	OPSResource targetResource;
+	ResourceRef targetResource;
 
 	Element targetElement;
+	
+	String targetId; // only matters if targetElement is null
 
 	int playOrder;
 
@@ -51,7 +54,12 @@ public class XRef {
 
 	public XRef(OPSResource resource, Element element) {
 		targetElement = element;
-		targetResource = resource;
+		targetResource = resource.getResourceRef();
+	}
+
+	public XRef(Resource resource, String id) {
+		targetId = id;
+		targetResource = resource.getResourceRef();
 	}
 
 	public Element getTagetElement() {
@@ -60,18 +68,18 @@ public class XRef {
 
 	public String getTargetId() {
 		if (targetElement == null)
-			return null;
+			return targetId;
 		if (targetElement.id == null)
 			targetElement.document.assignId(targetElement);
 		return targetElement.id;
 	}
 
 	public OPSResource getTargetResource() {
-		return targetResource;
+		return (OPSResource)targetResource.getResource();
 	}
 
 	public String makeReference(Resource fromResource) {
-		return fromResource.makeReference(targetResource, getTargetId());
+		return fromResource.makeReference(targetResource.getResourceName(), getTargetId());
 	}
 
 	public int getPlayOrder() {

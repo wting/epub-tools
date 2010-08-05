@@ -39,7 +39,6 @@ import com.adobe.dp.epub.opf.Publication;
 import com.adobe.dp.epub.opf.StyleResource;
 import com.adobe.dp.epub.ops.OPSDocument;
 import com.adobe.dp.epub.ops.SVGElement;
-import com.adobe.dp.epub.style.Stylesheet;
 import com.adobe.dp.office.types.RGBColor;
 import com.adobe.dp.office.vml.VMLCoordPair;
 import com.adobe.dp.office.vml.VMLElement;

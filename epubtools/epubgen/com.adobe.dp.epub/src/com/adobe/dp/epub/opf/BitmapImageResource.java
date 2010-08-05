@@ -37,8 +37,8 @@ import com.adobe.dp.epub.io.DataSource;
  */
 public class BitmapImageResource extends Resource {
 
-	BitmapImageResource(String name, String mediaType, DataSource source) {
-		super(name, mediaType, source);
+	BitmapImageResource(Publication epub, String name, String mediaType, DataSource source) {
+		super(epub, name, mediaType, source);
 	}
 
 	/**

@@ -35,14 +35,18 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 
+import com.adobe.dp.css.CSSParser;
+import com.adobe.dp.css.CSSStylesheet;
+import com.adobe.dp.epub.io.DataSource;
+import com.adobe.dp.epub.style.EPUBCSSURLFactory;
 import com.adobe.dp.epub.style.Stylesheet;
 
 public class StyleResource extends Resource {
 
 	Stylesheet stylesheet;
 	
-	StyleResource(String name) {
-		super(name, "text/css", null);
+	StyleResource(Publication epub, String name) {
+		super(epub, name, "text/css", null);
 	}
 	
 	public Stylesheet getStylesheet() {
@@ -56,4 +60,16 @@ public class StyleResource extends Resource {
 		getStylesheet().serialize(pout);
 		pout.close();
 	}
+	
+	public void load(DataSource data) throws IOException {
+		CSSParser parser = new CSSParser();
+		parser.setCSSURLFactory(new EPUBCSSURLFactory(this));
+		CSSStylesheet css = parser.readStylesheet(data.getInputStream());
+		stylesheet = new Stylesheet(this, css);
+	}
+	
+	public void setCSS(CSSStylesheet css) {
+		stylesheet = new Stylesheet(this, css);
+	}
+	
 }

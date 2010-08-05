@@ -35,6 +35,7 @@ import java.io.OutputStream;
 import java.util.Iterator;
 import java.util.Vector;
 
+import com.adobe.dp.epub.io.DataSource;
 import com.adobe.dp.epub.ncx.TOCEntry;
 import com.adobe.dp.epub.ops.Element;
 import com.adobe.dp.epub.ops.XRef;
@@ -44,8 +45,6 @@ import com.adobe.dp.xml.util.StringUtil;
 import com.adobe.dp.xml.util.XMLSerializer;
 
 public class NCXResource extends Resource {
-
-	Publication owner;
 
 	TOCEntry rootTOCEntry = new TOCEntry("", null);
 
@@ -66,9 +65,8 @@ public class NCXResource extends Resource {
 		}
 	}
 
-	NCXResource(Publication owner, String name) {
-		super(name, "application/x-dtbncx+xml", null);
-		this.owner = owner;
+	NCXResource(Publication epub, String name) {
+		super(epub, name, "application/x-dtbncx+xml", null);
 	}
 
 	public TOCEntry getRootTOCEntry() {
@@ -124,7 +122,7 @@ public class NCXResource extends Resource {
 		ser.startDocument("1.0", "UTF-8");
 		SMapImpl attrs = new SMapImpl();
 		attrs.put(null, "version", "2005-1");
-		String lang = owner.getDCMetadata("language");
+		String lang = epub.getDCMetadata("language");
 		if (lang != null)
 			attrs.put(null, "xml:lang", lang);
 		ser.startElement(ncxns, "ncx", attrs, true);
@@ -133,7 +131,7 @@ public class NCXResource extends Resource {
 		ser.newLine();
 		attrs = new SMapImpl();
 		attrs.put(null, "name", "dtb:uid");
-		String uid = owner.getDCMetadata("identifier");
+		String uid = epub.getDCMetadata("identifier");
 		if (uid == null)
 			uid = "";
 		attrs.put(null, "content", uid);
@@ -163,10 +161,10 @@ public class NCXResource extends Resource {
 		ser.newLine();
 		ser.startElement(ncxns, "docTitle", null, false);
 		ser.startElement(ncxns, "text", null, false);
-		String title = owner.getDCMetadata("title");
+		String title = epub.getDCMetadata("title");
 		if (title == null)
 			title = "";
-		if (owner.isTranslit())
+		if (epub.isTranslit())
 			title = Translit.translit(title);
 		char[] arr = title.toCharArray();
 		ser.text(arr, 0, arr.length);
@@ -247,7 +245,7 @@ public class NCXResource extends Resource {
 			String title = child.getTitle();
 			if (title == null)
 				title = "";
-			if (owner.isTranslit())
+			if (epub.isTranslit())
 				title = Translit.translit(title);
 			char[] arr = title.toCharArray();
 			ser.text(arr, 0, arr.length);
@@ -334,4 +332,9 @@ public class NCXResource extends Resource {
 		 */
 		rootTOCEntry.requestPlayOrder();
 	}
+
+	public void load(DataSource data) throws IOException {
+
+	}
+
 }

@@ -30,7 +30,10 @@
 
 package com.adobe.dp.epub.io;
 
+import java.util.Iterator;
+
 public abstract class ContainerSource {
 
 	public abstract DataSource getDataSource(String name);
+	public abstract Iterator getResourceList();
 }

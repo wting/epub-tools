@@ -180,10 +180,10 @@ public class FontSubsetter implements FontEmbeddingReport {
 
 	private String[] parseFamily(Object family) {
 		if (family instanceof CSSValueList) {
-			CSSValueList list = (CSSValueList)family;
+			CSSValueList list = (CSSValueList) family;
 			int len = list.getSeparator() == ',' ? list.length() : 1;
 			String[] result = new String[len];
-			for( int i = 0 ; i < len ; i++ ) {
+			for (int i = 0; i < len; i++) {
 				CSSValue v = list.getSeparator() == ',' ? list.item(i) : list;
 				result[i] = v.toString();
 			}
@@ -361,10 +361,10 @@ public class FontSubsetter implements FontEmbeddingReport {
 					resName = resName + "-" + primaryUUID.substring(9);
 				}
 				bds.getOutputStream().write(font.getSubsettedFont());
-				FontResource fontResource = epub.createFontResource(epub.getContentFolder() + "/fonts/" + resName
-						+ ".otf", bds);
+				String folder = epub.getContentFolder() == null ? "" : epub.getContentFolder() + "/";
+				FontResource fontResource = epub.createFontResource(folder + "fonts/" + resName + ".otf", bds);
 				FontFaceRule face = styleResource.getStylesheet().createFontFace(fontResource);
-				face.set("font-family", new CSSQuotedString(entry.familyName) );
+				face.set("font-family", new CSSQuotedString(entry.familyName));
 				switch (entry.weight) {
 				case FontPropertyConstants.WEIGHT_NORMAL:
 					face.set("font-weight", new CSSName("normal"));

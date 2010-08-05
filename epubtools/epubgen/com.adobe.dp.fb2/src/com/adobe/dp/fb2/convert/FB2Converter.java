@@ -605,7 +605,10 @@ public class FB2Converter {
 				fontLocator = new EmbeddedFontLocator(stylesheet, fontLocator);
 			}
 		}
+		long start = System.currentTimeMillis();
 		doc.applyStyles(cascadeEngine);
+		long end = System.currentTimeMillis();
+		System.out.println( "Applied styles in " + (end - start) + "ms");
 		FB2DocumentInfo docInfo = doc.getDocumentInfo();
 		String ident = null;
 		if (docInfo != null) {

@@ -67,7 +67,7 @@ public class Stylesheet {
 		initExisting();
 	}
 
-	public Stylesheet(StyleResource owner, CSSStylesheet css) throws IOException {
+	public Stylesheet(StyleResource owner, CSSStylesheet css) {
 		this.owner = owner;
 		this.css = css;
 		initExisting();
@@ -88,7 +88,7 @@ public class Stylesheet {
 	public FontFaceRule createFontFace(FontResource fontResource) {
 		FontFaceRule fontFace = new FontFaceRule();
 		css.add(fontFace);
-		fontFace.set("src", new ResourceURL(this, fontResource));
+		fontFace.set("src", new ResourceURL(owner, fontResource.getResourceRef()));
 		return fontFace;
 	}
 

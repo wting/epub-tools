@@ -65,6 +65,8 @@ public class XMLSerializer implements SDocumentHandler {
 
 	private static char[] newLineChar = {'\n'};
 	
+	private static String xmlns = "http://www.w3.org/XML/1998/namespace";
+		
 	static class OpenElement {
 
 		OpenElement(String namespace, String name) {
@@ -105,7 +107,7 @@ public class XMLSerializer implements SDocumentHandler {
 	}
 
 	private String getPrefix(String namespace) {
-		if( namespace.equals("http://www.w3.org/XML/1998/namespace") )
+		if( namespace.equals(xmlns) )
 			return "xml"; // built-in
 		String prefix = (String) namespaceMap.get(namespace);
 		if (prefix != null)

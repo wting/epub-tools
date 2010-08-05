@@ -41,6 +41,7 @@ import com.adobe.dp.css.Selector;
 import com.adobe.dp.css.SelectorRule;
 import com.adobe.dp.epub.ncx.TOCEntry;
 import com.adobe.dp.epub.util.TOCLevel;
+import com.adobe.dp.xml.util.SMapImpl;
 
 public class HTMLElement extends Element {
 
@@ -53,6 +54,10 @@ public class HTMLElement extends Element {
 	static CSSStylesheet builtInStylesheet;
 
 	boolean forceChapterBreak;
+
+	String title;
+	
+	String dir;
 
 	static {
 		HashSet be = new HashSet();
@@ -112,6 +117,8 @@ public class HTMLElement extends Element {
 		HTMLElement e = new HTMLElement(newDoc, getElementName());
 		e.className = className;
 		e.cascade = cascade;
+		e.lang = lang;
+		e.title = title;
 		return e;
 	}
 
@@ -179,4 +186,30 @@ public class HTMLElement extends Element {
 	boolean canPeelChild() {
 		return !nonbreakable.contains(elementName);
 	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+	
+	public String getDir() {
+		return dir;
+	}
+
+	public void setDir(String dir) {
+		this.dir = dir;
+	}
+
+	SMapImpl getAttributes() {
+		SMapImpl attrs = super.getAttributes();
+		if (title != null)
+			attrs.put(null, "title", title);
+		if (dir != null)
+			attrs.put(null, "dir", dir);
+		return attrs;
+	}
+
 }

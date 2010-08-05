@@ -39,11 +39,8 @@ import com.adobe.dp.epub.io.DataSource;
 
 public class FontResource extends Resource {
 
-	Publication owner;
-
 	FontResource(Publication owner, String name, DataSource source) {
-		super(name, "application/octet-stream", source);
-		this.owner = owner;
+		super(owner, name, "application/vnd.ms-opentype", source);
 	}
 
 	static class DeflaterInputStreamImpl extends InputStream {
@@ -110,12 +107,12 @@ public class FontResource extends Resource {
 		int headerLen;
 		byte[] mask;
 
-		if (owner.useIDPFFontMangling) {
+		if (epub.useIDPFFontMangling) {
 			headerLen = 1040;
-			mask = owner.makeIDPFXORMask();
+			mask = epub.makeIDPFXORMask();
 		} else {
 			headerLen = 1024;
-			mask = owner.makeAdobeXORMask();
+			mask = epub.makeAdobeXORMask();
 		}
 
 		Deflater def = null;

@@ -58,4 +58,15 @@ public class NamedElementSelector extends Selector {
 		return code;
 	}
 
+	public boolean hasElementNamespace() {
+		return ns != null;
+	}
+
+	public String getElementNamespace() {
+		return ns;
+	}
+
+	public String getElementName() {
+		return name;
+	}
 }

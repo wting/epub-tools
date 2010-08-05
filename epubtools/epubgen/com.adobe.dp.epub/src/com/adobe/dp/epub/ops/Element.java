@@ -63,6 +63,8 @@ abstract public class Element {
 	Vector children = new Vector();
 
 	XRef selfRef;
+	
+	String lang;
 
 	private static class SizeRemains {
 		int size;
@@ -83,6 +85,14 @@ abstract public class Element {
 
 	protected Object getBuiltInProperty(String propName) {
 		return null;
+	}
+
+	public String getLang() {
+		return lang;
+	}
+
+	public void setLang(String lang) {
+		this.lang = lang;
 	}
 
 	public Object getCascadedProperty(String propName) {
@@ -156,6 +166,8 @@ abstract public class Element {
 			attrs.put(null, "id", id);
 		if (style != null)
 			attrs.put(null, "style", style);
+		if (lang != null)
+			attrs.put(OPSDocument.xmlns, "lang", lang);
 		return attrs;
 	}
 
@@ -240,7 +252,7 @@ abstract public class Element {
 		if (id != null)
 			document.idMap.put(id, this);
 		if (selfRef != null) {
-			selfRef.targetResource = newDoc.resource;
+			selfRef.targetResource = newDoc.resource.getResourceRef();
 		}
 		Iterator it = content();
 		while (it.hasNext()) {
@@ -429,5 +441,17 @@ abstract public class Element {
 				((Element) next).generateStyles(stylesheet);
 		}
 	}
+	
+	public void setAssignStylesFlag() {
+		assignStyle = true;
+		Iterator it = content();
+		while (it.hasNext()) {
+			Object next = it.next();
+			if (next instanceof Element)
+				((Element) next).setAssignStylesFlag();
+		}
+	}
+
+	
 
 }

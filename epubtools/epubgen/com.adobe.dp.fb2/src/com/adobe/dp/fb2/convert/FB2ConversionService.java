@@ -148,7 +148,7 @@ public class FB2ConversionService extends ConversionService {
 	}
 
 	public static void main(String[] args) {
-		com.adobe.dp.epub.conv.GUIDriver.main(args);
-		//com.adobe.dp.epub.conv.CLDriver.main(args);
+		//com.adobe.dp.epub.conv.GUIDriver.main(args);
+		com.adobe.dp.epub.conv.CLDriver.main(args);
 	}
 }
