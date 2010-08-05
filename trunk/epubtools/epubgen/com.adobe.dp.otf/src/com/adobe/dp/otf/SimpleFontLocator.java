@@ -66,7 +66,7 @@ public abstract class SimpleFontLocator extends FontLocator {
 				FontProperties key = new FontProperties(font.getFamilyName(),
 						font.getWeight(), font.getStyle());
 				map.put(key, name);
-				// System.out.println(name + ": " + key);
+				System.out.println(name + ": " + key);
 			} catch (Exception e) {
 				// ignore
 				// System.out.println(name + ": " + e);

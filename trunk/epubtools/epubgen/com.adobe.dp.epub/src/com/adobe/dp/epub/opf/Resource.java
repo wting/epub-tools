@@ -50,7 +50,10 @@ public class Resource {
 
 	DataSource source;
 
-	Resource(String name, String type, DataSource source) {
+	Publication epub;
+
+	Resource(Publication epub, String name, String type, DataSource source) {
+		this.epub = epub;
 		this.mediaType = type;
 		this.name = name;
 		this.source = source;
@@ -74,7 +77,7 @@ public class Resource {
 	public String getMediaType() {
 		return mediaType;
 	}
-	
+
 	/**
 	 * Make a relative URL that points to another resource in the same
 	 * Publication
@@ -85,25 +88,23 @@ public class Resource {
 	 *            fragment identifier, null if none
 	 * @return relative URL
 	 */
-	public String makeReference(Resource target, String fragment) {
-		if( target == null )
-			throw new IllegalArgumentException("null target");
+	public String makeReference(String targetName, String fragment) {
 		StringBuffer ref = new StringBuffer();
 		int index = 0;
 		while (true) {
 			int m = name.indexOf('/', index);
-			int t = target.name.indexOf('/', index);
+			int t = targetName.indexOf('/', index);
 			if (m < 0)
 				break;
 			if (m != t)
 				break;
 			String mn = name.substring(index, m);
-			String tn = target.name.substring(index, t);
+			String tn = targetName.substring(index, t);
 			if (!mn.equals(tn))
 				break;
 			index = m + 1;
 		}
-		String tail = target.name.substring(index);
+		String tail = targetName.substring(index);
 		while (true) {
 			int m = name.indexOf('/', index);
 			if (m < 0)
@@ -151,5 +152,13 @@ public class Resource {
 	 */
 	public boolean canCompress() {
 		return true;
+	}
+
+	public ResourceRef getResourceRef() {
+		return epub.getResourceRef(name);
+	}
+
+	public Publication getPublication() {
+		return epub;
 	}
 }

@@ -1,32 +1,32 @@
 /*******************************************************************************
-* Copyright (c) 2009, Adobe Systems Incorporated
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without 
-* modification, are permitted provided that the following conditions are met:
-*
-* ·        Redistributions of source code must retain the above copyright 
-*          notice, this list of conditions and the following disclaimer. 
-*
-* ·        Redistributions in binary form must reproduce the above copyright 
-*		   notice, this list of conditions and the following disclaimer in the
-*		   documentation and/or other materials provided with the distribution. 
-*
-* ·        Neither the name of Adobe Systems Incorporated nor the names of its 
-*		   contributors may be used to endorse or promote products derived from
-*		   this software without specific prior written permission. 
-* 
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
-* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
-* ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
-* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
-* OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
-* THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
-* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*******************************************************************************/
+ * Copyright (c) 2009, Adobe Systems Incorporated
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * ·        Redistributions of source code must retain the above copyright 
+ *          notice, this list of conditions and the following disclaimer. 
+ *
+ * ·        Redistributions in binary form must reproduce the above copyright 
+ *		   notice, this list of conditions and the following disclaimer in the
+ *		   documentation and/or other materials provided with the distribution. 
+ *
+ * ·        Neither the name of Adobe Systems Incorporated nor the names of its 
+ *		   contributors may be used to endorse or promote products derived from
+ *		   this software without specific prior written permission. 
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
 
 package com.adobe.dp.otf;
 
@@ -287,7 +287,7 @@ public class OpenTypeFont implements FontPropertyConstants {
 	}
 
 	private short[] readShorts(int size) throws IOException {
-		if( size < 0 )
+		if (size < 0)
 			System.err.println("Bug!");
 		short[] arr = new short[size];
 		int offset = 0;
@@ -496,7 +496,8 @@ public class OpenTypeFont implements FontPropertyConstants {
 			}
 			acc.setSize(0);
 			table.put(key, value);
-			// System.out.println(((KeyCFF) key).keyID + " = " + valToStr(value));
+			// System.out.println(((KeyCFF) key).keyID + " = " +
+			// valToStr(value));
 		}
 		return table;
 	}
@@ -795,15 +796,15 @@ public class OpenTypeFont implements FontPropertyConstants {
 		}
 		// just do it "by hand"
 		int len = str.length();
-		byte[] buf = new byte[len*2];
-		for( int i = 0 ; i < len ; i++ ) {
+		byte[] buf = new byte[len * 2];
+		for (int i = 0; i < len; i++) {
 			char c = str.charAt(i);
-			buf[2*i] = (byte)(c>>8);
-			buf[2*i+1] = (byte)(c);
+			buf[2 * i] = (byte) (c >> 8);
+			buf[2 * i + 1] = (byte) (c);
 		}
 		return buf;
 	}
-	
+
 	private void readNames() throws IOException {
 		TableDirectoryEntry table = findTable("name");
 		seek(table.offset);
@@ -945,6 +946,8 @@ public class OpenTypeFont implements FontPropertyConstants {
 	}
 
 	private String[] reindexStringsCFF() {
+		
+		// for now, keep them all...
 		for (int i = 0; i < stringsCFF.length; i++) {
 			stringsCFF[i].needed = true;
 		}
@@ -1076,7 +1079,7 @@ public class OpenTypeFont implements FontPropertyConstants {
 		writeShort(result, 0);
 		writeShort(result, 2); // number of tables = 2
 		writeShort(result, 0); // platform = Unicode
-		writeShort(result, 3); // encoding = 0
+		writeShort(result, 3); // Unicode 2.0 or later semantics
 		writeInt(result, 20); // table offset
 		writeShort(result, 3); // platform = Microsoft
 		writeShort(result, 1); // encoding = Unicode
@@ -1138,7 +1141,7 @@ public class OpenTypeFont implements FontPropertyConstants {
 	private boolean isEnUnicode(NameEntry en) {
 		if (en.platformID == 0)
 			return true;
-		if (en.platformID == 0 && en.encodingID == 3)
+		if (en.platformID == 1 && en.encodingID == 3) // thnx lordkiron!
 			return true;
 		if (en.platformID == 3 && (en.encodingID == 1 || en.encodingID == 10)
 				&& ((en.languageID & 0x3FF) == 9))
@@ -1168,13 +1171,15 @@ public class OpenTypeFont implements FontPropertyConstants {
 				entry.needed = true;
 				break;
 			case 1:
-			// family
+				// family
 			case 4:
-			// full name
+				// full name
 			case 16:
-			// preferred family
+				// preferred family
 			case 17:
 				// preferred full name
+			case 6: // thnx lordkiron!
+				// Postscript name for the font
 				entry.needed = true;
 				seek(entry.offset);
 				readBuffer(entry.length);
@@ -1944,7 +1949,7 @@ public class OpenTypeFont implements FontPropertyConstants {
 			FileFontInputStream font = new FileFontInputStream(
 					new File(args[0]));
 			OpenTypeFont s = new OpenTypeFont(font);
-			char[] text = "Hello".toCharArray();
+			char[] text = "Hello!".toCharArray();
 			s.play(text, 0, text.length);
 			byte[] result = s.getSubsettedFont();
 			OutputStream out = new FileOutputStream(new File(args[1]));

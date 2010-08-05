@@ -34,16 +34,14 @@ import java.io.OutputStream;
 
 public class PageMapResource extends Resource {
 
-	Publication owner;
-	
 	PageMapResource(Publication owner, String name) {
-		super(name, "application/oebps-page-map+xml", null);
-		this.owner = owner;
+		super(owner, name, "application/oebps-page-map+xml", null);
 	}
 
 	public void serialize(OutputStream out) throws IOException {
-		owner.toc.serializePageMap(this, out);
+		NCXResource toc = epub.getTOC();
+		if (toc != null)
+			toc.serializePageMap(this, out);
 	}
-	
-	
+
 }

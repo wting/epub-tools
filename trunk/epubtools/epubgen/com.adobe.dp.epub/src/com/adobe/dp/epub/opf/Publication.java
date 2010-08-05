@@ -39,17 +39,29 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.Stack;
 import java.util.Vector;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+
+import org.xml.sax.Attributes;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+import org.xml.sax.XMLReader;
+import org.xml.sax.helpers.DefaultHandler;
+
+import com.adobe.dp.epub.dtd.EPUBEntityResolver;
+import com.adobe.dp.epub.io.ContainerSource;
 import com.adobe.dp.epub.io.ContainerWriter;
 import com.adobe.dp.epub.io.DataSource;
+import com.adobe.dp.epub.io.ZipContainerSource;
 import com.adobe.dp.epub.ncx.TOCEntry;
+import com.adobe.dp.epub.ops.OPSDocument;
 import com.adobe.dp.epub.otf.FontEmbeddingReport;
 import com.adobe.dp.epub.otf.FontSubsetter;
 import com.adobe.dp.epub.util.TOCLevel;
@@ -92,6 +104,8 @@ public class Publication {
 
 	Hashtable resourcesByName = new Hashtable();
 
+	Hashtable resourceRefsByName = new Hashtable();
+
 	Hashtable resourcesById = new Hashtable();
 
 	Hashtable namingIndices = new Hashtable();
@@ -100,9 +114,9 @@ public class Publication {
 
 	Vector metadata = new Vector();
 
-	NCXResource toc;
+	Resource toc; // can be unparsed
 
-	OPFResource opf;
+	OPFResource opf; // has to be parsed!
 
 	int idCount = 1;
 
@@ -113,6 +127,8 @@ public class Publication {
 	private byte[] adobeMask;
 
 	PageMapResource pageMap;
+
+	ContainerSource containerSource;
 
 	static class SimpleMetadata {
 
@@ -148,17 +164,54 @@ public class Publication {
 	}
 
 	/**
-	 * Create a new empty EPUB document by reading it from a file. This method
-	 * is under development and not functional yet.
+	 * Create a new EPUB document by reading it from a file.
 	 */
-	public Publication(File file) throws IOException {
-		ZipFile zip = new ZipFile(file);
-		ZipEntry container = zip.getEntry("META-INF/container.xml");
-		if (container == null)
+	public Publication(File file) throws Exception {
+		this(new ZipContainerSource(file));
+	}
+
+	public Publication(ContainerSource containerSource) throws Exception {
+		this.containerSource = containerSource;
+		DataSource cont = containerSource.getDataSource("META-INF/container.xml");
+		if (cont == null)
 			throw new IOException("Not an EPUB file: META-INF/container.xml missing");
-		String opfName = processOCF(zip.getInputStream(container));
+		String opfName = processOCF(cont.getInputStream());
 		opf = new OPFResource(this, opfName);
-		opf.parse(zip.getInputStream(zip.getEntry(opfName)));
+		resourcesByName.put(opfName, opf);
+		opf.load(containerSource, opfName);
+		Iterator entries = containerSource.getResourceList();
+		while (entries.hasNext()) {
+			String name = (String) entries.next();
+			if (name.startsWith("META-INF/") || name.equals("mimetype") || name.equals(opfName))
+				continue;
+			if (resourcesByName.get(name) == null) {
+				loadMissingResource(name);
+			}
+		}
+	}
+
+	private void loadMissingResource(String name) throws Exception {
+		String s = name.toLowerCase();
+		if (s.endsWith(".jpeg") || s.endsWith(".jpg"))
+			loadResource(name, "image/jpeg");
+		else if (s.endsWith(".png"))
+			loadResource(name, "image/png");
+		else if (s.endsWith(".gif"))
+			loadResource(name, "image/gif");
+		else if (s.endsWith(".xml"))
+			loadResource(name, "text/xml");
+		else if (s.endsWith(".opf"))
+			; // ignore
+		else if (s.endsWith(".ncx"))
+			loadResource(name, "application/x-dtbncx+xml");
+		else if (s.endsWith(".svg"))
+			loadResource(name, "image/svg+xml");
+		else if (s.endsWith(".htm") || s.endsWith(".html") || s.endsWith(".xhtml"))
+			loadResource(name, "application/xhtml+xml");
+		else if (s.endsWith(".ttf") || s.endsWith(".otf"))
+			loadResource(name, "application/vnd.ms-opentype");
+		else
+			loadResource(name, "application/octet-stream");
 	}
 
 	/**
@@ -194,10 +247,6 @@ public class Publication {
 	 */
 	public void useIDPFFontMangling() {
 		useIDPFFontMangling = true;
-	}
-
-	private static String processOCF(InputStream ocfStream) throws IOException {
-		throw new IOException("Not yet implemented");
 	}
 
 	/**
@@ -302,7 +351,10 @@ public class Publication {
 	 * @return table-of-content resource
 	 */
 	public NCXResource getTOC() {
-		return toc;
+		if (!(toc instanceof NCXResource)) {
+			return null;
+		}
+		return (NCXResource) toc;
 	}
 
 	/**
@@ -383,6 +435,10 @@ public class Publication {
 		metadata.add(new SimpleMetadata(ns, name, value));
 	}
 
+	public void addPrimaryIdentifier(String value) {
+		metadata.add(0, new SimpleMetadata(OPFResource.dcns, "identifier", value));
+	}
+
 	private String getAdobePrimaryUUID() {
 		Iterator it = metadata.iterator();
 		while (it.hasNext()) {
@@ -457,23 +513,40 @@ public class Publication {
 	 * @return new OPSResource
 	 */
 	public OPSResource createOPSResource(String name) {
+		if (resourcesByName.get(name) != null)
+			throw new RuntimeException("Resource already exists: " + name);
 		return createOPSResource(name, "application/xhtml+xml");
 	}
 
 	public OPSResource createOPSResource(String name, String mediaType) {
-		OPSResource resource = new OPSResource(name, mediaType);
+		if (resourcesByName.get(name) != null)
+			throw new RuntimeException("Resource already exists: " + name);
+		OPSResource resource = new OPSResource(this, name, mediaType);
 		resourcesByName.put(name, resource);
 		return resource;
 	}
 
 	public void removeResource(Resource r) {
 		resourcesByName.remove(r.name);
+		if (r.id != null) {
+			resourcesById.remove(r.id);
+			r.id = null;
+		}
+		if (toc == r)
+			toc = null;
 	}
 
 	public void renameResource(Resource r, String newName) {
+		if (resourcesByName.get(newName) != null)
+			throw new RuntimeException("Resource already exists: " + newName);
 		resourcesByName.remove(r.name);
+		ResourceRef ref = (ResourceRef) resourceRefsByName.remove(r.name);
 		r.name = newName;
 		resourcesByName.put(newName, r);
+		if (ref != null) {
+			ref.name = newName;
+			resourceRefsByName.put(newName, ref);
+		}
 	}
 
 	/**
@@ -488,7 +561,9 @@ public class Publication {
 	 * @return new BitmapImageResource
 	 */
 	public BitmapImageResource createBitmapImageResource(String name, String mediaType, DataSource data) {
-		BitmapImageResource resource = new BitmapImageResource(name, mediaType, data);
+		if (resourcesByName.get(name) != null)
+			throw new RuntimeException("Resource already exists: " + name);
+		BitmapImageResource resource = new BitmapImageResource(this, name, mediaType, data);
 		resourcesByName.put(name, resource);
 		return resource;
 	}
@@ -501,7 +576,9 @@ public class Publication {
 	 * @return new StyleResource
 	 */
 	public StyleResource createStyleResource(String name) {
-		StyleResource resource = new StyleResource(name);
+		if (resourcesByName.get(name) != null)
+			throw new RuntimeException("Resource already exists: " + name);
+		StyleResource resource = new StyleResource(this, name);
 		resourcesByName.put(name, resource);
 		return resource;
 	}
@@ -517,8 +594,10 @@ public class Publication {
 	 *            resource data
 	 * @return new Resource
 	 */
-	public Resource createResource(String name, String mediaType, DataSource data) {
-		Resource resource = new Resource(name, mediaType, data);
+	public Resource createGenericResource(String name, String mediaType, DataSource data) {
+		if (resourcesByName.get(name) != null)
+			throw new RuntimeException("Resource already exists: " + name);
+		Resource resource = new Resource(this, name, mediaType, data);
 		resourcesByName.put(name, resource);
 		return resource;
 	}
@@ -535,6 +614,8 @@ public class Publication {
 	 * @return new FontResource
 	 */
 	public FontResource createFontResource(String name, DataSource data) {
+		if (resourcesByName.get(name) != null)
+			throw new RuntimeException("Resource already exists: " + name);
 		FontResource resource = new FontResource(this, name, data);
 		resourcesByName.put(name, resource);
 		return resource;
@@ -611,6 +692,18 @@ public class Publication {
 
 	/**
 	 * Add embedded font resources to this Publication and add corresponding
+	 * &#064;font-face rules for the embedded fonts to a newly created
+	 * stylesheet. Fonts are taken from the default font locator (see
+	 * {@link DefaultFontLocator.getInstance}).
+	 */
+	public FontEmbeddingReport addFonts() {
+		String name = makeUniqueResourceName((contentFolder == null ? "" : contentFolder + "/") + "fonts.css");
+		StyleResource styleResource = createStyleResource(name);
+		return addFonts(styleResource, DefaultFontLocator.getInstance(), true);
+	}
+
+	/**
+	 * Add embedded font resources to this Publication and add corresponding
 	 * &#064;font-face rules for the embedded fonts. Fonts are taken from the
 	 * supplied font locator.
 	 * 
@@ -620,13 +713,32 @@ public class Publication {
 	 *            FontLocator object to lookup font files
 	 */
 	public FontEmbeddingReport addFonts(StyleResource styleResource, FontLocator locator) {
+		return addFonts(styleResource, locator, false);
+	}
+
+	/**
+	 * Add embedded font resources to this Publication and add corresponding
+	 * &#064;font-face rules for the embedded fonts. Fonts are taken from the
+	 * supplied font locator.
+	 * 
+	 * @param styleResource
+	 *            style resource where &#064;font-face rules will be added
+	 * @param fontLocator
+	 *            FontLocator object to lookup font files
+	 * @param addStyle
+	 *            If a reference to the style resource should be automatically
+	 *            added to each OPS resource
+	 */
+	public FontEmbeddingReport addFonts(StyleResource styleResource, FontLocator locator, boolean addStyle) {
 		FontSubsetter subsetter = new FontSubsetter(this, styleResource, locator);
 		Iterator res = resources();
 		while (res.hasNext()) {
 			Object next = res.next();
 			if (next instanceof OPSResource) {
 				OPSResource ops = (OPSResource) next;
-				ops.getDocument().addFonts(subsetter, styleResource);
+				OPSDocument doc = ops.getDocument();
+				doc.addStyleResource(styleResource.getResourceRef());
+				doc.addFonts(subsetter, styleResource);
 			}
 		}
 		subsetter.addFonts(this);
@@ -707,7 +819,9 @@ public class Publication {
 	 */
 	public void serialize(ContainerWriter container) throws IOException {
 		getPrimaryIdentifier(); // if no unique id, make one
-		toc.prepareTOC();
+		NCXResource ncx = getTOC();
+		if (ncx != null)
+			ncx.prepareTOC();
 		Iterator spine = spine();
 		int playOrder = 0;
 		while (spine.hasNext()) {
@@ -785,26 +899,192 @@ public class Publication {
 		ser.endDocument();
 		container.close();
 	}
-	
+
 	public void cascadeStyles() {
 		Enumeration names = resourcesByName.keys();
 		while (names.hasMoreElements()) {
 			String name = (String) names.nextElement();
 			Resource res = (Resource) resourcesByName.get(name);
-			if( res instanceof OPSResource ) {
-				((OPSResource)res).getDocument().cascadeStyles();
+			if (res instanceof OPSResource) {
+				((OPSResource) res).getDocument().cascadeStyles();
 			}
-		}		
+		}
 	}
-	
+
 	public void generateStyles(StyleResource styleResource) {
 		Enumeration names = resourcesByName.keys();
 		while (names.hasMoreElements()) {
 			String name = (String) names.nextElement();
 			Resource res = (Resource) resourcesByName.get(name);
-			if( res instanceof OPSResource ) {
-				((OPSResource)res).getDocument().generateStyles(styleResource.getStylesheet());
+			if (res instanceof OPSResource) {
+				((OPSResource) res).getDocument().generateStyles(styleResource.getStylesheet());
 			}
-		}		
+		}
 	}
+
+	static class OCFHandler extends DefaultHandler {
+
+		String opf;
+
+		public void startElement(String uri, String localName, String name, Attributes attributes) throws SAXException {
+			if (opf != null)
+				return;
+			if (uri.equals(ocfns) && localName.equals("rootfile")) {
+				String path = attributes.getValue("full-path");
+				String type = attributes.getValue("media-type");
+				if (type != null && type.equals(OPFResource.opfmedia))
+					opf = path;
+			}
+		}
+	}
+
+	private static String processOCF(InputStream ocfStream) throws Exception {
+		SAXParserFactory factory = SAXParserFactory.newInstance();
+		factory.setNamespaceAware(true);
+		SAXParser parser = factory.newSAXParser();
+		XMLReader reader = parser.getXMLReader();
+		OCFHandler handler = new OCFHandler();
+		reader.setContentHandler(handler);
+		reader.setEntityResolver(EPUBEntityResolver.instance);
+		InputSource source = new InputSource(ocfStream);
+		reader.parse(source);
+		if (handler.opf == null)
+			throw new RuntimeException("No OPF file found");
+		return handler.opf;
+	}
+
+	Resource loadResource(String href, String mediaType) throws Exception {
+		DataSource data = containerSource.getDataSource(href);
+		if (data == null)
+			return null;
+		return createGenericResource(href, mediaType, data);
+	}
+
+	public Resource parseResource(Resource res) {
+		Resource r = parseResourceRaw(res);
+		if (r != null) {
+			resourcesByName.put(res.getName(), r);
+			int spineIndex = spine.indexOf(res);
+			if (spineIndex >= 0)
+				spine.set(spineIndex, r);
+			if (res == toc)
+				toc = r;
+			if (res.id != null) {
+				r.id = res.id;
+				resourcesById.put(res.id, r);
+			}
+		}
+		return r;
+	}
+
+	private Resource parseResourceRaw(Resource res) {
+		if (res.getClass() != Resource.class)
+			return null;
+		String mediaType = res.getMediaType();
+		DataSource data = res.source;
+		String href = res.getName();
+		try {
+			if (mediaType.equals("application/xhtml+xml") || mediaType.equals("image/svg+xml")
+					|| mediaType.equals("text/html")) {
+				if (mediaType.equals("text/html"))
+					mediaType = "application/xhtml+xml";
+				OPSResource resource = new OPSResource(this, href, mediaType);
+				resource.load(data);
+				return resource;
+			}
+			if (mediaType.equals("application/x-dtbncx+xml")) {
+				NCXResource toc = new NCXResource(this, href);
+				resourcesByName.put(href, toc);
+				toc.load(data);
+				return toc;
+			}
+			if (mediaType.equals("text/css")) {
+				StyleResource resource = new StyleResource(this, href);
+				resource.load(data);
+				return resource;
+			}
+			if (mediaType.startsWith("image/"))
+				return new BitmapImageResource(this, href, mediaType, data);
+			if (mediaType.equals("application/vnd.ms-opentype"))
+				return new FontResource(this, href, data);
+			if (mediaType.equals("application/octet-stream")) {
+				String s = href.toLowerCase();
+				if (s.endsWith(".ttf") || s.endsWith(".otf"))
+					return new FontResource(this, href, data);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	public ResourceRef getResourceRef(String name) {
+		ResourceRef ref = (ResourceRef) resourceRefsByName.get(name);
+		if (ref == null) {
+			ref = new ResourceRef(this, name);
+			resourceRefsByName.put(name, ref);
+		}
+		return ref;
+	}
+
+	public void parseSpine() {
+		for (int i = 0; i < spine.size(); i++) {
+			Resource r = (Resource) spine.get(i);
+			try {
+				parseResource(r);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	public void parseAll() {
+		Vector resources = new Vector();
+		resources.addAll(resourcesByName.values());
+		Iterator list = resources.iterator();
+		while (list.hasNext()) {
+			Resource r = (Resource) list.next();
+			try {
+				parseResource(r);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	/**
+	 * Apply existing stylesheets, refactor all properties into new CSS classes,
+	 * remove all existing stylesheets and create a single one in place of them.
+	 */
+	public StyleResource refactorStyles() {
+		cascadeStyles();
+		HashSet resources = new HashSet();
+		Iterator list = resourcesByName.values().iterator();
+		while (list.hasNext()) {
+			Resource r = (Resource) list.next();
+			if (r instanceof StyleResource) {
+				resources.add(r);
+			}
+		}
+		String name = makeUniqueResourceName((contentFolder == null ? "" : contentFolder + "/") + "common.css");
+		StyleResource styleResource = createStyleResource(name);
+		list = resources.iterator();
+		while (list.hasNext()) {
+			removeResource((Resource) list.next());
+		}
+		list = resourcesByName.values().iterator();
+		while (list.hasNext()) {
+			Object next = list.next();
+			if (next instanceof OPSResource) {
+				OPSResource ops = (OPSResource) next;
+				OPSDocument doc = ops.getDocument();
+				doc.removeAllStyleResources();
+				doc.setAssignStylesFlag();
+				doc.addStyleResource(styleResource.getResourceRef());
+				doc.generateStyles(styleResource.getStylesheet());
+			}
+		}
+		return styleResource;
+	}
+
 }

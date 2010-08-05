@@ -35,18 +35,20 @@ import java.io.OutputStream;
 import java.util.Stack;
 import java.util.Vector;
 
+import com.adobe.dp.epub.io.DataSource;
 import com.adobe.dp.epub.ops.OPSDocument;
 
 public class OPSResource extends Resource {
 
+	
 	OPSDocument document;
 
-	OPSResource(String name) {
-		super(name, "application/xhtml+xml", null);
+	OPSResource(Publication epub, String name) {
+		super(epub, name, "application/xhtml+xml", null);
 	}
 
-	OPSResource(String name, String mediaType) {
-		super(name, mediaType, null);
+	OPSResource(Publication epub, String name, String mediaType) {
+		super(epub, name, mediaType, null);
 	}
 
 	public OPSDocument getDocument() {
@@ -84,5 +86,10 @@ public class OPSResource extends Resource {
 
 	public void serialize(OutputStream out) throws IOException {
 		getDocument().serialize(out);
+	}
+
+	public void load(DataSource data) throws Exception {
+		document = new OPSDocument(this);
+		document.load(data);
 	}
 }

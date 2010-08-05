@@ -31,13 +31,27 @@
 package com.adobe.dp.epub.ops;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Vector;
 
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+import org.xml.sax.XMLReader;
+
+import com.adobe.dp.css.CSSStylesheet;
 import com.adobe.dp.css.CascadeEngine;
+import com.adobe.dp.epub.dtd.EPUBEntityResolver;
+import com.adobe.dp.epub.io.DataSource;
 import com.adobe.dp.epub.opf.OPSResource;
+import com.adobe.dp.epub.opf.Resource;
+import com.adobe.dp.epub.opf.ResourceRef;
 import com.adobe.dp.epub.opf.StyleResource;
 import com.adobe.dp.epub.otf.FontSubsetter;
 import com.adobe.dp.epub.style.Stylesheet;
@@ -63,6 +77,8 @@ public class OPSDocument {
 	public static final String svgns = "http://www.w3.org/2000/svg";
 
 	public static final String xlinkns = "http://www.w3.org/1999/xlink";
+
+	public static final String xmlns = "http://www.w3.org/XML/1998/namespace";
 
 	public OPSDocument(OPSResource resource) {
 		this.resource = resource;
@@ -91,6 +107,11 @@ public class OPSDocument {
 		if (e.id != null)
 			idMap.remove(e.id);
 		Element old = (Element) idMap.put(id, e);
+		ResourceRef ref = resource.getResourceRef();
+		XRef xref = ref.takeOverUnresolvedXRef(id);
+		if (xref != null) {
+			xref.targetElement = e;
+		}
 		e.id = id;
 		if (old != null) {
 			old.id = null;
@@ -122,15 +143,24 @@ public class OPSDocument {
 		return styleResources.iterator();
 	}
 
-	public void addStyleResource(StyleResource style) {
-		if( style == null )
+	public void addStyleResource(ResourceRef style) {
+		if (style == null)
 			throw new IllegalArgumentException("null style");
 		styleResources.add(style);
 	}
 
+	public void addStyleResource(Resource style) {
+		if (style == null)
+			throw new IllegalArgumentException("null style");
+		styleResources.add(style.getResourceRef());
+	}
+
 	public XRef getRootXRef() {
-		if (rootXRef == null)
-			rootXRef = new XRef(resource, null);
+		if (rootXRef == null) {
+			rootXRef = resource.getResourceRef().takeOverUnresolvedXRef(null);
+			if (rootXRef == null)
+				rootXRef = new XRef(resource, (Element) null);
+		}
 		return rootXRef;
 	}
 
@@ -159,7 +189,7 @@ public class OPSDocument {
 	}
 
 	public void addFonts(FontSubsetter subsetter, StyleResource styleResource) {
-		if (!styleResources.contains(styleResource))
+		if (!styleResources.contains(styleResource.getResourceRef()))
 			return;
 		subsetter.setStyles(styleResources);
 		body.addFonts(subsetter);
@@ -198,8 +228,17 @@ public class OPSDocument {
 		CascadeEngine engine = new CascadeEngine();
 		Iterator s = styleResources();
 		while (s.hasNext()) {
-			StyleResource sr = (StyleResource) s.next();
-			engine.add(sr.getStylesheet().getCSS(), null);
+			ResourceRef ref = (ResourceRef) s.next();
+			Resource r = ref.getResource();
+			if (r instanceof StyleResource) {
+				StyleResource sr = (StyleResource) r;
+				Stylesheet stylesheet = sr.getStylesheet();
+				if (stylesheet != null) {
+					CSSStylesheet css = stylesheet.getCSS();
+					if (css != null)
+						engine.add(css, null);
+				}
+			}
 		}
 
 		// TODO: SVG style elements
@@ -220,14 +259,18 @@ public class OPSDocument {
 		getBody().generateStyles(stylesheet);
 	}
 
+	public void setAssignStylesFlag() {
+		getBody().setAssignStylesFlag();
+	}
+
 	public void serialize(XMLSerializer ser) {
 		ser.startDocument("1.0", "UTF-8");
 		boolean isSVG = resource.getMediaType().equals("image/svg+xml");
 		if (isSVG) {
 			Iterator s = styleResources();
 			while (s.hasNext()) {
-				StyleResource sr = (StyleResource) s.next();
-				String href = resource.makeReference(sr, null);
+				ResourceRef sr = (ResourceRef) s.next();
+				String href = resource.makeReference(sr.getResourceName(), null);
 				ser.processingInstruction("xml-stylesheet", "href=\"" + href + "\" type=\"text/css\"");
 			}
 			getBody().serialize(ser);
@@ -241,8 +284,8 @@ public class OPSDocument {
 			ser.newLine();
 			Iterator s = styleResources();
 			while (s.hasNext()) {
-				StyleResource sr = (StyleResource) s.next();
-				String href = resource.makeReference(sr, null);
+				ResourceRef sr = (ResourceRef) s.next();
+				String href = resource.makeReference(sr.getResourceName(), null);
 				SMapImpl attr = new SMapImpl();
 				attr.put(null, "rel", "stylesheet");
 				attr.put(null, "type", "text/css");
@@ -259,5 +302,35 @@ public class OPSDocument {
 		}
 		ser.newLine();
 		ser.endDocument();
+	}
+
+	public void load(DataSource data) throws IOException {
+		OPSDocumentBuilder builder = new OPSDocumentBuilder(this);
+		InputStream in = data.getInputStream();
+		SAXParserFactory factory = SAXParserFactory.newInstance();
+		factory.setNamespaceAware(true);
+		try {
+			SAXParser parser = factory.newSAXParser();
+			XMLReader reader = parser.getXMLReader();
+			reader.setContentHandler(builder);
+			reader.setEntityResolver(EPUBEntityResolver.instance);
+			InputSource source = new InputSource(in);
+			reader.parse(source);
+		} catch (ParserConfigurationException e) {
+			e.printStackTrace();
+			throw new RuntimeException(e.toString());
+		} catch (SAXException e) {
+			throw new IOException("XML Syntax error in " + resource.getName() + ": " + e.getMessage());
+		} finally {
+			try {
+				in.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	public void removeAllStyleResources() {
+		styleResources.clear();
 	}
 }

@@ -421,7 +421,7 @@ public class RTFConverter {
 			}
 			DataSource dataSource = new StringDataSource(svg.getSVG());
 			String resName = epub.makeUniqueResourceName(mediaFolder + "pict.svg");
-			res = epub.createResource(resName, "image/svg+xml", dataSource);
+			res = epub.createGenericResource(resName, "image/svg+xml", dataSource);
 		} else
 			return;
 		ImageElement imageElement = chapter.createImageElement("img");

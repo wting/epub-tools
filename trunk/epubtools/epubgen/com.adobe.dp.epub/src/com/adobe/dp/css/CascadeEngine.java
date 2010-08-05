@@ -4,9 +4,11 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.HashMap;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringTokenizer;
 import java.util.Vector;
 
 import javax.xml.parsers.SAXParser;
@@ -29,6 +31,10 @@ public class CascadeEngine {
 	CascadeResult result;
 
 	Vector matcherLists = new Vector();
+
+	Hashtable classMap = new Hashtable();
+
+	Hashtable tagMap = new Hashtable();
 
 	int depth;
 
@@ -62,8 +68,7 @@ public class CascadeEngine {
 			// CascadeValue is internal and should never be left in public rules
 			throw new RuntimeException("unexpected call");
 		}
-		
-		
+
 	}
 
 	static class MatcherList {
@@ -78,15 +83,17 @@ public class CascadeEngine {
 			this.mediaList = mediaList;
 		}
 
-		void addSelectorRule(SelectorRule rule, int depth, int order) {
+		void addSelectorRule(SelectorRule rule, int depth, int order, boolean addSimpleSelectors) {
 			for (int i = 0; i < rule.selectors.length; i++) {
 				Selector s = rule.selectors[i];
-				ElementMatcher matcher = s.getElementMatcher();
-				while (depth > 0) {
-					matcher.pushElement(null, "*", null);
-					depth--;
+				if (addSimpleSelectors || !(isClassSelector(s) || isTagSelector(s))) {
+					ElementMatcher matcher = s.getElementMatcher();
+					while (depth > 0) {
+						matcher.pushElement(null, "*", null);
+						depth--;
+					}
+					matchers.add(new MatcherRule(matcher, rule, order));
 				}
-				matchers.add(new MatcherRule(matcher, rule, order));
 			}
 		}
 	}
@@ -110,13 +117,48 @@ public class CascadeEngine {
 
 	}
 
+	private static boolean isClassSelector(Selector s) {
+		return s instanceof ClassSelector;
+	}
+
+	private static boolean isTagSelector(Selector s) {
+		return s instanceof NamedElementSelector;
+	}
+
+	private void collectSimpleSelectors(SelectorRule rule, int order) {
+		for (int i = 0; i < rule.selectors.length; i++) {
+			Selector s = rule.selectors[i];
+			if (isClassSelector(s)) {
+				ClassSelector cs = (ClassSelector) s;
+				Vector list = (Vector) classMap.get(cs.className);
+				if (list == null) {
+					list = new Vector();
+					classMap.put(cs.className, list);
+				}
+				list.add(new MatcherRule(cs.getElementMatcher(), rule, order));
+			} else if (isTagSelector(s)) {
+				NamedElementSelector ns = (NamedElementSelector) s;
+				Vector list = (Vector) tagMap.get(ns.getElementName());
+				if (list == null) {
+					list = new Vector();
+					tagMap.put(ns.getElementName(), list);
+				}
+				list.add(new MatcherRule(ns.getElementMatcher(), rule, order));
+			}
+		}
+	}
+
 	public void add(CSSStylesheet stylesheet, Set mediaList) {
 		MatcherList ml = new MatcherList(stylesheet, mediaList);
 		Iterator statements = stylesheet.statements.iterator();
 		while (statements.hasNext()) {
 			Object statement = statements.next();
 			if (statement instanceof SelectorRule) {
-				ml.addSelectorRule((SelectorRule) statement, depth, order++);
+				SelectorRule sr = (SelectorRule) statement;
+				if (mediaList == null) {
+					collectSimpleSelectors(sr, order);
+				}
+				ml.addSelectorRule(sr, depth, order++, mediaList != null);
 			}
 		}
 		matcherLists.add(ml);
@@ -132,14 +174,14 @@ public class CascadeEngine {
 	}
 
 	private void applyRule(int specificity, int order, BaseRule rule, String pseudoElement, Set mediaList) {
-		if( rule == null || rule.properties == null )
+		if (rule == null || rule.properties == null)
 			return;
 		Iterator entries = rule.properties.entrySet().iterator();
 		while (entries.hasNext()) {
 			Map.Entry entry = (Map.Entry) entries.next();
 			String prop = (String) entry.getKey();
 			int importance = 0;
-			CSSValue value = (CSSValue)entry.getValue();
+			CSSValue value = (CSSValue) entry.getValue();
 			if (value instanceof CSSImportant)
 				importance = 1;
 			Iterator it = (mediaList == null ? null : mediaList.iterator());
@@ -162,6 +204,42 @@ public class CascadeEngine {
 		}
 	}
 
+	private void applyClassRules(String ns, String name, SMap attrs) {
+		if (attrs != null) {
+			String classAttr = ClassElementMatcher.getClassAttribute(ns, name);
+			if (classAttr != null) {
+				Object classStr = attrs.get(null, classAttr);
+				if (classStr != null) {
+					StringTokenizer tok = new StringTokenizer(classStr.toString(), " ");
+					while (tok.hasMoreTokens()) {
+						String className = tok.nextToken();
+						Vector list = (Vector) classMap.get(className);
+						if (list != null) {
+							int len = list.size();
+							for (int i = 0; i < len; i++) {
+								MatcherRule mr = (MatcherRule) list.get(i);
+								applyRule(mr.matcher.getSelector(), mr.order, mr.rule, null, null);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	private void applyTagRules(String ns, String name) {
+		Vector list = (Vector) tagMap.get(name);
+		if (list != null) {
+			int len = list.size();
+			for (int i = 0; i < len; i++) {
+				MatcherRule mr = (MatcherRule) list.get(i);
+				NamedElementSelector s = (NamedElementSelector) mr.matcher.getSelector();
+				if (!s.hasElementNamespace() || (ns != null && s.getElementNamespace().equals(ns)))
+					applyRule(s, mr.order, mr.rule, null, null);
+			}
+		}
+	}
+
 	/**
 	 * Styles an element with a given namespace, name and attributes
 	 * 
@@ -175,6 +253,8 @@ public class CascadeEngine {
 	public void pushElement(String ns, String name, SMap attrs) {
 		depth++;
 		result = new CascadeResult();
+		applyTagRules(ns, name);
+		applyClassRules(ns, name, attrs);
 		Iterator mli = matcherLists.iterator();
 		while (mli.hasNext()) {
 			MatcherList ml = (MatcherList) mli.next();
@@ -243,7 +323,6 @@ public class CascadeEngine {
 								ElementProperties rm = r.getPropertiesForMedia(media);
 								rm.getPropertySetForPseudoElement(pseudoElement).set(property, value);
 							}
-
 						}
 					}
 				}

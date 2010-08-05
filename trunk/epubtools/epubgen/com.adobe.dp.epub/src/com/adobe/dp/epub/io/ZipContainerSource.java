@@ -33,6 +33,9 @@ package com.adobe.dp.epub.io;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Enumeration;
+import java.util.Iterator;
+import java.util.Vector;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
@@ -40,6 +43,7 @@ import java.util.zip.ZipFile;
 public class ZipContainerSource extends ContainerSource {
 
 	ZipFile zip;
+	Vector entryList;
 
 	public ZipContainerSource(File zip) throws ZipException, IOException {
 		this.zip = new ZipFile(zip);
@@ -70,4 +74,18 @@ public class ZipContainerSource extends ContainerSource {
 		return new DataSourceImpl(entry);
 	}
 
+	public Iterator getResourceList() {
+		if( entryList == null ) {
+			entryList = new Vector();
+			Enumeration entries = zip.entries();
+			while( entries.hasMoreElements() )
+			{
+				ZipEntry entry = (ZipEntry)entries.nextElement();
+				String name = entry.getName();
+				entryList.add(name);
+			}
+		}
+		return entryList.iterator();
+	}
+	
 }
