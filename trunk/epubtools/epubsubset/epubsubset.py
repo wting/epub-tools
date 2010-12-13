@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os, os.path
+import os, os.path, fnmatch
 import logging
 import zipfile           
 import cssutils
@@ -23,18 +23,29 @@ def subset_font(font_file, font_subset):
         glyph.clear()
     f.generate(font_file)
 
-def read_epub(epub_file):
+def read_epub(epub_file, epub_target = None):
     '''Open an EPUB archive and take a look at its manifest,
         grabbing any stylesheets or content'''
 
     # Open up epub zip archive 
     epub_zip = zipfile.ZipFile(os.path.abspath(epub_file), 'r')
 
-    # Where temporary files will live
-    tmp_root = os.path.abspath('tmp')
-    epub_zip.extractall(tmp_root)
+    # Initialize the new archive
+    if not epub_target:
+        (root, ext) = os.path.splitext(epub_file)
+        new_path = root + ('_subsetted') 
+    else:
+        (root, ext) = os.path.splitext(epub_target)
+        new_path = os.path.abspath(root)
 
-    opf = open(os.path.join(tmp_root, 'OEBPS', 'content.opf'), 'r')
+    epub_zip.extractall(new_path)
+                     
+    for file_name in os.listdir(os.path.join(new_path, 'OEBPS')):
+            if fnmatch.fnmatch(file_name, '*.opf'):
+                manifest_file = file_name
+                break
+
+    opf = open(os.path.join(new_path, 'OEBPS', manifest_file), 'r')
     opf_xml =  etree.parse(opf)
 
     # A dictionary of all stylesheets and font rules
@@ -51,30 +62,29 @@ def read_epub(epub_file):
         # We're only interested in CSS and xhtml+xml files.
         # Embedded fonts could also be grabbed here.
         if item.attrib['media-type'] == 'text/css':
-            css_file = os.path.join(tmp_root, 'OEBPS', href)
+            css_file = os.path.join(new_path, 'OEBPS', href)
             font_properties = parse_css(css_file)
             # href should be unique, and there can be multiple CSS files.
             fonts[href] = font_properties
         elif item.attrib['media-type'] == 'application/xhtml+xml':
-            xhtml_file = open(os.path.join(tmp_root, 'OEBPS', href), 'r')
+            xhtml_file = open(os.path.join(new_path, 'OEBPS', href), 'r')
             # Ultimately, the file must be parsed for real.
             xhtml_str = xhtml_file.read()
             s = set(xhtml_str)
             chars = chars.union(s)
 
-    # Convert to sequence for passing to fontforge
+    # Convert to sequence for passing to fontforge.
     chars = list(chars)
     
     # Do the subsetting.
     for style_file in fonts:
         for rule in fonts[style_file]:
             font_src = re.findall(r'\((.*)\)', rule['src']) 
-            font_file = os.path.join(tmp_root, 'OEBPS', font_src[0])
+            font_file = os.path.join(new_path, 'OEBPS', font_src[0])
             subset_font(font_file, chars)
 
-            # Now rezip and delete the files fontforge worked on. This doesn't seem smart.
-            make_epub(tmp_root)
-            shutil.move('tmp.epub', epub_file)
+    # Rezip the new EPUB.
+    make_epub(new_path)
             
 def make_epub(path):            
     '''Make an epub archive using epubtools'''
@@ -99,11 +109,24 @@ def parse_css(css_file):
     return fonts
 
 if __name__ == '__main__':
-    parser = OptionParser(usage = "%prog SOURCE [TARGET]")
+    parser = OptionParser(description=' Subset fonts in an EPUB archive.',
+                            usage = "%prog source_file.epub [-f TARGET]")
+
+    # Add option for cusom file name
+    parser.add_option("-f", "--file", dest="filename",
+            help="Write subset EPUB file to FILE", metavar="FILE")
 
     (options, args) = parser.parse_args()
+
     if len(args) == 0:
         parser.error("You must supply at least one EPUB file.")
-       
-    for epub_file in args:
-        read_epub(epub_file)
+    
+    if len(args) == 1:
+            for epub_src in args:
+                if options.filename:
+                    read_epub(epub_src, options.filename)
+                else:
+                    read_epub(epub_src)
+    else:
+        print parser.format_help()
+        quit()
