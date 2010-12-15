@@ -72,23 +72,8 @@ class TestEpubSubset:
         (root, ext) = os.path.splitext(self.FILENAME)
         char_count = self._count_font_glyphs(self.FONTFILE)
         epub.close()
-
+        print char_count
         assert char_count == 2
-    
-    def test_file_unicode_char_two(self):
-        '''
-        A file with one unicode character should have one glyph in the subset font
-        '''
-        epub_file = os.path.join(self.testfiles_dir, 'test-utf8-char-two.epub')  
-        epub = EpubSubset(epub_file, self.FILENAME)
-        epub.subset()
-
-        (root, ext) = os.path.splitext(self.FILENAME)
-        char_count = self._count_font_glyphs(self.FONTFILE)
-        epub.close()
-
-        assert char_count == 2
-
 
     def _count_font_glyphs(self, font_file):
         f = fontforge.open(font_file)
